@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "LaburarNuevo",
-    "slug": "LaburarNuevo",
+    "name": "Nexu",
+    "slug": "nexu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -9,19 +9,53 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#E8785A"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.nexu.app",
+      "associatedDomains": [
+        "applinks:nexu.app",
+        "applinks:nexu.app"
+      ],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
+        "backgroundColor": "#E8785A"
+      },
+      "package": "com.nexu.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "nexu"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-localization"
+    ],
+    "scheme": "nexu",
+    "extra": {
+      "eas": {
+        "projectId": "e9ef9ac8-fcd4-4534-b267-3cfd7b420ea3"
+      }
     }
   }
 }
