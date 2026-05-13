@@ -118,14 +118,46 @@ export default function ConcursaScreen({ navigation, route }) {
   const [busqueda, setBusqueda] = useState('');
   const [modalidad, setModalidad] = useState('todos');
   const [sinPerfil, setSinPerfil] = useState(false);
+  const [resultadosBusqueda, setResultadosBusqueda] = useState([]);
+  const [modoBusqueda, setModoBusqueda] = useState(false);
+  const [buscandoEnBD, setBuscandoEnBD] = useState(false);
 
-  // Aplicar filtros que vienen desde HomeScreen
+  // Consulta real a la BD por texto
+  async function buscarEnBD(termino) {
+    const t = (termino || '').trim();
+    if (!t) { setModoBusqueda(false); setResultadosBusqueda([]); return; }
+    setModoBusqueda(true);
+    setBuscandoEnBD(true);
+    try {
+      const { data } = await supabase
+        .from('concursos')
+        .select('id, pais, numero_llamado, titulo, cargo, organismo, tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre, puestos, url_detalle, url_postulacion')
+        .eq('activo', true)
+        .or(`cargo.ilike.%${t}%,titulo.ilike.%${t}%,organismo.ilike.%${t}%`)
+        .order('created_at', { ascending: false })
+        .limit(60);
+      const hoy = new Date();
+      setResultadosBusqueda((data || []).filter(c => !c.fecha_cierre || new Date(c.fecha_cierre) >= hoy));
+    } catch (_) {}
+    setBuscandoEnBD(false);
+  }
+
+  function limpiarBusqueda() {
+    setBusqueda('');
+    setModoBusqueda(false);
+    setResultadosBusqueda([]);
+  }
+
+  // Aplicar filtros/búsqueda que vienen desde HomeScreen
   useEffect(() => {
     const p = route.params || {};
     if (p.presetFiltro) setFiltroActivo(p.presetFiltro);
     if (p.presetSector) setSector(p.presetSector);
-    if (p.busqueda !== undefined) setBusqueda(p.busqueda || '');
     if (p.presetModalidad) setModalidad(p.presetModalidad);
+    if (p.busqueda) {
+      setBusqueda(p.busqueda);
+      buscarEnBD(p.busqueda);
+    }
   }, [route.params?.presetFiltro, route.params?.presetSector, route.params?.busqueda, route.params?.presetModalidad]);
 
   const cargar = useCallback(async (esRefresh = false) => {
@@ -266,34 +298,37 @@ export default function ConcursaScreen({ navigation, route }) {
     });
   };
 
-  let base = filtroActivo === 'para_vos'
-    ? matches.filter(m => m.cumple)
-    : todos.map(c => matchesPorId[c.id] || { concursos: c, score: 0, cumple: false, keywords_match: [] });
-
-  base = filtrarSector(base, item => item.concursos);
-
-  // Filtro de texto
-  const termino = busqueda.trim().toLowerCase();
-  if (termino) {
-    base = base.filter(item => {
-      const c = item.concursos;
-      const txt = `${c?.cargo||''} ${c?.titulo||''} ${c?.organismo||''} ${c?.descripcion||''}`.toLowerCase();
-      return txt.includes(termino);
-    });
-  }
-
-  // Filtro de modalidad
   const REMOTO_KW = ['remoto', 'teletrabajo', 'home office', 'remote', 'virtual', 'a distancia'];
-  if (modalidad !== 'todos') {
-    base = base.filter(item => {
-      const c = item.concursos;
-      const txt = `${c?.cargo||''} ${c?.titulo||''} ${c?.descripcion||''}`.toLowerCase();
-      const esRemoto = REMOTO_KW.some(w => txt.includes(w));
-      return modalidad === 'teletrabajo' ? esRemoto : !esRemoto;
-    });
-  }
 
-  const mostrados = base;
+  let mostrados;
+  if (modoBusqueda) {
+    // Modo búsqueda: usa resultados de la BD, ignora Para vos / Todos
+    mostrados = resultadosBusqueda
+      .map(c => matchesPorId[c.id] || { concursos: c, score: 0, cumple: false, keywords_match: [] });
+    mostrados = filtrarSector(mostrados, item => item.concursos);
+    if (modalidad !== 'todos') {
+      mostrados = mostrados.filter(item => {
+        const c = item.concursos;
+        const txt = `${c?.cargo||''} ${c?.titulo||''} ${c?.descripcion||''}`.toLowerCase();
+        const esRemoto = REMOTO_KW.some(w => txt.includes(w));
+        return modalidad === 'teletrabajo' ? esRemoto : !esRemoto;
+      });
+    }
+  } else {
+    let base = filtroActivo === 'para_vos'
+      ? matches.filter(m => m.cumple)
+      : todos.map(c => matchesPorId[c.id] || { concursos: c, score: 0, cumple: false, keywords_match: [] });
+    base = filtrarSector(base, item => item.concursos);
+    if (modalidad !== 'todos') {
+      base = base.filter(item => {
+        const c = item.concursos;
+        const txt = `${c?.cargo||''} ${c?.titulo||''} ${c?.descripcion||''}`.toLowerCase();
+        const esRemoto = REMOTO_KW.some(w => txt.includes(w));
+        return modalidad === 'teletrabajo' ? esRemoto : !esRemoto;
+      });
+    }
+    mostrados = base;
+  }
 
   if (cargando && todos.length === 0 && matches.length === 0) {
     return (
@@ -411,21 +446,33 @@ export default function ConcursaScreen({ navigation, route }) {
 
         {/* ── BÚSQUEDA ── */}
         <View style={styles.searchWrap}>
-          <View style={styles.searchBox}>
-            <Text style={{ fontSize: 14, color: COLORS.texto3 }}>🔍</Text>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Buscar por cargo, habilidad..."
-              placeholderTextColor={COLORS.texto3}
-              value={busqueda}
-              onChangeText={setBusqueda}
-              returnKeyType="search"
-            />
-            {busqueda.length > 0 && (
-              <TouchableOpacity onPress={() => setBusqueda('')}>
-                <Text style={{ color: COLORS.texto3, fontSize: 16, paddingHorizontal: 4 }}>×</Text>
-              </TouchableOpacity>
-            )}
+          <View style={styles.searchRow}>
+            <View style={styles.searchBox}>
+              <Text style={{ fontSize: 13, color: COLORS.texto3 }}>🔍</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Buscar en toda la base de datos..."
+                placeholderTextColor={COLORS.texto3}
+                value={busqueda}
+                onChangeText={v => { setBusqueda(v); if (!v.trim()) limpiarBusqueda(); }}
+                returnKeyType="search"
+                onSubmitEditing={() => buscarEnBD(busqueda)}
+              />
+              {busqueda.length > 0 && (
+                <TouchableOpacity onPress={limpiarBusqueda}>
+                  <Text style={{ color: COLORS.texto3, fontSize: 17, paddingHorizontal: 2 }}>×</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity
+              style={[styles.searchBtn, buscandoEnBD && { opacity: 0.6 }]}
+              onPress={() => buscarEnBD(busqueda)}
+              disabled={buscandoEnBD}
+            >
+              {buscandoEnBD
+                ? <ActivityIndicator size="small" color={COLORS.blanco} />
+                : <Text style={styles.searchBtnTxt}>Buscar</Text>}
+            </TouchableOpacity>
           </View>
           <View style={styles.modRow}>
             {[['todos','Cualquiera'], ['presencial','Presencial'], ['teletrabajo','Remoto']].map(([v, l]) => (
@@ -435,6 +482,18 @@ export default function ConcursaScreen({ navigation, route }) {
             ))}
           </View>
         </View>
+
+        {/* ── CABECERA RESULTADOS DE BÚSQUEDA ── */}
+        {modoBusqueda && (
+          <View style={styles.busquedaHeader}>
+            <Text style={styles.busquedaHeaderTxt}>
+              {buscandoEnBD ? 'Buscando...' : `${resultadosBusqueda.length} resultado${resultadosBusqueda.length !== 1 ? 's' : ''} para "${busqueda}"`}
+            </Text>
+            <TouchableOpacity onPress={limpiarBusqueda}>
+              <Text style={styles.busquedaLimpiar}>Limpiar ×</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── SIN PERFIL ── */}
         {sinPerfil && (
@@ -448,17 +507,24 @@ export default function ConcursaScreen({ navigation, route }) {
 
         {/* ── LISTA DE LLAMADOS ── */}
         <View style={styles.lista}>
-          {mostrados.length === 0 && !sinPerfil ? (
+          {mostrados.length === 0 && !sinPerfil && !buscandoEnBD ? (
             <View style={styles.vacio}>
-              <Text style={{ fontSize: 40 }}>🔍</Text>
+              <Text style={{ fontSize: 40 }}>{modoBusqueda ? '🔎' : '🔍'}</Text>
               <Text style={styles.vacioTxt}>
-                {filtroActivo === 'para_vos'
-                  ? 'No encontramos llamados compatibles con tu perfil por ahora.\nProbá ver todos los disponibles.'
-                  : 'No hay llamados disponibles en este momento.'}
+                {modoBusqueda
+                  ? `Sin resultados para "${busqueda}".\nProbá con otra palabra o cambiá el filtro de sector.`
+                  : filtroActivo === 'para_vos'
+                    ? 'No encontramos llamados compatibles con tu perfil por ahora.\nProbá ver todos los disponibles.'
+                    : 'No hay llamados disponibles en este momento.'}
               </Text>
-              {filtroActivo === 'para_vos' && (
+              {!modoBusqueda && filtroActivo === 'para_vos' && (
                 <TouchableOpacity onPress={() => setFiltroActivo('todos')}>
                   <Text style={{ color: COLORS.coral, fontWeight: '700', marginTop: 8 }}>Ver todos →</Text>
+                </TouchableOpacity>
+              )}
+              {modoBusqueda && (
+                <TouchableOpacity onPress={limpiarBusqueda}>
+                  <Text style={{ color: COLORS.coral, fontWeight: '700', marginTop: 8 }}>Limpiar búsqueda →</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -585,13 +651,19 @@ const styles = StyleSheet.create({
 
   // Search
   searchWrap: { paddingHorizontal: SIZES.md, marginTop: 8, marginBottom: 4 },
+  searchRow:  { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   searchBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: COLORS.blanco, borderRadius: SIZES.radiusMd,
     borderWidth: 1, borderColor: COLORS.borde,
-    paddingHorizontal: SIZES.sm, paddingVertical: 8, marginBottom: 8,
+    paddingHorizontal: SIZES.sm, paddingVertical: 8,
   },
-  searchInput: { flex: 1, fontSize: SIZES.textSm, color: COLORS.texto1, paddingHorizontal: 4 },
+  searchInput:   { flex: 1, fontSize: SIZES.textSm, color: COLORS.texto1, paddingHorizontal: 4 },
+  searchBtn:     { backgroundColor: COLORS.coral, borderRadius: SIZES.radiusMd, paddingHorizontal: 14, paddingVertical: 10 },
+  searchBtnTxt:  { color: COLORS.blanco, fontWeight: '800', fontSize: SIZES.textSm },
+  busquedaHeader:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SIZES.md, marginBottom: 4, marginTop: 2 },
+  busquedaHeaderTxt: { fontSize: SIZES.textSm, fontWeight: '700', color: COLORS.texto2 },
+  busquedaLimpiar:   { fontSize: SIZES.textSm, color: COLORS.coral, fontWeight: '700' },
   modRow:     { flexDirection: 'row', gap: 6 },
   modBtn:     { paddingHorizontal: 12, paddingVertical: 4, borderRadius: SIZES.radiusFull, borderWidth: 1, borderColor: COLORS.borde, backgroundColor: 'transparent' },
   modBtnActive:  { backgroundColor: COLORS.indigo, borderColor: COLORS.indigo },
