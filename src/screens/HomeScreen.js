@@ -145,6 +145,8 @@ export default function HomeScreen({ navigation }) {
     nombre: '', activo: false, diasRestantes: 0, vistas: 0, contactos: 0, avatar: null,
   });
   const [concursaStats, setConcursaStats] = useState({ total: 0, proximoCierre: null });
+  const [topMatches, setTopMatches] = useState([]);
+  const [propuestasPendientes, setPropuestasPendientes] = useState(0);
 
   async function cargar() {
     try {
@@ -172,25 +174,39 @@ export default function HomeScreen({ navigation }) {
         avatar: data.avatar_url || null,
       });
 
-      // Traer total de concursos activos del país del worker
       if (data.rol === 'worker' && data.pais) {
         const PAIS_ISO = { 'uruguay':'UY','argentina':'AR','chile':'CL','colombia':'CO','peru':'PE','perú':'PE','brasil':'BR','brazil':'BR','paraguay':'PY' };
         const paisISO = PAIS_ISO[(data.pais||'').toLowerCase().trim()] || data.pais.slice(0,2).toUpperCase();
+
+        // Total concursos activos del país
         const { data: cs } = await supabase
-          .from('concursos')
-          .select('fecha_cierre')
-          .eq('pais', paisISO)
-          .eq('activo', true);
+          .from('concursos').select('fecha_cierre').eq('pais', paisISO).eq('activo', true);
         if (cs) {
           const hoy = new Date();
           const vigentes = cs.filter(c => !c.fecha_cierre || new Date(c.fecha_cierre) >= hoy);
-          const prox = vigentes
-            .filter(c => c.fecha_cierre)
+          const prox = vigentes.filter(c => c.fecha_cierre)
             .map(c => Math.ceil((new Date(c.fecha_cierre) - hoy) / (1000*60*60*24)))
-            .filter(d => d >= 0)
-            .sort((a,b) => a-b)[0] ?? null;
+            .filter(d => d >= 0).sort((a,b) => a-b)[0] ?? null;
           setConcursaStats({ total: vigentes.length, proximoCierre: prox });
         }
+
+        // Top 3 matches para este worker
+        const { data: matches } = await supabase
+          .from('concurso_matches')
+          .select('score, cumple, concursos(cargo, organismo, fecha_cierre, tipo_vinculo, pais)')
+          .eq('worker_id', user.id)
+          .eq('cumple', true)
+          .order('score', { ascending: false })
+          .limit(3);
+        setTopMatches(matches || []);
+
+        // Propuestas pendientes
+        const { count } = await supabase
+          .from('propuestas')
+          .select('id', { count: 'exact', head: true })
+          .eq('worker_id', user.id)
+          .eq('estado', 'pendiente');
+        setPropuestasPendientes(count || 0);
       }
     } catch (e) {}
   }
@@ -225,47 +241,82 @@ export default function HomeScreen({ navigation }) {
             proximoCierre={concursaStats.proximoCierre}
           />
 
-          {/* Sección Para vos */}
+          {/* Propuestas pendientes */}
+          {propuestasPendientes > 0 && (
+            <TouchableOpacity
+              style={styles.alertaBanner}
+              onPress={() => navigation.navigate('Mensajes')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.alertaIcon}>📩</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.alertaTit}>
+                  {propuestasPendientes === 1
+                    ? 'Tenés 1 propuesta pendiente'
+                    : `Tenés ${propuestasPendientes} propuestas pendientes`}
+                </Text>
+                <Text style={styles.alertaSub}>Respondelas antes de que venzan</Text>
+              </View>
+              <Text style={styles.alertaArrow}>›</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Top matches */}
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Para vos</Text>
-            <TouchableOpacity>
+            <Text style={styles.sectionTitle}>
+              {topMatches.length > 0 ? 'Llamados compatibles' : 'Oportunidades'}
+            </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Concursa')}>
               <Text style={styles.verTodo}>Ver todo</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Cards de novedades */}
-          <NovedadCard
-            icon="🏪"
-            company="Supermercado El Dorado"
-            role="Match 92% · Pocitos · Full time"
-            tag="✓ 92% match"
-            tagColor={COLORS.mentaDark}
-            tagBg={COLORS.mentaSoft}
-            btnLabel="Ver"
-            onPress={() => {}}
-          />
+          {topMatches.length > 0 ? topMatches.map((m, i) => {
+            const c = m.concursos;
+            const esPrivado = c?.tipo_vinculo === 'privado';
+            const dias = c?.fecha_cierre
+              ? Math.ceil((new Date(c.fecha_cierre) - new Date()) / (1000*60*60*24))
+              : null;
+            return (
+              <NovedadCard
+                key={i}
+                icon={esPrivado ? '💼' : '🏛️'}
+                company={c?.organismo || (esPrivado ? 'Empresa privada' : 'Organismo público')}
+                role={`${Math.round(m.score)}% compatible${dias !== null ? ` · Cierra en ${dias}d` : ''}`}
+                tag={esPrivado ? 'Sector privado' : 'Sector público'}
+                tagColor={esPrivado ? '#C2410C' : '#1565C0'}
+                tagBg={esPrivado ? '#FFF3E0' : '#E3F2FD'}
+                btnLabel="Ver"
+                btnColor={COLORS.coral}
+                onPress={() => navigation.navigate('Concursa')}
+              />
+            );
+          }) : (
+            <NovedadCard
+              icon="🏛️"
+              company="Sin matches aún"
+              role="Completá tu perfil con profesiones para recibir matches"
+              tag="Completar perfil"
+              tagColor={COLORS.indigo}
+              tagBg={COLORS.indigoSoft}
+              btnLabel="Editar"
+              btnColor={COLORS.indigo}
+              onPress={() => navigation.navigate('EditarPerfil')}
+            />
+          )}
 
-          <NovedadCard
-            icon="👁️"
-            company="Familia Rodríguez"
-            role="Vieron tu perfil · 2h"
-            tag="Buscan mago"
-            tagColor={COLORS.coral}
-            tagBg={COLORS.coralSoft}
-            time="2h"
-          />
-
-          <NovedadCard
-            icon="🏛️"
-            company="Intendencia de Mvd."
-            role="Concurso público · Cierra 14/02"
-            tag="Concurso"
-            tagColor="#D97706"
-            tagBg="#FFFBEB"
-            btnLabel="Ver"
-            btnColor={COLORS.gold}
-            onPress={() => {}}
-          />
+          {/* Vistas del perfil */}
+          {perfil.vistas > 0 && (
+            <NovedadCard
+              icon="👁️"
+              company="Tu perfil fue visto"
+              role={`${perfil.vistas} empleadores vieron tu perfil · ${perfil.contactos} te contactaron`}
+              tag={`${perfil.vistas} vistas`}
+              tagColor={COLORS.coral}
+              tagBg={COLORS.coralSoft}
+              time={`${perfil.contactos} contactos`}
+            />
+          )}
 
         </View>
       </ScrollView>
@@ -448,6 +499,17 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
   },
+
+  alertaBanner: {
+    backgroundColor: '#FFF3E0', borderRadius: SIZES.radiusMd,
+    padding: SIZES.md, flexDirection: 'row', alignItems: 'center',
+    gap: 12, marginBottom: SIZES.md,
+    borderWidth: 1, borderColor: '#FFCC80',
+  },
+  alertaIcon: { fontSize: 24 },
+  alertaTit:  { fontSize: SIZES.textMd, fontWeight: '700', color: '#E65100' },
+  alertaSub:  { fontSize: SIZES.textSm, color: '#BF360C', marginTop: 2 },
+  alertaArrow:{ fontSize: 22, color: '#E65100', fontWeight: '700' },
 
   // Sección
   sectionRow: {

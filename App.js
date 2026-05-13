@@ -14,6 +14,7 @@ import CoachMarkPerfil from "./src/components/CoachMarkPerfil";
 import HomeScreen from "./src/screens/HomeScreen";
 import BuscarScreen from "./src/screens/BuscarScreen";
 import ConcursaScreen from "./src/screens/ConcursaScreen";
+import ConcursaDetalleScreen from "./src/screens/ConcursaDetalleScreen";
 import MensajesScreen from "./src/screens/MensajesScreen";
 import PerfilScreen from "./src/screens/PerfilScreen";
 import PagoScreen from "./src/screens/PagoScreen";
@@ -98,6 +99,15 @@ function PerfilStack(){
   );
 }
 
+function ConcursaStack(){
+  return(
+    <Stack.Navigator screenOptions={{headerShown:false}}>
+      <Stack.Screen name="ConcursaMain" component={ConcursaScreen}/>
+      <Stack.Screen name="ConcursaDetalle" component={ConcursaDetalleScreen}/>
+    </Stack.Navigator>
+  );
+}
+
 function WorkerTabs(){
   const{mensajesSinLeer}=useApp();
   return(
@@ -110,7 +120,7 @@ function WorkerTabs(){
       tabBarIcon:({focused})=><TabIcon name={route.name} focused={focused}/>,
     })}>
       <Tab.Screen name="Inicio" component={HomeStack}/>
-      <Tab.Screen name="Concursa" component={ConcursaScreen}/>
+      <Tab.Screen name="Concursa" component={ConcursaStack}/>
       <Tab.Screen name="Mensajes" component={MensajesStack}
         options={{tabBarBadge:mensajesSinLeer>0?mensajesSinLeer:undefined}}/>
       <Tab.Screen name="Cuenta" component={PerfilStack}/>
