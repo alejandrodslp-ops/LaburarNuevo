@@ -1,5 +1,5 @@
 # Estado del Proyecto — Laburar (Nexu)
-**Última actualización: 13 mayo 2026**
+**Última actualización: 13 mayo 2026 (sesión 2)**
 
 ---
 
@@ -17,9 +17,9 @@ App móvil de empleo para trabajadores y empleadores de Latinoamérica, construi
 | Pantalla | Estado |
 |---|---|
 | Onboarding / Login / Registro | ✅ Completo |
-| HomeScreen (trabajador) | ✅ Renovado hoy |
-| ConcursaScreen | ✅ Renovado |
-| ConcursaDetalleScreen | ✅ Nuevo (creado en sesiones recientes) |
+| HomeScreen (trabajador) | ✅ Renovado — 3 bloques diferenciados |
+| ConcursaScreen | ✅ Renovado — búsqueda real + filtros |
+| ConcursaDetalleScreen | ✅ Completo |
 | MensajesScreen + ChatScreen | ✅ Funcionando |
 | PerfilScreen (trabajador) | ✅ Funcionando |
 | EditarPerfilScreen | ✅ Funcionando |
@@ -31,32 +31,49 @@ App móvil de empleo para trabajadores y empleadores de Latinoamérica, construi
 
 ---
 
-## Lo que hicimos hoy (13 mayo 2026)
+## Historial de cambios
 
-### HomeScreen — reestructurado
-- Tres bloques diferenciados:
-  1. **Concursos públicos** → banner oscuro, muestra conteo de matches públicos (cumple=true), al tocar va directo a ConcursaScreen filtrado en "Para vos → Públicos"
-  2. **Empleos privados** → banner oscuro, muestra conteo de matches privados, al tocar va a "Para vos → Privados". Muestra mini-cards de los top matches privados y públicos debajo
-  3. **Búsqueda específica** → TextInput + chips de modalidad (Cualquiera / Presencial / Teletrabajo) + botón "Buscar →" que navega a ConcursaScreen con el texto y modalidad pre-aplicados
+### 13 mayo 2026 — Sesión 2 (tarde)
 
-### ConcursaScreen — actualizado
-- Lee `route.params` al montar para aplicar filtros que vienen desde HomeScreen (`presetFiltro`, `presetSector`, `busqueda`, `presetModalidad`)
-- Agrega **barra de búsqueda por texto** inline (busca en cargo, título, organismo, descripción)
-- Agrega **filtro de modalidad** inline: Cualquiera / Presencial / Remoto
-- Los filtros de sector ahora muestran emoji: Público 🏛️ / Privado 💼
+#### ConcursaScreen — buscador con consulta real a la BD
+- El buscador ahora consulta **Supabase directamente** en lugar de filtrar los 100 registros ya cargados
+- Busca en `cargo`, `titulo`, `organismo` y `descripcion` con ilike
+- **Normaliza acentos**: escribir `odontologo` encuentra `Odontólogo`, `dentista` encuentra `Dentista`
+- Busca en paralelo la versión con y sin tilde para mayor cobertura
+- Botón "Buscar" + tecla Enter del teclado disparan la consulta
+- Muestra "X resultados para 'término'" con botón "Limpiar ×"
+- Modo búsqueda ignora filtros Para vos/Todos y usa resultados de la BD
 
-### Scraper de ofertas privadas — reescrito
-- Eliminado el scraping con `cheerio` de Computrabajo y Bumeran (devolvían 0 porque usan JavaScript rendering)
-- Nuevo esquema:
-  - **Remotive API** (gratis, sin clave): ya funciona, insertó 19 empleos remotos tech en Supabase
-  - **Computrabajo y Bumeran**: intenta endpoints API internos; si no responden, avisa y continúa
-  - **Adzuna** (gratis con registro): cubre Argentina, Brasil, Chile, Colombia — pendiente configuración
-  - **Jooble** (gratis con registro): agrega LatAm — pendiente configuración
-- Después de insertar, llama automáticamente a `match-concursos { todos: true }` para actualizar "Para vos" de todos los workers
+#### ConcursaScreen — teclado ya no tapa el campo
+- Agregado `KeyboardAvoidingView` (`padding` en iOS, `height` en Android)
+- `keyboardDismissMode="interactive"` para cerrar el teclado arrastrando
+- El campo de búsqueda queda visible al abrir el teclado
 
-### ConcursaDetalleScreen — creado en sesiones anteriores
-- Detalle completo de un llamado: organismo, cargo, lugar, fecha cierre, descripción, requisitos
-- Score y keywords del match del perfil
+---
+
+### 13 mayo 2026 — Sesión 1 (mañana)
+
+#### HomeScreen — tres bloques diferenciados
+1. **Concursos públicos** 🏛️ — muestra cuántos llamados públicos coinciden con el perfil. Al tocar va directo a ConcursaScreen en "Para vos → Público"
+2. **Empleos privados** 💼 — muestra cuántos empleos privados coinciden. Al tocar va a "Para vos → Privado". Muestra mini-cards de los mejores matches de cada sector
+3. **Búsqueda específica** 🔍 — TextInput + chips Presencial/Teletrabajo + botón Buscar → que navega a ConcursaScreen con el término y modalidad pre-aplicados
+
+#### ConcursaScreen — filtros desde HomeScreen + búsqueda inline
+- Lee `route.params` al montar: `presetFiltro`, `presetSector`, `busqueda`, `presetModalidad`
+- Filtros de sector con emoji: Todo / Público 🏛️ / Privado 💼
+- Filtro de modalidad inline: Cualquiera / Presencial / Remoto
+
+#### Scraper de ofertas privadas — reescrito
+- Eliminado el scraping HTML con cheerio (devolvía 0 porque los sites usan JS rendering)
+- **Remotive API** (gratis, sin clave): funciona, insertó 19 empleos remotos tech en Supabase
+- Computrabajo y Bumeran: intenta endpoints API internos; si no responden, avisa claramente
+- **Adzuna** (gratis con registro en developer.adzuna.com): cubre AR/BR/CL/CO — pendiente
+- **Jooble** (gratis, solicitar en jooble.org/api/about): agrega LatAm — pendiente
+- Al finalizar, dispara `match-concursos {todos: true}` para actualizar matches de todos los workers
+
+#### ConcursaDetalleScreen — nuevo (sesiones anteriores)
+- Detalle completo: organismo, cargo, lugar, fecha cierre, descripción, requisitos
+- Score y keywords del match del perfil del usuario
 - Botones "Ver bases completas" y "Postularme →" que abren el link en el navegador
 
 ---
