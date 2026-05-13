@@ -315,3 +315,27 @@ for (const [, fns] of Object.entries(aCorrer)) {
 }
 
 console.log(`\n✅ Total: ${total} ofertas ${TEST_MODE ? 'encontradas (no guardadas)' : 'guardadas en Supabase'}\n`);
+
+// Disparar re-matching para todos los workers activos
+if (!TEST_MODE && total > 0) {
+  console.log('🔄 Disparando matching para todos los workers...');
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/functions/v1/match-concursos`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'apikey': SUPABASE_KEY,
+        },
+        body: JSON.stringify({ todos: true }),
+        signal: AbortSignal.timeout(60000),
+      }
+    );
+    const data = await res.json().catch(() => ({}));
+    console.log(`  ✓ Matching completado: ${data.workers ?? '?'} workers, ${data.matches_procesados ?? '?'} matches\n`);
+  } catch (e) {
+    console.log(`  ⚠ Matching no pudo ejecutarse: ${e.message}\n`);
+  }
+}
