@@ -1,26 +1,21 @@
 import fetch from 'node-fetch';
-import * as cheerio from 'cheerio';
 import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const TEST_MODE   = process.argv.includes('--test');
-const PAIS_ARG    = process.env.PAIS?.toUpperCase();
+const SUPABASE_URL  = process.env.SUPABASE_URL;
+const SUPABASE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
+const ADZUNA_APP_KEY= process.env.ADZUNA_APP_KEY;
+const TEST_MODE     = process.argv.includes('--test');
+const PAIS_ARG      = process.env.PAIS?.toUpperCase();
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   realtime: { transport: ws },
 });
 
-const HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-  'Accept-Language': 'es-UY,es;q=0.9,en;q=0.5',
-  'Accept-Encoding': 'gzip, deflate, br',
-  'Cache-Control': 'no-cache',
-};
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-// ─── HELPERS ──────────────────────────────────────────────────
+// ─── HELPERS ──────────────────────────────────────────────────────
 function normalizar(s = '') {
   return s.toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -33,23 +28,26 @@ function extraerKeywords(texto = '') {
     'de','del','la','el','las','los','en','un','una','y','o','a','con','por',
     'para','al','se','no','es','que','sus','esta','este','lo','como','mas',
     'su','ser','tiene','han','sido','son','fue','hay','pero','the','and','for',
-    'con','sin','bajo','sobre','entre','desde','hasta','hacia','según','durante',
   ]);
   return [...new Set(
-    normalizar(texto).split(/\s+/)
-      .filter(w => w.length > 3 && !stop.has(w))
+    normalizar(texto).split(/\s+/).filter(w => w.length > 3 && !stop.has(w))
   )].slice(0, 15);
 }
 
-async function fetchHtml(url, timeout = 20000) {
+async function fetchJSON(url, headers = {}, timeout = 20000) {
   try {
     const res = await fetch(url, {
-      headers: HEADERS,
+      headers: { 'User-Agent': UA, 'Accept': 'application/json', 'Accept-Language': 'es-UY,es;q=0.9', ...headers },
       redirect: 'follow',
       signal: AbortSignal.timeout(timeout),
     });
     if (!res.ok) { console.log(`    HTTP ${res.status} → ${url}`); return null; }
-    return await res.text();
+    const ct = res.headers.get('content-type') || '';
+    if (!ct.includes('json') && !ct.includes('javascript')) {
+      console.log(`    Content-Type no JSON: ${ct.slice(0, 50)}`);
+      return null;
+    }
+    return await res.json();
   } catch (e) { console.log(`    Error fetch: ${e.message}`); return null; }
 }
 
@@ -72,259 +70,233 @@ async function upsert(rows, fuente) {
 
 function buildRow(fuente, pais, id, cargo, organismo, lugar, fechaCierre, url, descripcion) {
   return {
-    fuente_id: String(id).slice(0, 80),
+    fuente_id:      String(id).slice(0, 80),
     fuente,
     pais,
     numero_llamado: null,
-    titulo: cargo,
+    titulo:         cargo,
     cargo,
-    organismo: organismo || null,
-    descripcion: descripcion || null,
-    requisitos: null,
-    tipo_tarea: null,
-    tipo_vinculo: 'privado',
-    lugar: lugar || null,
-    fecha_inicio: null,
-    fecha_cierre: fechaCierre || null,
-    puestos: 1,
-    url_detalle: url,
-    url_postulacion: url,
-    keywords: extraerKeywords(`${cargo} ${organismo || ''} ${descripcion || ''}`),
-    activo: true,
+    organismo:      organismo || null,
+    descripcion:    descripcion ? String(descripcion).replace(/<[^>]+>/g, ' ').trim().slice(0, 2000) : null,
+    requisitos:     null,
+    tipo_tarea:     null,
+    tipo_vinculo:   'privado',
+    lugar:          lugar || null,
+    fecha_inicio:   null,
+    fecha_cierre:   fechaCierre || null,
+    puestos:        1,
+    url_detalle:    url || null,
+    url_postulacion:url || null,
+    keywords:       extraerKeywords(`${cargo} ${organismo || ''} ${descripcion || ''}`),
+    activo:         true,
   };
 }
 
-// ─── COMPUTRABAJO URUGUAY ──────────────────────────────────────
-async function scrapeComputrabajoUY() {
-  console.log('🇺🇾 Computrabajo Uruguay...');
-  const rows = [];
-  const paginas = [1, 2, 3];
+// ─── REMOTIVE — empleos remotos tech, sin clave ───────────────────
+async function scrapeRemotive() {
+  console.log('💻 Remotive (remotos tech)...');
+  const data = await fetchJSON('https://remotive.com/api/remote-jobs?limit=100');
+  if (!data?.jobs?.length) { console.log('  ⚠ sin respuesta'); return 0; }
 
-  for (const pag of paginas) {
-    const url = pag === 1
-      ? 'https://www.computrabajo.com.uy/trabajo'
-      : `https://www.computrabajo.com.uy/trabajo?p=${pag}`;
-    const html = await fetchHtml(url);
-    if (!html) break;
+  const rows = data.jobs.map(j => buildRow(
+    'remotive', 'UY',
+    j.id,
+    j.title,
+    j.company_name,
+    j.candidate_required_location || 'Remoto',
+    null,
+    j.url,
+    j.description,
+  ));
 
-    const $ = cheerio.load(html);
+  const n = await upsert(rows, 'remotive');
+  console.log(`  ✓ ${n} empleos`);
+  return n;
+}
 
-    // Selectores múltiples para cubrir cambios en el sitio
-    $('article[data-id], .box_oferta, .oferta-item, [class*="oferta"]').each((_, el) => {
-      const id       = $(el).attr('data-id') || $(el).attr('id') || '';
-      const cargo    = $(el).find('h2, h3, .title_oferta, [class*="title"]').first().text().trim();
-      const empresa  = $(el).find('.nombre_empresa, [class*="empresa"], [class*="company"]').first().text().trim();
-      const lugar    = $(el).find('.ciudad, [class*="ciudad"], [class*="location"]').first().text().trim();
-      const href     = $(el).find('a').first().attr('href') || '';
-      const link     = href.startsWith('http') ? href : `https://www.computrabajo.com.uy${href}`;
-      if (!cargo || cargo.length < 4) return;
-      if (rows.some(r => r.fuente_id === (id || cargo.slice(0,40)))) return;
-      rows.push(buildRow('computrabajo_uy', 'UY',
-        id || encodeURIComponent(cargo + empresa).slice(0, 60),
-        cargo, empresa || null, lugar || null, null, link, null));
-    });
+// ─── ADZUNA — Argentina, Brasil, Chile, Colombia ──────────────────
+// Registro gratuito en: https://developer.adzuna.com/signup
+// Luego agregar ADZUNA_APP_ID y ADZUNA_APP_KEY como secrets en GitHub Actions.
+async function scrapeAdzuna(paisCode, adzunaCountry) {
+  if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) {
+    console.log(`  ℹ Adzuna ${paisCode}: configura ADZUNA_APP_ID + ADZUNA_APP_KEY (gratis en developer.adzuna.com)`);
+    return 0;
+  }
+  console.log(`🌎 Adzuna ${paisCode}...`);
 
-    // Fallback: buscar links con /empleo/ en la URL
-    if (rows.length === 0) {
-      $('a[href*="/empleo/"], a[href*="/trabajo/"]').each((_, el) => {
-        const cargo  = $(el).text().trim();
-        const href   = $(el).attr('href') || '';
-        const link   = href.startsWith('http') ? href : `https://www.computrabajo.com.uy${href}`;
-        if (cargo.length < 5) return;
-        rows.push(buildRow('computrabajo_uy', 'UY',
-          encodeURIComponent(href).slice(-60), cargo, null, null, null, link, null));
-      });
-    }
+  let total = 0;
+  for (let page = 1; page <= 2; page++) {
+    const url = `https://api.adzuna.com/v1/api/jobs/${adzunaCountry}/search/${page}`
+      + `?app_id=${ADZUNA_APP_ID}&app_key=${ADZUNA_APP_KEY}`
+      + `&results_per_page=50&sort_by=date&content-type=application/json`;
+    const data = await fetchJSON(url);
+    if (!data?.results?.length) break;
 
-    await new Promise(r => setTimeout(r, 800));
+    const rows = data.results.map(j => buildRow(
+      `adzuna_${adzunaCountry}`, paisCode,
+      j.id,
+      j.title,
+      j.company?.display_name || null,
+      j.location?.display_name || null,
+      null,
+      j.redirect_url,
+      j.description,
+    ));
+    total += await upsert(rows, `adzuna_${adzunaCountry}`);
+    await new Promise(r => setTimeout(r, 600));
+  }
+  console.log(`  ✓ ${total} ofertas`);
+  return total;
+}
+
+// ─── COMPUTRABAJO — intenta API interna ───────────────────────────
+// Computrabajo usa JavaScript rendering en su web, pero su app móvil
+// accede a una API REST. Probamos los endpoints más comunes.
+async function scrapeComputrabajo(paisCode, tld) {
+  console.log(`🔍 Computrabajo ${paisCode}...`);
+  const base = `https://www.computrabajo.com.${tld}`;
+
+  const intentos = [
+    // Algunos países sirven datos como JSON en endpoints /api/
+    { url: `${base}/api/offers?page=1&limit=50&order=date`, headers: {} },
+    { url: `${base}/home/getoffers?page=1&rows=50`,          headers: { 'X-Requested-With': 'XMLHttpRequest' } },
+    { url: `${base}/trabajo/get?page=1&rows=50`,             headers: { 'X-Requested-With': 'XMLHttpRequest' } },
+  ];
+
+  for (const { url, headers } of intentos) {
+    const data = await fetchJSON(url, headers, 15000);
+    if (!data) continue;
+
+    const lista = data.offers || data.results || data.jobs || data.data || (Array.isArray(data) ? data : null);
+    if (!lista?.length) continue;
+
+    const rows = lista.map(j => buildRow(
+      `computrabajo_${paisCode.toLowerCase()}`, paisCode,
+      j.id || j.ofertaId || encodeURIComponent(j.title || j.cargo || '').slice(0, 60),
+      j.title || j.cargo || j.nombre || '',
+      j.company || j.empresa || null,
+      j.city || j.ciudad || null,
+      null,
+      j.url || j.link || `${base}/trabajo`,
+      j.description || j.descripcion || null,
+    )).filter(r => r.cargo.length >= 4);
+
+    const n = await upsert(rows, `computrabajo_${paisCode.toLowerCase()}`);
+    console.log(`  ✓ ${n} ofertas (vía API)`);
+    return n;
   }
 
-  const n = await upsert(rows, 'computrabajo_uy');
-  console.log(`  ✓ ${n} ofertas`);
-  return n;
+  console.log(`  ℹ 0 ofertas — Computrabajo usa JavaScript rendering (sin API pública conocida)`);
+  return 0;
 }
 
-// ─── BUMERAN URUGUAY ───────────────────────────────────────────
-async function scrapeBumeranUY() {
-  console.log('🇺🇾 Bumeran Uruguay...');
-  const rows = [];
+// ─── BUMERAN — intenta API interna ────────────────────────────────
+async function scrapeBumeran(paisCode, tld) {
+  console.log(`🔍 Bumeran ${paisCode}...`);
+  const base = `https://www.bumeran.com.${tld}`;
 
-  const html = await fetchHtml('https://www.bumeran.com.uy/empleos.html');
-  if (!html) { console.log('  ⚠ inaccesible'); return 0; }
+  const intentos = [
+    { url: `https://api.bumeran.com.${tld}/aviso/list?page=1&size=50&sort_by=date`, headers: {} },
+    { url: `${base}/api/v1/avisos?page=1&pageSize=50&orden=fecha`,                   headers: {} },
+    { url: `${base}/api/v2/aviso/list?page=1&rows=50`,                               headers: { 'X-Requested-With': 'XMLHttpRequest' } },
+  ];
 
-  const $ = cheerio.load(html);
+  for (const { url, headers } of intentos) {
+    const data = await fetchJSON(url, headers, 15000);
+    if (!data) continue;
 
-  $('[class*="posting"], [class*="job-card"], [class*="aviso"], article').each((_, el) => {
-    const cargo   = $(el).find('h2, h3, [class*="title"], [class*="cargo"]').first().text().trim();
-    const empresa = $(el).find('[class*="empresa"], [class*="company"], [class*="client"]').first().text().trim();
-    const lugar   = $(el).find('[class*="location"], [class*="lugar"], [class*="ciudad"]').first().text().trim();
-    const href    = $(el).find('a').first().attr('href') || $(el).attr('href') || '';
-    const link    = href.startsWith('http') ? href : `https://www.bumeran.com.uy${href}`;
-    if (!cargo || cargo.length < 4) return;
-    rows.push(buildRow('bumeran_uy', 'UY',
-      encodeURIComponent(href || cargo).slice(-60),
-      cargo, empresa || null, lugar || null, null, link || 'https://www.bumeran.com.uy', null));
-  });
+    const lista = data.avisos || data.results || data.jobs || (Array.isArray(data) ? data : null);
+    if (!lista?.length) continue;
 
-  // Fallback links
-  if (rows.length === 0) {
-    $('a[href*="empleo"], a[href*="aviso"]').each((_, el) => {
-      const cargo = $(el).text().trim();
-      const href  = $(el).attr('href') || '';
-      const link  = href.startsWith('http') ? href : `https://www.bumeran.com.uy${href}`;
-      if (cargo.length < 5 || cargo.length > 100) return;
-      rows.push(buildRow('bumeran_uy', 'UY',
-        encodeURIComponent(href).slice(-60), cargo, null, null, null, link, null));
-    });
+    const rows = lista.map(j => buildRow(
+      `bumeran_${paisCode.toLowerCase()}`, paisCode,
+      j.id || j.avisoId || '',
+      j.titulo || j.title || j.cargo || '',
+      j.empresa?.nombre || j.company || null,
+      j.ciudad?.nombre || j.location || null,
+      null,
+      j.url || `${base}/empleos-publicacion-${j.id}.html`,
+      j.descripcion || j.description || null,
+    )).filter(r => r.cargo.length >= 4);
+
+    const n = await upsert(rows, `bumeran_${paisCode.toLowerCase()}`);
+    console.log(`  ✓ ${n} ofertas (vía API)`);
+    return n;
   }
 
-  const n = await upsert(rows, 'bumeran_uy');
-  console.log(`  ✓ ${n} ofertas`);
-  return n;
+  console.log(`  ℹ 0 ofertas — Bumeran usa JavaScript rendering (sin API pública conocida)`);
+  return 0;
 }
 
-// ─── OPCIÓN EMPLEO URUGUAY ─────────────────────────────────────
-async function scrapeOpcionEmpleoUY() {
-  console.log('🇺🇾 Opción Empleo Uruguay...');
-  const rows = [];
+// ─── JOOBLE — agregador LatAm (requiere clave gratuita) ───────────
+// Solicitar en: https://jooble.org/api/about  (responden en 1-2 días)
+async function scrapeJooble(paisCode, domain, keywords = '') {
+  const key = process.env.JOOBLE_API_KEY;
+  if (!key) {
+    console.log(`  ℹ Jooble ${paisCode}: configura JOOBLE_API_KEY (gratis en jooble.org/api/about)`);
+    return 0;
+  }
+  console.log(`🔎 Jooble ${paisCode}...`);
 
-  const html = await fetchHtml('https://www.opcionempleo.com.uy/buscar.php');
-  if (!html) { console.log('  ⚠ inaccesible'); return 0; }
+  try {
+    const res = await fetch(`https://${domain}.jooble.org/api/${key}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
+      body: JSON.stringify({ keywords, location: '', page: '1' }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) { console.log(`  HTTP ${res.status}`); return 0; }
+    const data = await res.json();
+    const lista = data.jobs || [];
+    if (!lista.length) { console.log('  ⚠ sin resultados'); return 0; }
 
-  const $ = cheerio.load(html);
+    const rows = lista.map(j => buildRow(
+      `jooble_${paisCode.toLowerCase()}`, paisCode,
+      j.id || encodeURIComponent(j.title).slice(0, 60),
+      j.title,
+      j.company || null,
+      j.location || null,
+      j.updated ? j.updated.slice(0, 10) : null,
+      j.link,
+      j.snippet,
+    )).filter(r => r.cargo.length >= 4);
 
-  $('article, .job, .oferta, [class*="result"]').each((_, el) => {
-    const cargo   = $(el).find('h2, h3, a').first().text().trim();
-    const empresa = $(el).find('[class*="company"], [class*="empresa"]').first().text().trim();
-    const href    = $(el).find('a').first().attr('href') || '';
-    const link    = href.startsWith('http') ? href : `https://www.opcionempleo.com.uy${href}`;
-    if (!cargo || cargo.length < 4) return;
-    rows.push(buildRow('opcionempleo_uy', 'UY',
-      encodeURIComponent(href || cargo).slice(-60),
-      cargo, empresa || null, 'Uruguay', null, link, null));
-  });
-
-  const n = await upsert(rows, 'opcionempleo_uy');
-  console.log(`  ✓ ${n} ofertas`);
-  return n;
+    const n = await upsert(rows, `jooble_${paisCode.toLowerCase()}`);
+    console.log(`  ✓ ${n} ofertas`);
+    return n;
+  } catch (e) {
+    console.log(`  Error Jooble: ${e.message}`);
+    return 0;
+  }
 }
 
-// ─── GETONBOARD (tech / remoto) ────────────────────────────────
-async function scrapeGetonboard() {
-  console.log('💻 Getonboard (remoto/tech)...');
-  const rows = [];
-
-  const html = await fetchHtml('https://www.getonboard.com/vacancies?country=Uruguay&remote=true');
-  if (!html) { console.log('  ⚠ inaccesible'); return 0; }
-
-  const $ = cheerio.load(html);
-
-  $('[class*="vacancy"], [class*="job-card"], article').each((_, el) => {
-    const cargo   = $(el).find('h2, h3, [class*="title"]').first().text().trim();
-    const empresa = $(el).find('[class*="company"], [class*="organization"]').first().text().trim();
-    const href    = $(el).find('a').first().attr('href') || '';
-    const link    = href.startsWith('http') ? href : `https://www.getonboard.com${href}`;
-    if (!cargo || cargo.length < 4) return;
-    rows.push(buildRow('getonboard', 'UY',
-      encodeURIComponent(href || cargo).slice(-60),
-      cargo, empresa || null, 'Remoto', null, link, null));
-  });
-
-  const n = await upsert(rows, 'getonboard');
-  console.log(`  ✓ ${n} ofertas`);
-  return n;
-}
-
-// ─── COMPUTRABAJO ARGENTINA ────────────────────────────────────
-async function scrapeComputrabajoAR() {
-  console.log('🇦🇷 Computrabajo Argentina...');
-  const rows = [];
-
-  const html = await fetchHtml('https://www.computrabajo.com.ar/trabajo');
-  if (!html) { console.log('  ⚠ inaccesible'); return 0; }
-
-  const $ = cheerio.load(html);
-
-  $('article[data-id], .box_oferta, [class*="oferta"]').each((_, el) => {
-    const id      = $(el).attr('data-id') || '';
-    const cargo   = $(el).find('h2, h3, .title_oferta').first().text().trim();
-    const empresa = $(el).find('.nombre_empresa, [class*="empresa"]').first().text().trim();
-    const lugar   = $(el).find('.ciudad, [class*="ciudad"]').first().text().trim();
-    const href    = $(el).find('a').first().attr('href') || '';
-    const link    = href.startsWith('http') ? href : `https://www.computrabajo.com.ar${href}`;
-    if (!cargo || cargo.length < 4) return;
-    rows.push(buildRow('computrabajo_ar', 'AR',
-      id || encodeURIComponent(cargo + empresa).slice(0, 60),
-      cargo, empresa || null, lugar || null, null, link, null));
-  });
-
-  const n = await upsert(rows, 'computrabajo_ar');
-  console.log(`  ✓ ${n} ofertas`);
-  return n;
-}
-
-// ─── COMPUTRABAJO CHILE ────────────────────────────────────────
-async function scrapeComputrabajoCL() {
-  console.log('🇨🇱 Computrabajo Chile...');
-  const rows = [];
-
-  const html = await fetchHtml('https://www.computrabajo.cl/trabajo');
-  if (!html) { console.log('  ⚠ inaccesible'); return 0; }
-
-  const $ = cheerio.load(html);
-
-  $('article[data-id], .box_oferta, [class*="oferta"]').each((_, el) => {
-    const id      = $(el).attr('data-id') || '';
-    const cargo   = $(el).find('h2, h3, .title_oferta').first().text().trim();
-    const empresa = $(el).find('.nombre_empresa, [class*="empresa"]').first().text().trim();
-    const lugar   = $(el).find('.ciudad, [class*="ciudad"]').first().text().trim();
-    const href    = $(el).find('a').first().attr('href') || '';
-    const link    = href.startsWith('http') ? href : `https://www.computrabajo.cl${href}`;
-    if (!cargo || cargo.length < 4) return;
-    rows.push(buildRow('computrabajo_cl', 'CL',
-      id || encodeURIComponent(cargo + empresa).slice(0, 60),
-      cargo, empresa || null, lugar || null, null, link, null));
-  });
-
-  const n = await upsert(rows, 'computrabajo_cl');
-  console.log(`  ✓ ${n} ofertas`);
-  return n;
-}
-
-// ─── COMPUTRABAJO COLOMBIA ─────────────────────────────────────
-async function scrapeComputrabajoCO() {
-  console.log('🇨🇴 Computrabajo Colombia...');
-  const rows = [];
-
-  const html = await fetchHtml('https://co.computrabajo.com/trabajo');
-  if (!html) { console.log('  ⚠ inaccesible'); return 0; }
-
-  const $ = cheerio.load(html);
-
-  $('article[data-id], .box_oferta, [class*="oferta"]').each((_, el) => {
-    const id      = $(el).attr('data-id') || '';
-    const cargo   = $(el).find('h2, h3, .title_oferta').first().text().trim();
-    const empresa = $(el).find('.nombre_empresa, [class*="empresa"]').first().text().trim();
-    const lugar   = $(el).find('.ciudad, [class*="ciudad"]').first().text().trim();
-    const href    = $(el).find('a').first().attr('href') || '';
-    const link    = href.startsWith('http') ? href : `https://co.computrabajo.com${href}`;
-    if (!cargo || cargo.length < 4) return;
-    rows.push(buildRow('computrabajo_co', 'CO',
-      id || encodeURIComponent(cargo + empresa).slice(0, 60),
-      cargo, empresa || null, lugar || null, null, link, null));
-  });
-
-  const n = await upsert(rows, 'computrabajo_co');
-  console.log(`  ✓ ${n} ofertas`);
-  return n;
-}
-
-// ─── MAIN ──────────────────────────────────────────────────────
+// ─── MAIN ──────────────────────────────────────────────────────────
 const SCRAPERS = {
-  UY: [scrapeComputrabajoUY, scrapeBumeranUY, scrapeOpcionEmpleoUY, scrapeGetonboard],
-  AR: [scrapeComputrabajoAR],
-  CL: [scrapeComputrabajoCL],
-  CO: [scrapeComputrabajoCO],
+  UY: [
+    () => scrapeRemotive(),
+    () => scrapeComputrabajo('UY', 'uy'),
+    () => scrapeBumeran('UY', 'uy'),
+    () => scrapeJooble('UY', 'uy', ''),
+  ],
+  AR: [
+    () => scrapeComputrabajo('AR', 'ar'),
+    () => scrapeBumeran('AR', 'ar'),
+    () => scrapeAdzuna('AR', 'ar'),
+    () => scrapeJooble('AR', 'ar', ''),
+  ],
+  CL: [
+    () => scrapeComputrabajo('CL', 'cl'),
+    () => scrapeAdzuna('CL', 'cl'),
+    () => scrapeJooble('CL', 'cl', ''),
+  ],
+  CO: [
+    () => scrapeComputrabajo('CO', 'co'),
+    () => scrapeAdzuna('CO', 'co'),
+    () => scrapeJooble('CO', 'co', ''),
+  ],
+  BR: [
+    () => scrapeAdzuna('BR', 'br'),
+  ],
 };
 
 const aCorrer = PAIS_ARG && SCRAPERS[PAIS_ARG]
@@ -334,10 +306,10 @@ const aCorrer = PAIS_ARG && SCRAPERS[PAIS_ARG]
 console.log(`\n💼 Scraper Ofertas Privadas${TEST_MODE ? ' [TEST]' : ''} — ${new Date().toISOString()}\n`);
 
 let total = 0;
-for (const [pais, fns] of Object.entries(aCorrer)) {
+for (const [, fns] of Object.entries(aCorrer)) {
   for (const fn of fns) {
-    try { total += await fn(); }
-    catch (e) { console.error(`  ❌ ${fn.name} falló:`, e.message); }
+    try { total += (await fn()) || 0; }
+    catch (e) { console.error(`  ❌ falló:`, e.message); }
     await new Promise(r => setTimeout(r, 1000));
   }
 }
