@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import{supabase}from '../services/supabase';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Dimensions
+  StyleSheet, Dimensions, Image
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,13 +15,13 @@ import { COLORS, SIZES, SHADOWS } from '../constants/theme';
 const { width } = Dimensions.get('window');
 
 // ── Componente: Header ──
-function HomeHeader({ nombre, activo, diasRestantes, vistas, contactos, onActivar }) {
+function HomeHeader({ nombre, activo, diasRestantes, vistas, contactos, onActivar, avatar }) {
   const hora = new Date().getHours();
   const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
 
   return (
     <LinearGradient
-      colors={['#1C2E2C', '#0E1E1C']}
+      colors={['#D6E4F0', '#B8D4E8']}
       start={{ x: 0, y: 0 }}
       end={{ x: 0.5, y: 1 }}
       style={styles.header}
@@ -38,7 +38,10 @@ function HomeHeader({ nombre, activo, diasRestantes, vistas, contactos, onActiva
             <View style={styles.bellDot} />
           </TouchableOpacity>
           <View style={styles.avatar}>
-            <Text style={{ fontSize: 18 }}>👤</Text>
+            {avatar
+              ? <Image source={{ uri: avatar }} style={{ width: 38, height: 38, borderRadius: 19 }} />
+              : <Text style={{ fontSize: 18 }}>👤</Text>
+            }
           </View>
         </View>
       </View>
@@ -74,7 +77,11 @@ function HomeHeader({ nombre, activo, diasRestantes, vistas, contactos, onActiva
 }
 
 // ── Componente: Card de Concursa ──
-function ConcursaCard({ onPress }) {
+function ConcursaCard({ onPress, total, proximoCierre }) {
+  const label = total > 0 ? `${total} LLAMADOS` : 'VER LLAMADOS';
+  const sub = proximoCierre
+    ? `Cierra en ${proximoCierre} días`
+    : 'Llamados públicos activos';
   return (
     <TouchableOpacity
       style={styles.concursaCard}
@@ -86,10 +93,10 @@ function ConcursaCard({ onPress }) {
       </View>
       <View style={{ flex: 1 }}>
         <View style={styles.concursaBadge}>
-          <Text style={styles.concursaBadgeText}>4 LLAMADOS</Text>
+          <Text style={styles.concursaBadgeText}>{label}</Text>
         </View>
         <Text style={styles.concursaTitle}>Concursos para tu perfil</Text>
-        <Text style={styles.concursaSub}>Cierra en 8 días</Text>
+        <Text style={styles.concursaSub}>{sub}</Text>
       </View>
       <Text style={styles.concursaArrow}>›</Text>
     </TouchableOpacity>
@@ -135,16 +142,18 @@ function NovedadCard({ icon, company, role, tag, tagColor, tagBg, time, btnLabel
 // ── Pantalla principal ──
 export default function HomeScreen({ navigation }) {
   const [perfil, setPerfil] = useState({
-    nombre: '', activo: false, diasRestantes: 0, vistas: 0, contactos: 0,
+    nombre: '', activo: false, diasRestantes: 0, vistas: 0, contactos: 0, avatar: null,
   });
+  const [concursaStats, setConcursaStats] = useState({ total: 0, proximoCierre: null });
 
   async function cargar() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
       const { data } = await supabase
         .from('profiles')
-        .select('nombre, perfil_activo, perfil_activo_hasta, vistas, contactos')
+        .select('nombre, perfil_activo, perfil_activo_hasta, vistas, contactos, avatar_url, pais, rol')
         .eq('id', user.id)
         .single();
       if (!data) return;
@@ -157,11 +166,32 @@ export default function HomeScreen({ navigation }) {
 
       setPerfil({
         nombre: data.nombre || '',
-        activo,
-        diasRestantes,
+        activo, diasRestantes,
         vistas: data.vistas || 0,
         contactos: data.contactos || 0,
+        avatar: data.avatar_url || null,
       });
+
+      // Traer total de concursos activos del país del worker
+      if (data.rol === 'worker' && data.pais) {
+        const PAIS_ISO = { 'uruguay':'UY','argentina':'AR','chile':'CL','colombia':'CO','peru':'PE','perú':'PE','brasil':'BR','brazil':'BR','paraguay':'PY' };
+        const paisISO = PAIS_ISO[(data.pais||'').toLowerCase().trim()] || data.pais.slice(0,2).toUpperCase();
+        const { data: cs } = await supabase
+          .from('concursos')
+          .select('fecha_cierre')
+          .eq('pais', paisISO)
+          .eq('activo', true);
+        if (cs) {
+          const hoy = new Date();
+          const vigentes = cs.filter(c => !c.fecha_cierre || new Date(c.fecha_cierre) >= hoy);
+          const prox = vigentes
+            .filter(c => c.fecha_cierre)
+            .map(c => Math.ceil((new Date(c.fecha_cierre) - hoy) / (1000*60*60*24)))
+            .filter(d => d >= 0)
+            .sort((a,b) => a-b)[0] ?? null;
+          setConcursaStats({ total: vigentes.length, proximoCierre: prox });
+        }
+      }
     } catch (e) {}
   }
 
@@ -182,13 +212,18 @@ export default function HomeScreen({ navigation }) {
           vistas={perfil.vistas}
           contactos={perfil.contactos}
           onActivar={() => { if(!perfil.activo) navigation.navigate('PagoActivacion'); }}
+          avatar={perfil.avatar}
         />
 
         {/* Body */}
         <View style={styles.body}>
 
           {/* Card Concursa */}
-          <ConcursaCard onPress={() => navigation.navigate('Concursa')} />
+          <ConcursaCard
+            onPress={() => navigation.navigate('Concursa')}
+            total={concursaStats.total}
+            proximoCierre={concursaStats.proximoCierre}
+          />
 
           {/* Sección Para vos */}
           <View style={styles.sectionRow}>
@@ -260,12 +295,12 @@ const styles = StyleSheet.create({
     marginBottom: SIZES.md,
   },
   greeting: {
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(26,58,92,0.6)',
     fontSize: SIZES.textSm,
     fontWeight: '500',
   },
   name: {
-    color: COLORS.blanco,
+    color: '#1A3A5C',
     fontSize: SIZES.textXl,
     fontWeight: '800',
     letterSpacing: -0.5,
@@ -303,9 +338,9 @@ const styles = StyleSheet.create({
 
   // Status pill
   statusPill: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.55)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(26,58,92,0.15)',
     borderRadius: SIZES.radiusMd,
     padding: SIZES.md,
     flexDirection: 'row',
@@ -314,7 +349,7 @@ const styles = StyleSheet.create({
   },
   pillLeft: {},
   pillLabel: {
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(26,58,92,0.55)',
     fontSize: SIZES.textXs,
     fontWeight: '700',
     letterSpacing: 1,
@@ -331,12 +366,12 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.menta,
   },
   pillActiveText: {
-    color: COLORS.blanco,
+    color: '#1A3A5C',
     fontSize: SIZES.textMd,
     fontWeight: '700',
   },
   pillDays: {
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(26,58,92,0.5)',
     fontSize: SIZES.textXs,
     marginTop: 2,
   },
@@ -348,14 +383,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pillNum: {
-    color: COLORS.blanco,
+    color: '#1A3A5C',
     fontSize: 26,
     fontWeight: '900',
     letterSpacing: -1,
     lineHeight: 28,
   },
   pillStatLbl: {
-    color: 'rgba(255,255,255,0.45)',
+    color: 'rgba(26,58,92,0.55)',
     fontSize: SIZES.textXs,
     fontWeight: '600',
   },

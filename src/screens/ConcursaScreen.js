@@ -42,16 +42,27 @@ function LlamadoCard({ match, onPress }) {
 
   const stripeColor = score >= 70 ? COLORS.menta : score >= 40 ? COLORS.coral : score >= 15 ? COLORS.gold : COLORS.indigo;
   const bandera = BANDERAS[c.pais] || '🌍';
+  const esPrivado = c.tipo_vinculo === 'privado';
 
   return (
     <TouchableOpacity style={styles.card} onPress={() => onPress(match)} activeOpacity={0.8}>
       <View style={[styles.cardStripe, { backgroundColor: stripeColor }]} />
       <View style={styles.cardBody}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardOrg} numberOfLines={1}>{bandera} {c.organismo || 'Organismo público'}</Text>
-          {c.numero_llamado && (
-            <Text style={styles.cardNum}>#{c.numero_llamado}</Text>
-          )}
+          <Text style={styles.cardOrg} numberOfLines={1}>
+            {bandera} {c.organismo || (esPrivado ? 'Empresa privada' : 'Organismo público')}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {esPrivado
+              ? <View style={{ backgroundColor: '#FFF3E0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                  <Text style={{ fontSize: 10, color: '#E65100', fontWeight: '700' }}>PRIVADO</Text>
+                </View>
+              : <View style={{ backgroundColor: '#E3F2FD', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+                  <Text style={{ fontSize: 10, color: '#1565C0', fontWeight: '700' }}>PÚBLICO</Text>
+                </View>
+            }
+            {c.numero_llamado && <Text style={styles.cardNum}>#{c.numero_llamado}</Text>}
+          </View>
         </View>
         <Text style={styles.cardCargo} numberOfLines={2}>{c.cargo || c.titulo}</Text>
 
@@ -98,10 +109,12 @@ function LlamadoCard({ match, onPress }) {
 export default function ConcursaScreen({ navigation }) {
   const { user } = useAppContext();
   const [matches, setMatches] = useState([]);
+  const [todos, setTodos] = useState([]);
   const [stats, setStats] = useState({ total: 0, paraVos: 0, cierranPronto: 0 });
   const [cargando, setCargando] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filtroActivo, setFiltroActivo] = useState('para_vos'); // 'para_vos' | 'todos'
+  const [sector, setSector] = useState('todos'); // 'todos' | 'publico' | 'privado'
   const [sinPerfil, setSinPerfil] = useState(false);
 
   const cargar = useCallback(async (esRefresh = false) => {
@@ -109,12 +122,18 @@ export default function ConcursaScreen({ navigation }) {
     else setCargando(true);
 
     try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) { setCargando(false); return; }
+      console.log('[Concursa] cargar() inicio — user:', authUser.id);
+
       // Verificar que el usuario tiene perfil de worker
-      const { data: perfil } = await supabase
+      const { data: perfil, error: perfilError } = await supabase
         .from('profiles')
         .select('rol, servicios, profesiones, especialidades, pais')
-        .eq('id', user.id)
+        .eq('id', authUser.id)
         .single();
+
+      console.log('[Concursa] perfil:', perfil?.rol, perfil?.pais, '| error:', perfilError?.message);
 
       if (perfil?.rol !== 'worker') {
         setSinPerfil(true);
@@ -132,9 +151,11 @@ export default function ConcursaScreen({ navigation }) {
         // Igual traemos concursos aunque no haya keywords, mostramos todos
       }
 
+      console.log('[Concursa] user.id:', authUser.id, '| pais:', perfil?.pais, '| rol:', perfil?.rol);
+
       // Disparar matching actualizado en el servidor
       supabase.functions.invoke('match-concursos', {
-        body: { worker_id: user.id },
+        body: { worker_id: authUser.id },
       }).catch(() => {});
 
       // Traer matches con datos del concurso
@@ -148,26 +169,48 @@ export default function ConcursaScreen({ navigation }) {
             puestos, url_detalle, url_postulacion, descripcion, requisitos
           )
         `)
-        .eq('worker_id', user.id)
+        .eq('worker_id', authUser.id)
         .order('score', { ascending: false })
         .limit(80);
 
       if (error) throw error;
 
-      // Filtrar por país del usuario, vigentes y con concurso cargado
       const hoy = new Date();
-      const paisUsuario = perfil?.pais;
+      const PAIS_ISO = {
+        'uruguay':'UY','argentina':'AR','chile':'CL','colombia':'CO',
+        'peru':'PE','perú':'PE','brasil':'BR','brazil':'BR','paraguay':'PY',
+        'bolivia':'BO','ecuador':'EC','venezuela':'VE',
+      };
+      const paisRaw = (perfil?.pais || '').toLowerCase().trim();
+      const paisISO = PAIS_ISO[paisRaw] || paisRaw.slice(0,2).toUpperCase();
+
+      // Filtrar matches por país (comparar ISO con ISO)
       const validos = (matchData || []).filter(m => {
         if (!m.concursos) return false;
-        if (paisUsuario && m.concursos.pais && m.concursos.pais !== paisUsuario) return false;
+        if (paisISO && m.concursos.pais && m.concursos.pais !== paisISO) return false;
         if (m.concursos.fecha_cierre) {
-          const cierre = new Date(m.concursos.fecha_cierre);
-          if (cierre < hoy) return false;
+          if (new Date(m.concursos.fecha_cierre) < hoy) return false;
         }
         return true;
       });
 
       setMatches(validos);
+
+      // Cargar TODOS los concursos del país directamente (no depende de matching)
+      const { data: todosData } = await supabase
+        .from('concursos')
+        .select('id, pais, numero_llamado, titulo, cargo, organismo, tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre, puestos, url_detalle, url_postulacion')
+        .eq('pais', paisISO)
+        .eq('activo', true)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      const todosValidos = (todosData || []).filter(c => {
+        if (c.fecha_cierre && new Date(c.fecha_cierre) < hoy) return false;
+        return true;
+      });
+      console.log('[Concursa] paisISO:', paisISO, '| todos raw:', todosData?.length, '| todos validos:', todosValidos.length, '| matches:', validos.length);
+      setTodos(todosValidos);
 
       // Stats
       const paraVos = validos.filter(m => m.cumple).length;
@@ -177,10 +220,10 @@ export default function ConcursaScreen({ navigation }) {
         return dias >= 0 && dias <= 7;
       }).length;
 
-      setStats({ total: validos.length, paraVos, cierranPronto });
+      setStats({ total: todosValidos.length, paraVos, cierranPronto });
 
     } catch (e) {
-      console.error('ConcursaScreen error:', e.message);
+      console.error('[Concursa] ERROR:', e.message, e.stack);
     } finally {
       setCargando(false);
       setRefreshing(false);
@@ -188,6 +231,11 @@ export default function ConcursaScreen({ navigation }) {
   }, [user?.id]);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => cargar());
+    return unsub;
+  }, [navigation]);
 
   const handleAlertas = () => {
     Alert.alert(
@@ -197,11 +245,23 @@ export default function ConcursaScreen({ navigation }) {
     );
   };
 
-  const mostrados = filtroActivo === 'para_vos'
-    ? matches.filter(m => m.score >= 15)
-    : matches;
+  const matchesPorId = Object.fromEntries(matches.map(m => [m.concursos?.id, m]));
 
-  if (cargando) {
+  const filtrarSector = (arr, getConcurso) => {
+    if (sector === 'todos') return arr;
+    return arr.filter(item => {
+      const c = getConcurso(item);
+      return sector === 'privado' ? c?.tipo_vinculo === 'privado' : c?.tipo_vinculo !== 'privado';
+    });
+  };
+
+  const base = filtroActivo === 'para_vos'
+    ? matches.filter(m => m.cumple)
+    : todos.map(c => matchesPorId[c.id] || { concursos: c, score: 0, cumple: false, keywords_match: [] });
+
+  const mostrados = filtrarSector(base, item => item.concursos);
+
+  if (cargando && todos.length === 0 && matches.length === 0) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={COLORS.coral} />
@@ -214,6 +274,7 @@ export default function ConcursaScreen({ navigation }) {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => cargar(true)} tintColor={COLORS.coral} />
         }
@@ -281,14 +342,14 @@ export default function ConcursaScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── FILTROS ── */}
+        {/* ── FILTROS PRINCIPAL ── */}
         <View style={styles.filtrosRow}>
           <TouchableOpacity
             style={[styles.filtroBtn, filtroActivo === 'para_vos' && styles.filtroBtnActive]}
             onPress={() => setFiltroActivo('para_vos')}
           >
             <Text style={[styles.filtroTxt, filtroActivo === 'para_vos' && styles.filtroTxtActive]}>
-              Para vos ({matches.filter(m => m.score >= 15).length})
+              Para vos ({matches.filter(m => m.cumple).length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -296,9 +357,22 @@ export default function ConcursaScreen({ navigation }) {
             onPress={() => setFiltroActivo('todos')}
           >
             <Text style={[styles.filtroTxt, filtroActivo === 'todos' && styles.filtroTxtActive]}>
-              Todos ({matches.length})
+              Todos ({todos.length})
             </Text>
           </TouchableOpacity>
+        </View>
+
+        {/* ── FILTRO SECTOR ── */}
+        <View style={styles.sectorRow}>
+          {[['todos','Todo'], ['publico','Público'], ['privado','Privado']].map(([val, label]) => (
+            <TouchableOpacity
+              key={val}
+              style={[styles.sectorBtn, sector === val && styles.sectorBtnActive]}
+              onPress={() => setSector(val)}
+            >
+              <Text style={[styles.sectorTxt, sector === val && styles.sectorTxtActive]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* ── SIN PERFIL ── */}
@@ -334,7 +408,7 @@ export default function ConcursaScreen({ navigation }) {
               )}
               {mostrados.map((m, i) => (
                 <LlamadoCard
-                  key={`${m.concursos?.id}-${i}`}
+                  key={`${m.concursos?.id || i}-${i}`}
                   match={m}
                   onPress={(item) => navigation.navigate('ConcursaDetalle', { match: item })}
                 />
@@ -415,6 +489,20 @@ const styles = StyleSheet.create({
   filtroBtnActive: { backgroundColor: COLORS.coral, borderColor: COLORS.coral },
   filtroTxt:      { fontSize: SIZES.textSm, fontWeight: '600', color: COLORS.texto2 },
   filtroTxtActive:{ color: COLORS.blanco },
+
+  sectorRow: {
+    flexDirection: 'row', paddingHorizontal: SIZES.md,
+    marginTop: 8, gap: 6,
+  },
+  sectorBtn: {
+    paddingHorizontal: 12, paddingVertical: 5,
+    borderRadius: SIZES.radiusFull,
+    borderWidth: 1, borderColor: COLORS.borde,
+    backgroundColor: 'transparent',
+  },
+  sectorBtnActive: { backgroundColor: '#1A3A5C', borderColor: '#1A3A5C' },
+  sectorTxt:      { fontSize: 12, fontWeight: '600', color: COLORS.texto3 },
+  sectorTxtActive:{ color: COLORS.blanco },
 
   sinPerfilBox: {
     margin: SIZES.md,
