@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, RefreshControl, Alert, TextInput,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -129,16 +130,31 @@ export default function ConcursaScreen({ navigation, route }) {
     setModoBusqueda(true);
     setBuscandoEnBD(true);
     try {
-      const { data } = await supabase
+      // Normalizar: quitar acentos para que "odontologo" encuentre "Odontólogo"
+      const sinAcentos = t.normalize('NFD').replace(/[̀-ͯ]/g, '');
+      // Buscar ambas versiones (con y sin acento)
+      const terminos = [...new Set([t.toLowerCase(), sinAcentos.toLowerCase()])];
+      const orParts = terminos.flatMap(term => [
+        `cargo.ilike.%${term}%`,
+        `titulo.ilike.%${term}%`,
+        `organismo.ilike.%${term}%`,
+        `descripcion.ilike.%${term}%`,
+      ]).join(',');
+
+      const { data, error } = await supabase
         .from('concursos')
         .select('id, pais, numero_llamado, titulo, cargo, organismo, tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre, puestos, url_detalle, url_postulacion')
         .eq('activo', true)
-        .or(`cargo.ilike.%${t}%,titulo.ilike.%${t}%,organismo.ilike.%${t}%`)
+        .or(orParts)
         .order('created_at', { ascending: false })
         .limit(60);
+
+      if (error) console.error('[Buscar] Error Supabase:', error.message, error.details);
       const hoy = new Date();
       setResultadosBusqueda((data || []).filter(c => !c.fecha_cierre || new Date(c.fecha_cierre) >= hoy));
-    } catch (_) {}
+    } catch (e) {
+      console.error('[Buscar] Error inesperado:', e.message);
+    }
     setBuscandoEnBD(false);
   }
 
@@ -341,9 +357,15 @@ export default function ConcursaScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+      >
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => cargar(true)} tintColor={COLORS.coral} />
         }
@@ -545,6 +567,7 @@ export default function ConcursaScreen({ navigation, route }) {
           )}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
