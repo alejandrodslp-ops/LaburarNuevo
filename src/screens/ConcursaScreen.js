@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, Alert,
+  ActivityIndicator, RefreshControl, Alert, TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -106,16 +106,27 @@ function LlamadoCard({ match, onPress }) {
 // ─────────────────────────────────────────────────────────────
 // PANTALLA PRINCIPAL
 // ─────────────────────────────────────────────────────────────
-export default function ConcursaScreen({ navigation }) {
+export default function ConcursaScreen({ navigation, route }) {
   const { user } = useAppContext();
   const [matches, setMatches] = useState([]);
   const [todos, setTodos] = useState([]);
   const [stats, setStats] = useState({ total: 0, paraVos: 0, cierranPronto: 0 });
   const [cargando, setCargando] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filtroActivo, setFiltroActivo] = useState('para_vos'); // 'para_vos' | 'todos'
-  const [sector, setSector] = useState('todos'); // 'todos' | 'publico' | 'privado'
+  const [filtroActivo, setFiltroActivo] = useState('para_vos');
+  const [sector, setSector] = useState('todos');
+  const [busqueda, setBusqueda] = useState('');
+  const [modalidad, setModalidad] = useState('todos');
   const [sinPerfil, setSinPerfil] = useState(false);
+
+  // Aplicar filtros que vienen desde HomeScreen
+  useEffect(() => {
+    const p = route.params || {};
+    if (p.presetFiltro) setFiltroActivo(p.presetFiltro);
+    if (p.presetSector) setSector(p.presetSector);
+    if (p.busqueda !== undefined) setBusqueda(p.busqueda || '');
+    if (p.presetModalidad) setModalidad(p.presetModalidad);
+  }, [route.params?.presetFiltro, route.params?.presetSector, route.params?.busqueda, route.params?.presetModalidad]);
 
   const cargar = useCallback(async (esRefresh = false) => {
     if (esRefresh) setRefreshing(true);
@@ -255,11 +266,34 @@ export default function ConcursaScreen({ navigation }) {
     });
   };
 
-  const base = filtroActivo === 'para_vos'
+  let base = filtroActivo === 'para_vos'
     ? matches.filter(m => m.cumple)
     : todos.map(c => matchesPorId[c.id] || { concursos: c, score: 0, cumple: false, keywords_match: [] });
 
-  const mostrados = filtrarSector(base, item => item.concursos);
+  base = filtrarSector(base, item => item.concursos);
+
+  // Filtro de texto
+  const termino = busqueda.trim().toLowerCase();
+  if (termino) {
+    base = base.filter(item => {
+      const c = item.concursos;
+      const txt = `${c?.cargo||''} ${c?.titulo||''} ${c?.organismo||''} ${c?.descripcion||''}`.toLowerCase();
+      return txt.includes(termino);
+    });
+  }
+
+  // Filtro de modalidad
+  const REMOTO_KW = ['remoto', 'teletrabajo', 'home office', 'remote', 'virtual', 'a distancia'];
+  if (modalidad !== 'todos') {
+    base = base.filter(item => {
+      const c = item.concursos;
+      const txt = `${c?.cargo||''} ${c?.titulo||''} ${c?.descripcion||''}`.toLowerCase();
+      const esRemoto = REMOTO_KW.some(w => txt.includes(w));
+      return modalidad === 'teletrabajo' ? esRemoto : !esRemoto;
+    });
+  }
+
+  const mostrados = base;
 
   if (cargando && todos.length === 0 && matches.length === 0) {
     return (
@@ -364,7 +398,7 @@ export default function ConcursaScreen({ navigation }) {
 
         {/* ── FILTRO SECTOR ── */}
         <View style={styles.sectorRow}>
-          {[['todos','Todo'], ['publico','Público'], ['privado','Privado']].map(([val, label]) => (
+          {[['todos','Todo'], ['publico','Público 🏛️'], ['privado','Privado 💼']].map(([val, label]) => (
             <TouchableOpacity
               key={val}
               style={[styles.sectorBtn, sector === val && styles.sectorBtnActive]}
@@ -373,6 +407,33 @@ export default function ConcursaScreen({ navigation }) {
               <Text style={[styles.sectorTxt, sector === val && styles.sectorTxtActive]}>{label}</Text>
             </TouchableOpacity>
           ))}
+        </View>
+
+        {/* ── BÚSQUEDA ── */}
+        <View style={styles.searchWrap}>
+          <View style={styles.searchBox}>
+            <Text style={{ fontSize: 14, color: COLORS.texto3 }}>🔍</Text>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar por cargo, habilidad..."
+              placeholderTextColor={COLORS.texto3}
+              value={busqueda}
+              onChangeText={setBusqueda}
+              returnKeyType="search"
+            />
+            {busqueda.length > 0 && (
+              <TouchableOpacity onPress={() => setBusqueda('')}>
+                <Text style={{ color: COLORS.texto3, fontSize: 16, paddingHorizontal: 4 }}>×</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={styles.modRow}>
+            {[['todos','Cualquiera'], ['presencial','Presencial'], ['teletrabajo','Remoto']].map(([v, l]) => (
+              <TouchableOpacity key={v} style={[styles.modBtn, modalidad === v && styles.modBtnActive]} onPress={() => setModalidad(v)}>
+                <Text style={[styles.modTxt, modalidad === v && styles.modTxtActive]}>{l}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
         {/* ── SIN PERFIL ── */}
@@ -521,6 +582,21 @@ const styles = StyleSheet.create({
   },
   vacio:          { alignItems: 'center', paddingVertical: SIZES.xl },
   vacioTxt:       { color: COLORS.texto3, textAlign: 'center', lineHeight: 20, marginTop: 12 },
+
+  // Search
+  searchWrap: { paddingHorizontal: SIZES.md, marginTop: 8, marginBottom: 4 },
+  searchBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: COLORS.blanco, borderRadius: SIZES.radiusMd,
+    borderWidth: 1, borderColor: COLORS.borde,
+    paddingHorizontal: SIZES.sm, paddingVertical: 8, marginBottom: 8,
+  },
+  searchInput: { flex: 1, fontSize: SIZES.textSm, color: COLORS.texto1, paddingHorizontal: 4 },
+  modRow:     { flexDirection: 'row', gap: 6 },
+  modBtn:     { paddingHorizontal: 12, paddingVertical: 4, borderRadius: SIZES.radiusFull, borderWidth: 1, borderColor: COLORS.borde, backgroundColor: 'transparent' },
+  modBtnActive:  { backgroundColor: COLORS.indigo, borderColor: COLORS.indigo },
+  modTxt:        { fontSize: 11, color: COLORS.texto3, fontWeight: '600' },
+  modTxtActive:  { color: COLORS.blanco },
 
   // Card
   card: {
