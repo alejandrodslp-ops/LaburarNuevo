@@ -6,8 +6,13 @@
 import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
 import { createClient } from '@supabase/supabase-js';
+import ws from 'ws';
 
-const supabase   = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  { realtime: { transport: ws } }
+);
 const TEST_MODE  = process.argv.includes('--test');
 const SOLO_PAIS  = process.env.PAIS?.toUpperCase() || null;
 
