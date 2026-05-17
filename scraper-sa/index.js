@@ -31,9 +31,9 @@ async function fetchUrl(url, { timeout = 14000, headers = {} } = {}) {
       redirect: 'follow',
       signal: AbortSignal.timeout(timeout),
     });
-    if (!res.ok) return null;
+    if (!res.ok) { console.log(`    ⚠ HTTP ${res.status} → ${url}`); return null; }
     return await res.text();
-  } catch { return null; }
+  } catch (e) { console.log(`    ⚠ fetch error → ${url}: ${e.message}`); return null; }
 }
 
 async function fetchJSON(url, { timeout = 14000, headers = {} } = {}) {
@@ -43,9 +43,9 @@ async function fetchJSON(url, { timeout = 14000, headers = {} } = {}) {
       redirect: 'follow',
       signal: AbortSignal.timeout(timeout),
     });
-    if (!res.ok) return null;
+    if (!res.ok) { console.log(`    ⚠ HTTP ${res.status} → ${url}`); return null; }
     return await res.json();
-  } catch { return null; }
+  } catch (e) { console.log(`    ⚠ fetch error → ${url}: ${e.message}`); return null; }
 }
 
 function normalizar(s = '') {
@@ -115,14 +115,20 @@ function makeRow(fields) {
 
 async function upsert(rows, fuente) {
   if (!rows.length) return 0;
+  // Deduplicar por fuente_id dentro del batch (previene ON CONFLICT errors)
+  const seen = new Set();
+  const unique = rows.filter(r => {
+    if (!r.fuente_id || seen.has(r.fuente_id)) return false;
+    seen.add(r.fuente_id); return true;
+  });
   if (TEST_MODE) {
-    console.log(`  [TEST] ${rows.length} rows en ${fuente}`);
-    rows.slice(0, 2).forEach(r => console.log(`    • ${r.cargo} | ${r.pais} | ${r.lugar || '—'}`));
-    return rows.length;
+    console.log(`  [TEST] ${unique.length} rows en ${fuente}`);
+    unique.slice(0, 2).forEach(r => console.log(`    • ${r.cargo} | ${r.pais} | ${r.lugar || '—'}`));
+    return unique.length;
   }
   const { error } = await supabase
     .from('concursos')
-    .upsert(rows, { onConflict: 'fuente,fuente_id', ignoreDuplicates: false });
+    .upsert(unique, { onConflict: 'fuente,fuente_id', ignoreDuplicates: false });
   if (error) { console.error(`  ❌ upsert ${fuente}:`, error.message); return 0; }
   // Marcar vencidos
   const hoy = new Date().toISOString().slice(0, 10);
@@ -163,7 +169,8 @@ async function indeedRSS(subdominio, query, pais, fuente, lugar) {
   ];
   for (const url of urls) {
     const xml = await fetchUrl(url, { timeout: 10000 });
-    if (!xml || !xml.includes('<item>')) continue;
+    if (!xml) continue;
+    if (!xml.includes('<item>')) { console.log(`    ⚠ Indeed sin items → ${url.split('?')[0]}`); continue; }
     const items = parseRSS(xml);
     if (items.length === 0) continue;
     const rows = rssToRows(items, pais, fuente, { lugar });
