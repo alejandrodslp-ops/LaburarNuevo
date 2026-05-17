@@ -7,6 +7,9 @@ import fetch from 'node-fetch';
 import * as cheerio from 'cheerio';
 import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
+import https from 'https';
+
+const insecureAgent = new https.Agent({ rejectUnauthorized: false });
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -24,12 +27,13 @@ const HEADERS = {
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
-async function fetchUrl(url, { timeout = 14000, headers = {} } = {}) {
+async function fetchUrl(url, { timeout = 14000, headers = {}, insecure = false } = {}) {
   try {
     const res = await fetch(url, {
       headers: { ...HEADERS, ...headers },
       redirect: 'follow',
       signal: AbortSignal.timeout(timeout),
+      agent: insecure ? insecureAgent : undefined,
     });
     if (!res.ok) { console.log(`    ⚠ HTTP ${res.status} → ${url}`); return null; }
     return await res.text();
@@ -159,24 +163,11 @@ function rssToRows(items, pais, fuente, opts = {}) {
   return rows;
 }
 
-// Helper para Indeed RSS
-async function indeedRSS(subdominio, query, pais, fuente, lugar) {
-  const q = encodeURIComponent(query);
-  const l = lugar ? `&l=${encodeURIComponent(lugar)}` : '';
-  const urls = [
-    `https://${subdominio}.indeed.com/rss?q=${q}${l}&sort=date`,
-    `https://rss.indeed.com/rss?q=${q}&l=${encodeURIComponent(lugar || pais)}&sort=date`,
-  ];
-  for (const url of urls) {
-    const xml = await fetchUrl(url, { timeout: 10000 });
-    if (!xml) continue;
-    if (!xml.includes('<item>')) { console.log(`    ⚠ Indeed sin items → ${url.split('?')[0]}`); continue; }
-    const items = parseRSS(xml);
-    if (items.length === 0) continue;
-    const rows = rssToRows(items, pais, fuente, { lugar });
-    if (rows.length > 0) return rows;
-  }
-  return [];
+// Helper genérico para RSS → rows
+async function fetchRSS(url, pais, fuente, opts = {}) {
+  const xml = await fetchUrl(url, { timeout: opts.timeout || 12000 });
+  if (!xml || !xml.includes('<item>')) return [];
+  return rssToRows(parseRSS(xml), pais, fuente, opts);
 }
 
 // ─── URUGUAY ─────────────────────────────────────────────────────────────────
@@ -225,36 +216,38 @@ async function scrapeUruguay() {
 async function scrapeArgentina() {
   console.log('🇦🇷 Argentina...');
   // Boletín Oficial — sección 2 = Personal del Estado
-  const xml = await fetchUrl('https://www.boletinoficial.gob.ar/rss/seccion/2', { timeout: 12000 });
-  if (xml && xml.includes('<item>')) {
-    const items = parseRSS(xml);
-    const rows  = rssToRows(items, 'AR', 'argentina_boletin_oficial');
+  const boeXml = await fetchUrl('https://www.boletinoficial.gob.ar/rss/seccion/2', { timeout: 12000 });
+  if (boeXml && boeXml.includes('<item>')) {
+    const items = parseRSS(boeXml);
+    console.log(`    ℹ BOE items: ${items.length}`);
+    const rows = rssToRows(items, 'AR', 'argentina_boletin_oficial');
     if (rows.length > 0) {
       const n = await upsert(rows, 'argentina_boletin_oficial');
       console.log(`  ✓ ${n} llamados (Boletín Oficial)`);
       return n;
     }
   }
-  // Fallback: HTML de concursos argentina.gob.ar
-  const html = await fetchUrl('https://www.argentina.gob.ar/buscar/concurso+p%C3%BAblico');
-  if (!html) { console.log('  ⚠ inaccesible'); return 0; }
-  const $ = cheerio.load(html);
-  const rows = [];
-  $('article h3 a, .search-result h3 a, .views-row h3 a').each((_, el) => {
-    const titulo = $(el).text().trim();
-    const href   = $(el).attr('href') || '';
-    if (titulo.length < 6) return;
-    const link = href.startsWith('http') ? href : `https://www.argentina.gob.ar${href}`;
-    rows.push(makeRow({
-      fuente_id: link.split('/').pop()?.replace(/\W/g,'').slice(0,48) || titulo.replace(/\s/g,'_').slice(0,48),
-      fuente: 'argentina_ingresopublico', pais: 'AR',
-      titulo, cargo: titulo, url_detalle: link, url_postulacion: link,
-      keywords: extraerKeywords(titulo),
-    }));
-  });
-  const n = await upsert(rows, 'argentina_ingresopublico');
-  console.log(`  ✓ ${n} llamados`);
-  return n;
+  // INGRESAR — portal de empleo público (selectores amplios)
+  const html = await fetchUrl('https://www.argentina.gob.ar/concursos', { timeout: 12000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    const sel = 'h3 a, h4 a, .card-title a, article a, li a[href*="concurso"], td a';
+    $(sel).each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 6) return;
+      const link = href.startsWith('http') ? href : `https://www.argentina.gob.ar${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'argentina_concursos', pais: 'AR',
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link,
+        keywords: extraerKeywords(titulo),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'argentina_concursos'); console.log(`  ✓ ${n}`); return n; }
+  }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── BRASIL ──────────────────────────────────────────────────────────────────
@@ -321,29 +314,28 @@ async function scrapeBrasil() {
 // ─── CHILE ───────────────────────────────────────────────────────────────────
 async function scrapeChile() {
   console.log('🇨🇱 Chile...');
-  // Portal Empleos Públicos Chile
   const html = await fetchUrl('https://www.empleospublicos.cl/busqueda/listaAnuncios.aspx', { timeout: 12000 });
   if (html) {
     const $ = cheerio.load(html);
     const rows = [];
-    $('tr.odd, tr.even, .anuncio-item').each((_, el) => {
-      const href    = $(el).find('a').first().attr('href') || '';
-      const cargo   = $(el).find('td, .cargo').first().text().trim() || $(el).text().slice(0,60).trim();
+    // Intentar múltiples selectores posibles
+    $('tr, .anuncio-item, .item-empleo, .resultado, article').each((_, el) => {
+      const a       = $(el).find('a').first();
+      const href    = a.attr('href') || '';
+      const cargo   = a.text().trim() || $(el).find('td').first().text().trim();
       const fechaStr= $(el).text().match(/(\d{2}\/\d{2}\/\d{4})/)?.[1] || '';
-      if (!cargo || cargo.length < 5) return;
-      const link = href.startsWith('http') ? href : `https://www.empleospublicos.cl${href}`;
-      rows.push(makeRow({
-        fuente_id: href.split('=').pop()?.replace(/\W/g,'').slice(0,40) || cargo.replace(/\s/g,'_').slice(0,40),
-        fuente: 'chile_empleospublicos', pais: 'CL',
+      if (!cargo || cargo.length < 5 || !/[a-zA-ZáéíóúÁÉÍÓÚñÑ]{3}/.test(cargo)) return;
+      const link = href.startsWith('http') ? href : href ? `https://www.empleospublicos.cl${href}` : 'https://www.empleospublicos.cl';
+      const id   = href.split(/[=?]/).pop()?.replace(/\W/g,'').slice(0,40) || cargo.replace(/\W/g,'').slice(0,40);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'chile_empleospublicos', pais: 'CL',
         titulo: cargo, cargo, fecha_cierre: parseFecha(fechaStr),
         url_detalle: link, url_postulacion: link, keywords: extraerKeywords(cargo),
       }));
     });
     if (rows.length > 0) { const n = await upsert(rows,'chile_empleospublicos'); console.log(`  ✓ ${n}`); return n; }
   }
-  // Fallback: Indeed CL
-  const ind = await indeedRSS('cl', 'empleo gobierno concurso', 'CL', 'chile_indeed', 'Chile');
-  const n = await upsert(ind, 'chile_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── COLOMBIA ────────────────────────────────────────────────────────────────
@@ -368,8 +360,7 @@ async function scrapeColombia() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'colombia_cnsc'); console.log(`  ✓ ${n}`); return n; }
   }
-  const ind = await indeedRSS('co', 'empleo público convocatoria', 'CO', 'colombia_indeed', 'Colombia');
-  const n = await upsert(ind,'colombia_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── PERÚ ────────────────────────────────────────────────────────────────────
@@ -394,262 +385,418 @@ async function scrapePerú() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'peru_servir'); console.log(`  ✓ ${n}`); return n; }
   }
-  const ind = await indeedRSS('pe', 'empleo público CAS SERVIR', 'PE', 'peru_indeed', 'Peru');
-  const n = await upsert(ind,'peru_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── PARAGUAY ────────────────────────────────────────────────────────────────
 async function scrapeParaguay() {
   console.log('🇵🇾 Paraguay...');
-  const html = await fetchUrl('https://www.sfp.gov.py/es/institucional/concursos', { timeout: 12000 });
+  // sfp.gov.py tiene cert SSL inválido → insecure:true
+  const html = await fetchUrl('https://www.sfp.gov.py/es/institucional/concursos', { timeout: 12000, insecure: true });
   if (html) {
     const $ = cheerio.load(html);
     const rows = [];
-    $('a[href*="concurso"], .views-row h3 a, article h2 a').each((_, el) => {
+    $('a[href*="concurso"], a[href*="llamado"], h3 a, h2 a, td a').each((_, el) => {
       const titulo = $(el).text().trim();
       const href   = $(el).attr('href') || '';
       if (titulo.length < 5) return;
       const link = href.startsWith('http') ? href : `https://www.sfp.gov.py${href}`;
-      rows.push(makeRow({
-        fuente_id: encodeURIComponent(href).slice(-50),
-        fuente: 'paraguay_sfp', pais: 'PY',
+      const id   = encodeURIComponent(href).slice(-50) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'paraguay_sfp', pais: 'PY',
         titulo, cargo: titulo, organismo: 'SFP',
         url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
       }));
     });
     if (rows.length > 0) { const n = await upsert(rows,'paraguay_sfp'); console.log(`  ✓ ${n}`); return n; }
   }
-  const ind = await indeedRSS('ar', 'empleo Paraguay trabajo', 'PY', 'paraguay_indeed', 'Paraguay');
-  const n = await upsert(ind,'paraguay_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── BOLIVIA ─────────────────────────────────────────────────────────────────
 async function scrapeBolivia() {
   console.log('🇧🇴 Bolivia...');
-  const html = await fetchUrl('https://www.empleospublicos.gob.bo/', { timeout: 12000 });
-  if (html) {
+  // MTEPS — Ministerio de Trabajo Bolivia
+  for (const url of [
+    'https://www.mintrabajo.gob.bo/index.php/convocatorias',
+    'https://mteps.gob.bo/convocatorias',
+    'https://www.empleospublicos.bo/convocatorias',
+  ]) {
+    const html = await fetchUrl(url, { timeout: 10000 });
+    if (!html) continue;
     const $ = cheerio.load(html);
     const rows = [];
-    $('a[href*="convocatori"], a[href*="concurso"], .cargo, tr td a').each((_, el) => {
+    $('h3 a, h4 a, td a, .views-row a, article a').each((_, el) => {
       const titulo = $(el).text().trim();
       const href   = $(el).attr('href') || '';
       if (titulo.length < 5) return;
-      const link = href.startsWith('http') ? href : `https://www.empleospublicos.gob.bo${href}`;
-      const id = encodeURIComponent(href).slice(-48) || titulo.replace(/\s/g,'_').slice(0,48);
-      if (!rows.some(r=>r.fuente_id===id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'bolivia_empleospublicos', pais: 'BO',
+      const base = new URL(url).origin;
+      const link = href.startsWith('http') ? href : `${base}${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'bolivia_mteps', pais: 'BO',
         titulo, cargo: titulo, url_detalle: link, url_postulacion: link,
         keywords: extraerKeywords(titulo),
       }));
     });
-    if (rows.length > 0) { const n = await upsert(rows,'bolivia_empleospublicos'); console.log(`  ✓ ${n}`); return n; }
+    if (rows.length > 0) { const n = await upsert(rows,'bolivia_mteps'); console.log(`  ✓ ${n}`); return n; }
   }
-  const ind = await indeedRSS('ar', 'empleo Bolivia trabajo público', 'BO', 'bolivia_indeed', 'Bolivia');
-  const n = await upsert(ind,'bolivia_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── ECUADOR ─────────────────────────────────────────────────────────────────
 async function scrapeEcuador() {
   console.log('🇪🇨 Ecuador...');
-  // MDT Ecuador — portal de empleo público
-  const html = await fetchUrl('https://www.trabajo.gob.ec/bolsa-de-empleo/', { timeout: 12000 });
-  if (html) {
+  for (const url of [
+    'https://www.trabajo.gob.ec/convocatorias-del-sector-publico/',
+    'https://www.trabajo.gob.ec/convocatorias/',
+    'https://www.trabajo.gob.ec/category/convocatorias/',
+  ]) {
+    const html = await fetchUrl(url, { timeout: 10000 });
+    if (!html) continue;
     const $ = cheerio.load(html);
     const rows = [];
-    $('a[href*="empleo"], a[href*="convocatori"], .cargo, tr td a').each((_, el) => {
+    $('h3 a, h4 a, .entry-title a, article a, td a').each((_, el) => {
       const titulo = $(el).text().trim();
       const href   = $(el).attr('href') || '';
       if (titulo.length < 5) return;
       const link = href.startsWith('http') ? href : `https://www.trabajo.gob.ec${href}`;
-      const id = encodeURIComponent(href).slice(-48);
-      if (!rows.some(r=>r.fuente_id===id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'ecuador_mdt', pais: 'EC',
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'ecuador_trabajo', pais: 'EC',
         titulo, cargo: titulo, url_detalle: link, url_postulacion: link,
         keywords: extraerKeywords(titulo),
       }));
     });
-    if (rows.length > 0) { const n = await upsert(rows,'ecuador_mdt'); console.log(`  ✓ ${n}`); return n; }
+    if (rows.length > 0) { const n = await upsert(rows,'ecuador_trabajo'); console.log(`  ✓ ${n}`); return n; }
   }
-  const ind = await indeedRSS('ec', 'empleo público concurso gobierno', 'EC', 'ecuador_indeed', 'Ecuador');
-  const n = await upsert(ind,'ecuador_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── MÉXICO ──────────────────────────────────────────────────────────────────
 async function scrapeMexico() {
   console.log('🇲🇽 México...');
-  const ind = await indeedRSS('mx', 'empleo gobierno convocatoria vacante', 'MX', 'mexico_indeed', 'Mexico');
-  if (ind.length > 0) { const n = await upsert(ind,'mexico_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n; }
-  // Trabajaen.gob.mx fallback
-  const html = await fetchUrl('https://www.trabajaen.gob.mx/portal/page/portal/Trabajaen/ConvocatoriasPublicadas', { timeout: 12000 });
-  if (!html) { console.log('  ⚠ inaccesible'); return 0; }
-  const $ = cheerio.load(html);
-  const rows = [];
-  $('a[href*="convocatori"], tr td:first-child').each((_, el) => {
-    const titulo = $(el).text().trim();
-    const href   = $(el).find('a').attr('href') || $(el).closest('tr').find('a').attr('href') || '';
-    if (titulo.length < 5) return;
-    const link = href.startsWith('http') ? href : `https://www.trabajaen.gob.mx${href}`;
-    rows.push(makeRow({
-      fuente_id: encodeURIComponent(href).slice(-50) || titulo.replace(/\s/g,'_').slice(0,50),
-      fuente: 'mexico_trabajaen', pais: 'MX',
-      titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
-    }));
-  });
-  const n = await upsert(rows,'mexico_trabajaen'); console.log(`  ✓ ${n}`); return n;
+  // Trabajaen.gob.mx — convocatorias federales
+  const html = await fetchUrl('https://www.trabajaen.gob.mx/portal/page/portal/Trabajaen/ConvocatoriasPublicadas', { timeout: 10000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    $('a[href*="convocatori"], tr a, .resultado a').each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 5) return;
+      const link = href.startsWith('http') ? href : `https://www.trabajaen.gob.mx${href}`;
+      const id   = encodeURIComponent(href).slice(-50) || titulo.replace(/\W/g,'').slice(0,50);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'mexico_trabajaen', pais: 'MX',
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'mexico_trabajaen'); console.log(`  ✓ ${n}`); return n; }
+  }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── VENEZUELA ───────────────────────────────────────────────────────────────
 async function scrapeVenezuela() {
   console.log('🇻🇪 Venezuela...');
-  const ind = await indeedRSS('co', 'empleo Venezuela trabajo vacante', 'VE', 'venezuela_indeed', 'Venezuela');
-  const n = await upsert(ind,'venezuela_indeed'); console.log(`  ✓ ${n}`); return n;
+  // ONCAE y ministerios venezolanos tienen acceso muy limitado desde cloud IPs
+  const html = await fetchUrl('https://www.oncae.gob.ve/convocatorias', { timeout: 8000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    $('h3 a, h4 a, td a, article a').each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 5) return;
+      const link = href.startsWith('http') ? href : `https://www.oncae.gob.ve${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'venezuela_oncae', pais: 'VE',
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'venezuela_oncae'); console.log(`  ✓ ${n}`); return n; }
+  }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── CUBA ────────────────────────────────────────────────────────────────────
 async function scrapeCuba() {
   console.log('🇨🇺 Cuba...');
-  const ind = await indeedRSS('co', 'empleo Cuba trabajo convocatoria', 'CU', 'cuba_indeed', 'Cuba');
-  const n = await upsert(ind,'cuba_indeed'); console.log(`  ✓ ${n}`); return n;
+  // Cuba no tiene portal de empleo público accesible desde el exterior
+  console.log('  ⚠ sin fuente disponible'); return 0;
 }
 
 // ─── COSTA RICA ──────────────────────────────────────────────────────────────
 async function scrapeCostaRica() {
   console.log('🇨🇷 Costa Rica...');
-  const html = await fetchUrl('https://www.dgsc.go.cr/concursos', { timeout: 12000 });
+  // DGSC tiene cert SSL inválido → insecure
+  const html = await fetchUrl('https://www.rgsc.go.cr/concursos', { timeout: 10000, insecure: true })
+    || await fetchUrl('https://www.dgsc.go.cr/concursos', { timeout: 10000, insecure: true });
   if (html) {
     const $ = cheerio.load(html);
     const rows = [];
-    $('a[href*="concurso"], tr td a, .views-row a').each((_, el) => {
+    $('a[href*="concurso"], a[href*="puesto"], tr td a, h3 a, h4 a').each((_, el) => {
       const titulo = $(el).text().trim();
       const href   = $(el).attr('href') || '';
       if (titulo.length < 5) return;
-      const link = href.startsWith('http') ? href : `https://www.dgsc.go.cr${href}`;
-      rows.push(makeRow({
-        fuente_id: encodeURIComponent(href).slice(-50),
-        fuente: 'costarica_dgsc', pais: 'CR',
+      const base = href.startsWith('http') ? '' : 'https://www.dgsc.go.cr';
+      const link = base + href;
+      const id   = encodeURIComponent(href).slice(-50) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'costarica_dgsc', pais: 'CR',
         titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
       }));
     });
     if (rows.length > 0) { const n = await upsert(rows,'costarica_dgsc'); console.log(`  ✓ ${n}`); return n; }
   }
-  const ind = await indeedRSS('cr', 'empleo gobierno servicio civil', 'CR', 'costarica_indeed', 'Costa Rica');
-  const n = await upsert(ind,'costarica_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── GUATEMALA ───────────────────────────────────────────────────────────────
 async function scrapeGuatemala() {
   console.log('🇬🇹 Guatemala...');
-  const ind = await indeedRSS('gt', 'empleo público gobierno trabajo', 'GT', 'guatemala_indeed', 'Guatemala');
-  const n = await upsert(ind,'guatemala_indeed'); console.log(`  ✓ ${n}`); return n;
+  const html = await fetchUrl('https://www.onsec.gob.gt/convocatorias', { timeout: 10000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    $('h3 a, h4 a, td a, article a').each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 5) return;
+      const link = href.startsWith('http') ? href : `https://www.onsec.gob.gt${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'guatemala_onsec', pais: 'GT',
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'guatemala_onsec'); console.log(`  ✓ ${n}`); return n; }
+  }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── EL SALVADOR ─────────────────────────────────────────────────────────────
 async function scrapeElSalvador() {
   console.log('🇸🇻 El Salvador...');
-  const ind = await indeedRSS('sv', 'empleo gobierno trabajo convocatoria', 'SV', 'elsalvador_indeed', 'El Salvador');
-  const n = await upsert(ind,'elsalvador_indeed'); console.log(`  ✓ ${n}`); return n;
+  const html = await fetchUrl('https://www.rrhh.gob.sv/concursos', { timeout: 10000})
+    || await fetchUrl('https://www.sercop.gob.sv/concursos', { timeout: 10000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    $('h3 a, h4 a, td a, article a').each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 5) return;
+      const link = href.startsWith('http') ? href : `https://www.rrhh.gob.sv${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'elsalvador_rrhh', pais: 'SV',
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'elsalvador_rrhh'); console.log(`  ✓ ${n}`); return n; }
+  }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── HONDURAS ────────────────────────────────────────────────────────────────
 async function scrapeHonduras() {
   console.log('🇭🇳 Honduras...');
-  const ind = await indeedRSS('hn', 'empleo gobierno trabajo convocatoria', 'HN', 'honduras_indeed', 'Honduras');
-  if (ind.length > 0) { const n = await upsert(ind,'honduras_indeed'); console.log(`  ✓ ${n}`); return n; }
-  const ind2 = await indeedRSS('cr', 'empleo Honduras trabajo', 'HN', 'honduras_indeed2', 'Honduras');
-  const n = await upsert(ind2,'honduras_indeed2'); console.log(`  ✓ ${n}`); return n;
+  const html = await fetchUrl('https://www.sefin.gob.hn/concursos-publicos/', { timeout: 10000})
+    || await fetchUrl('https://www.scgg.gob.hn/concursos', { timeout: 10000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    $('h3 a, h4 a, td a, article a').each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 5) return;
+      const link = href.startsWith('http') ? href : `https://www.scgg.gob.hn${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'honduras_scgg', pais: 'HN',
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'honduras_scgg'); console.log(`  ✓ ${n}`); return n; }
+  }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── NICARAGUA ───────────────────────────────────────────────────────────────
 async function scrapeNicaragua() {
   console.log('🇳🇮 Nicaragua...');
-  const ind = await indeedRSS('cr', 'empleo Nicaragua trabajo convocatoria', 'NI', 'nicaragua_indeed', 'Nicaragua');
-  const n = await upsert(ind,'nicaragua_indeed'); console.log(`  ✓ ${n}`); return n;
+  const html = await fetchUrl('https://www.mhcp.gob.ni/concursos', { timeout: 10000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    $('h3 a, h4 a, td a, article a').each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 5) return;
+      const link = href.startsWith('http') ? href : `https://www.mhcp.gob.ni${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'nicaragua_mhcp', pais: 'NI',
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'nicaragua_mhcp'); console.log(`  ✓ ${n}`); return n; }
+  }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── PANAMÁ ──────────────────────────────────────────────────────────────────
 async function scrapePanama() {
   console.log('🇵🇦 Panamá...');
-  const ind = await indeedRSS('pa', 'empleo gobierno público convocatoria', 'PA', 'panama_indeed', 'Panama');
-  const n = await upsert(ind,'panama_indeed'); console.log(`  ✓ ${n}`); return n;
+  const html = await fetchUrl('https://www.panama.gob.pa/convocatorias', { timeout: 10000 })
+    || await fetchUrl('https://www.mop.gob.pa/empleos', { timeout: 10000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    $('h3 a, h4 a, td a, article a').each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 5) return;
+      const link = href.startsWith('http') ? href : `https://www.mop.gob.pa${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'panama_gov', pais: 'PA',
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'panama_gov'); console.log(`  ✓ ${n}`); return n; }
+  }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── REPÚBLICA DOMINICANA ────────────────────────────────────────────────────
 async function scrapeRepDominicana() {
   console.log('🇩🇴 Rep. Dominicana...');
-  const ind = await indeedRSS('ar', 'empleo República Dominicana trabajo', 'DO', 'dominicana_indeed', 'Republica Dominicana');
-  const n = await upsert(ind,'dominicana_indeed'); console.log(`  ✓ ${n}`); return n;
+  const html = await fetchUrl('https://www.map.gob.do/concursos-de-oposicion/', { timeout: 10000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    $('h3 a, h4 a, .entry-title a, td a, article a').each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 5) return;
+      const link = href.startsWith('http') ? href : `https://www.map.gob.do${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'dominicana_map', pais: 'DO',
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'dominicana_map'); console.log(`  ✓ ${n}`); return n; }
+  }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── ESPAÑA ──────────────────────────────────────────────────────────────────
 async function scrapeEspana() {
   console.log('🇪🇸 España...');
-  const xml = await fetchUrl('https://www.boe.es/rss/canal.php?c=11', { timeout: 12000 });
-  if (xml && xml.includes('<item>')) {
-    const rows = rssToRows(parseRSS(xml), 'ES', 'espana_boe');
-    if (rows.length > 0) { const n = await upsert(rows,'espana_boe'); console.log(`  ✓ ${n} (BOE)`); return n; }
+  // BOE — sección Personal del Estado (varios canales)
+  for (const c of ['11', '13', '14']) {
+    const rows = await fetchRSS(`https://www.boe.es/rss/canal.php?c=${c}`, 'ES', 'espana_boe');
+    if (rows.length > 0) { const n = await upsert(rows,'espana_boe'); console.log(`  ✓ ${n} (BOE canal ${c})`); return n; }
   }
-  const ind = await indeedRSS('es', 'oposición empleo público administración', 'ES', 'espana_indeed', 'España');
-  const n = await upsert(ind,'espana_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  // SEPE — convocatorias de empleo público
+  const html = await fetchUrl('https://www.sepe.es/HomeSepe/que-es-el-sepe/comunicacion-institucional/convocatorias.html', { timeout: 10000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    $('h3 a, h4 a, .titulo a, li a, td a').each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 6) return;
+      const link = href.startsWith('http') ? href : `https://www.sepe.es${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'espana_sepe', pais: 'ES',
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'espana_sepe'); console.log(`  ✓ ${n} (SEPE)`); return n; }
+  }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── PORTUGAL ────────────────────────────────────────────────────────────────
 async function scrapePortugal() {
   console.log('🇵🇹 Portugal...');
-  const ind = await indeedRSS('pt', 'emprego público concurso administração', 'PT', 'portugal_indeed', 'Portugal');
-  const n = await upsert(ind,'portugal_indeed'); console.log(`  ✓ ${n}`); return n;
+  // BEP — Bolsa de Emprego Público
+  const html = await fetchUrl('https://www.bep.gov.pt/pt/home', { timeout: 12000 })
+    || await fetchUrl('https://www.bep.gov.pt/Pesquisa/Pesquisa.aspx', { timeout: 12000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    $('h3 a, h4 a, td a, .titulo a, article a').each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 5) return;
+      const link = href.startsWith('http') ? href : `https://www.bep.gov.pt${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'portugal_bep', pais: 'PT',
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'portugal_bep'); console.log(`  ✓ ${n} (BEP)`); return n; }
+  }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── ITALIA ──────────────────────────────────────────────────────────────────
 async function scrapeItalia() {
   console.log('🇮🇹 Italia...');
-  // InPA — portal oficial de concursos públicos italianos
-  const data = await fetchJSON(
-    'https://www.inpa.gov.it/bandi/api/v1/bandi/?page=1&page_size=40&is_closed=false',
-    { timeout: 12000 }
-  );
-  if (data) {
-    const bandi = data.results ?? data.bandi ?? data ?? [];
-    const rows = [];
-    for (const b of bandi.slice(0, 40)) {
-      const titulo    = b.titolo || b.denominazione || b.title || '';
-      const organismo = b.ente || b.amministrazione || '';
-      const id        = String(b.id || b.codice || b.slug || '').replace(/\W/g,'').slice(0,48) || titulo.replace(/\W/g,'').slice(0,48);
-      const scadenza  = b.data_scadenza || b.scadenza || b.closing_date || '';
-      if (!titulo || titulo.length < 4 || rows.some(r=>r.fuente_id===id)) continue;
-      rows.push(makeRow({
+  // tuttoconcorsi.it — agregador de concursos públicos italianos (RSS)
+  const rows = await fetchRSS('https://www.tuttoconcorsi.it/feed/', 'IT', 'italia_tuttoconcorsi');
+  if (rows.length > 0) { const n = await upsert(rows,'italia_tuttoconcorsi'); console.log(`  ✓ ${n} (tuttoconcorsi)`); return n; }
+  // InPA — HTML scraping como fallback
+  const html = await fetchUrl('https://www.inpa.gov.it/bandi-di-concorso/', { timeout: 12000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const htmlRows = [];
+    $('h3 a, h4 a, .bando-title a, article a, td a').each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 5) return;
+      const link = href.startsWith('http') ? href : `https://www.inpa.gov.it${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!htmlRows.some(r => r.fuente_id === id)) htmlRows.push(makeRow({
         fuente_id: id, fuente: 'italia_inpa', pais: 'IT',
-        titulo: organismo ? `${titulo} — ${organismo}` : titulo,
-        cargo: titulo, organismo: organismo || null,
-        fecha_cierre: parseFecha(scadenza),
-        url_detalle: `https://www.inpa.gov.it/bandi/${b.id || ''}/`,
-        url_postulacion: `https://www.inpa.gov.it/bandi/${b.id || ''}/`,
-        keywords: extraerKeywords(titulo + ' ' + organismo),
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
       }));
-    }
-    if (rows.length > 0) { const n = await upsert(rows,'italia_inpa'); console.log(`  ✓ ${n} (InPA)`); return n; }
+    });
+    if (htmlRows.length > 0) { const n = await upsert(htmlRows,'italia_inpa'); console.log(`  ✓ ${n} (InPA)`); return n; }
   }
-  const ind = await indeedRSS('it', 'concorso pubblico lavoro amministrazione', 'IT', 'italia_indeed', 'Italia');
-  const n = await upsert(ind,'italia_indeed'); console.log(`  ✓ ${n}`); return n;
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── FRANCIA ─────────────────────────────────────────────────────────────────
 async function scrapeFrancia() {
   console.log('🇫🇷 Francia...');
-  const xml = await fetchUrl('https://place-emploi-public.gouv.fr/flux/rss/', { timeout: 12000 });
-  if (xml && xml.includes('<item>')) {
-    const rows = rssToRows(parseRSS(xml), 'FR', 'francia_place_emploi');
+  // choisirleservicepublic.gouv.fr — nuevo dominio del portal de empleo público
+  for (const url of [
+    'https://www.choisirleservicepublic.gouv.fr/flux/rss/',
+    'https://choisirleservicepublic.gouv.fr/flux/rss/',
+    'https://place-emploi-public.gouv.fr/flux/rss/',
+  ]) {
+    const rows = await fetchRSS(url, 'FR', 'francia_place_emploi');
     if (rows.length > 0) { const n = await upsert(rows,'francia_place_emploi'); console.log(`  ✓ ${n} (Place Emploi Public)`); return n; }
   }
-  const ind = await indeedRSS('fr', 'concours fonction publique emploi', 'FR', 'francia_indeed', 'France');
-  const n = await upsert(ind,'francia_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── ALEMANIA ────────────────────────────────────────────────────────────────
 async function scrapeAlemania() {
   console.log('🇩🇪 Alemania...');
-  // Bundesagentur für Arbeit — API pública gratuita
+  // Bundesagentur für Arbeit — API pública gratuita (sin angebotsart que da 400)
   const data = await fetchJSON(
-    'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?angebotsart=1&page=0&size=50',
+    'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?page=0&size=50',
     { headers: { 'X-API-Key': 'jobboerse-jobsuche' }, timeout: 12000 }
   );
   if (data) {
@@ -677,83 +824,126 @@ async function scrapeAlemania() {
     }
     if (rows.length > 0) { const n = await upsert(rows,'alemania_bundesagentur'); console.log(`  ✓ ${n} (Bundesagentur)`); return n; }
   }
-  const ind = await indeedRSS('de', 'Stelle Bewerbung öffentlicher Dienst', 'DE', 'alemania_indeed', 'Deutschland');
-  const n = await upsert(ind,'alemania_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  // Interamt — portal oficial del servicio público alemán
+  const html = await fetchUrl('https://www.interamt.de/koop/app/trefferliste?suche=1', { timeout: 12000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    $('h3 a, h4 a, .stellenangebot a, td a').each((_, el) => {
+      const titel = $(el).text().trim();
+      const href  = $(el).attr('href') || '';
+      if (titel.length < 4) return;
+      const link = href.startsWith('http') ? href : `https://www.interamt.de${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titel.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'alemania_interamt', pais: 'DE',
+        titulo: titel, cargo: titel, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titel),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'alemania_interamt'); console.log(`  ✓ ${n} (Interamt)`); return n; }
+  }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── REINO UNIDO ─────────────────────────────────────────────────────────────
 async function scrapeReinoUnido() {
   console.log('🇬🇧 Reino Unido...');
-  const xml = await fetchUrl(
-    'https://www.civilservicejobs.service.gov.uk/csr/jobs.cgi?pageaction=searchbykey&key=jobs_rss', { timeout: 12000 }
-  );
-  if (xml && xml.includes('<item>')) {
-    const rows = rssToRows(parseRSS(xml), 'GB', 'uk_civilservice');
+  // Civil Service Jobs RSS — portal oficial
+  for (const url of [
+    'https://www.civilservicejobs.service.gov.uk/csr/jobs.cgi?pageaction=searchbykey&key=jobs_rss',
+    'https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=&action=rss',
+    'https://findajob.dwp.gov.uk/search?sb=date&sd=down&pp=25&format=rss',
+  ]) {
+    const rows = await fetchRSS(url, 'GB', 'uk_civilservice');
     if (rows.length > 0) { const n = await upsert(rows,'uk_civilservice'); console.log(`  ✓ ${n} (Civil Service)`); return n; }
   }
-  const ind = await indeedRSS('co.uk', 'government civil service jobs vacancy', 'GB', 'uk_indeed', 'United Kingdom');
-  const n = await upsert(ind,'uk_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── ESTADOS UNIDOS ──────────────────────────────────────────────────────────
 async function scrapeEstadosUnidos() {
   console.log('🇺🇸 Estados Unidos...');
-  const xml = await fetchUrl('https://www.usajobs.gov/Search/Results?format=rss', { timeout: 12000 });
-  if (xml && xml.includes('<item>')) {
-    const rows = rssToRows(parseRSS(xml), 'US', 'usa_usajobs');
+  // USAJobs API — requiere solo User-Agent personalizado
+  const data = await fetchJSON(
+    'https://data.usajobs.gov/api/search?ResultsPerPage=50&WhoMayApply=All&SortField=DatePosted&SortDirection=Desc',
+    { headers: { 'Host': 'data.usajobs.gov', 'User-Agent': 'nexu@nexu.uy', 'Authorization-Key': '' }, timeout: 12000 }
+  );
+  if (data) {
+    const jobs = data?.SearchResult?.SearchResultItems ?? [];
+    const rows = [];
+    for (const item of jobs.slice(0, 50)) {
+      const j      = item.MatchedObjectDescriptor ?? {};
+      const titulo = j.PositionTitle || '';
+      const org    = j.OrganizationName || '';
+      const id     = String(j.PositionID || '').replace(/\W/g,'').slice(0,48) || titulo.replace(/\W/g,'').slice(0,48);
+      const close  = j.ApplicationCloseDate || '';
+      if (!titulo || titulo.length < 4 || rows.some(r=>r.fuente_id===id)) continue;
+      rows.push(makeRow({
+        fuente_id: id, fuente: 'usa_usajobs', pais: 'US',
+        titulo: org ? `${titulo} — ${org}` : titulo,
+        cargo: titulo, organismo: org || null,
+        lugar: j.PositionLocationDisplay || 'United States',
+        fecha_cierre: parseFecha(close),
+        url_detalle: j.PositionURI || null,
+        url_postulacion: j.ApplyURI?.[0] || j.PositionURI || null,
+        keywords: extraerKeywords(titulo + ' ' + org),
+      }));
+    }
     if (rows.length > 0) { const n = await upsert(rows,'usa_usajobs'); console.log(`  ✓ ${n} (USAJobs)`); return n; }
   }
-  const ind = await indeedRSS('com', 'government federal jobs hiring', 'US', 'usa_indeed', 'United States');
-  const n = await upsert(ind,'usa_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  // Fallback: USAJobs RSS
+  const rows = await fetchRSS('https://www.usajobs.gov/Search/Results?format=rss', 'US', 'usa_usajobs_rss');
+  if (rows.length > 0) { const n = await upsert(rows,'usa_usajobs_rss'); console.log(`  ✓ ${n} (USAJobs RSS)`); return n; }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── CANADÁ ──────────────────────────────────────────────────────────────────
 async function scrapeCanada() {
   console.log('🇨🇦 Canadá...');
-  // PSC — Public Service Commission
-  const xml = await fetchUrl(
-    'https://emploisfp-psjobs.cfp-psc.gc.ca/srs-sre/page01.htm?poster=1&psrsection=sch&lang=english&action=searchbykey&key=jobs_rss',
-    { timeout: 12000 }
-  );
-  if (xml && xml.includes('<item>')) {
-    const rows = rssToRows(parseRSS(xml), 'CA', 'canada_gc_jobs');
+  // GC Jobs — portal de empleos federales canadienses
+  for (const url of [
+    'https://emploisfp-psjobs.cfp-psc.gc.ca/psrs-srfp/applicant/page2440?jpsr=1&menu=1&poster=1&lang=en&isJobSearch=1&format=rss',
+    'https://jobs.gc.ca/srs-sre/data/rss.xml?lang=eng',
+    'https://www.canada.ca/en/public-service-commission.html',
+  ]) {
+    const rows = await fetchRSS(url, 'CA', 'canada_gc_jobs');
     if (rows.length > 0) { const n = await upsert(rows,'canada_gc_jobs'); console.log(`  ✓ ${n} (GC Jobs)`); return n; }
   }
-  const ind = await indeedRSS('ca', 'government jobs federal public service', 'CA', 'canada_indeed', 'Canada');
-  const n = await upsert(ind,'canada_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── AUSTRALIA ───────────────────────────────────────────────────────────────
 async function scrapeAustralia() {
   console.log('🇦🇺 Australia...');
-  // APSJobs — portal oficial del gobierno federal australiano
-  const data = await fetchJSON(
-    'https://www.apsjobs.gov.au/s/global-search/services/search/global?keyword=&sort=Date&page=1',
-    { timeout: 12000 }
-  );
-  if (data) {
-    const jobs = data.results ?? data.jobs ?? [];
-    const rows = [];
-    for (const job of jobs.slice(0, 40)) {
-      const titulo = job.title || job.jobTitle || '';
-      const agency = job.agency || job.organisation || '';
-      const id     = String(job.id || job.vacancyId || '').replace(/\W/g,'').slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
-      const close  = job.closingDate || job.closing_date || '';
-      if (!titulo || titulo.length < 4 || rows.some(r=>r.fuente_id===id)) continue;
-      rows.push(makeRow({
-        fuente_id: id, fuente: 'australia_apsjobs', pais: 'AU',
-        titulo: agency ? `${titulo} — ${agency}` : titulo,
-        cargo: titulo, organismo: agency || null,
-        lugar: 'Australia', fecha_cierre: parseFecha(close),
-        url_detalle: `https://www.apsjobs.gov.au/s/job-detail?Id=${job.id||''}`,
-        url_postulacion: `https://www.apsjobs.gov.au/s/job-detail?Id=${job.id||''}`,
-        keywords: extraerKeywords(titulo + ' ' + agency),
-      }));
+  // APSJobs — API con parámetros actualizados
+  for (const url of [
+    'https://www.apsjobs.gov.au/s/global-search/services/search/global?keyword=&sort=Date&page=1&pageSize=50',
+    'https://www.apsjobs.gov.au/s/global-search/services/search/global?keyword=&sort=Date&page=0',
+  ]) {
+    const data = await fetchJSON(url, { timeout: 12000 });
+    if (data) {
+      const jobs = data.results ?? data.jobs ?? data.vacancies ?? [];
+      const rows = [];
+      for (const job of jobs.slice(0, 50)) {
+        const titulo = job.title || job.jobTitle || job.positionTitle || '';
+        const agency = job.agency || job.organisation || job.department || '';
+        const id     = String(job.id || job.vacancyId || job.refNumber || '').replace(/\W/g,'').slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+        const close  = job.closingDate || job.closing_date || job.CloseDate || '';
+        if (!titulo || titulo.length < 4 || rows.some(r=>r.fuente_id===id)) continue;
+        rows.push(makeRow({
+          fuente_id: id, fuente: 'australia_apsjobs', pais: 'AU',
+          titulo: agency ? `${titulo} — ${agency}` : titulo,
+          cargo: titulo, organismo: agency || null,
+          lugar: 'Australia', fecha_cierre: parseFecha(close),
+          url_detalle: `https://www.apsjobs.gov.au/s/job-detail?Id=${job.id||''}`,
+          url_postulacion: `https://www.apsjobs.gov.au/s/job-detail?Id=${job.id||''}`,
+          keywords: extraerKeywords(titulo + ' ' + agency),
+        }));
+      }
+      if (rows.length > 0) { const n = await upsert(rows,'australia_apsjobs'); console.log(`  ✓ ${n} (APSJobs)`); return n; }
     }
-    if (rows.length > 0) { const n = await upsert(rows,'australia_apsjobs'); console.log(`  ✓ ${n} (APSJobs)`); return n; }
   }
-  const ind = await indeedRSS('com.au', 'government public service APS jobs', 'AU', 'australia_indeed', 'Australia');
-  const n = await upsert(ind,'australia_indeed'); console.log(`  ✓ ${n} (Indeed)`); return n;
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
