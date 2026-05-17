@@ -227,8 +227,10 @@ async function scrapeArgentina() {
       return n;
     }
   }
-  // INGRESAR — portal de empleo público (selectores amplios)
-  const html = await fetchUrl('https://www.argentina.gob.ar/concursos', { timeout: 12000 });
+  // INGRESAR / portales de empleo público
+  const html = await fetchUrl('https://ingresopublico.gob.ar/', { timeout: 12000 })
+    || await fetchUrl('https://www.argentina.gob.ar/servir/concursos', { timeout: 12000 })
+    || await fetchUrl('https://www.argentina.gob.ar/trabajo/ingresopublico', { timeout: 12000 });
   if (html) {
     const $ = cheerio.load(html);
     const rows = [];
@@ -416,13 +418,13 @@ async function scrapeParaguay() {
 // ─── BOLIVIA ─────────────────────────────────────────────────────────────────
 async function scrapeBolivia() {
   console.log('🇧🇴 Bolivia...');
-  // MTEPS — Ministerio de Trabajo Bolivia
+  // MTEPS — Ministerio de Trabajo Bolivia (cert inválido → insecure)
   for (const url of [
-    'https://www.mintrabajo.gob.bo/index.php/convocatorias',
     'https://mteps.gob.bo/convocatorias',
+    'https://www.mintrabajo.gob.bo/index.php/convocatorias',
     'https://www.empleospublicos.bo/convocatorias',
   ]) {
-    const html = await fetchUrl(url, { timeout: 10000 });
+    const html = await fetchUrl(url, { timeout: 10000, insecure: true });
     if (!html) continue;
     const $ = cheerio.load(html);
     const rows = [];
@@ -794,9 +796,12 @@ async function scrapeFrancia() {
 // ─── ALEMANIA ────────────────────────────────────────────────────────────────
 async function scrapeAlemania() {
   console.log('🇩🇪 Alemania...');
-  // Bundesagentur für Arbeit — API pública gratuita (sin angebotsart que da 400)
+  // Bundesagentur für Arbeit — API pública gratuita
   const data = await fetchJSON(
-    'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?page=0&size=50',
+    'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?angebotsart=1&arbeitsort=Deutschland&page=0&size=50',
+    { headers: { 'X-API-Key': 'jobboerse-jobsuche', 'Accept': 'application/json', 'Accept-Version': '3.9' }, timeout: 12000 }
+  ) || await fetchJSON(
+    'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v3/jobs?angebotsart=1&page=0&size=50',
     { headers: { 'X-API-Key': 'jobboerse-jobsuche' }, timeout: 12000 }
   );
   if (data) {
