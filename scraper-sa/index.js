@@ -89,7 +89,7 @@ function stripHtml(html = '') {
     .replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim();
 }
 
-// Parsea RSS/Atom con Cheerio en modo XML
+// Parsea RSS 2.0 y Atom con Cheerio en modo XML
 function parseRSS(xml) {
   const $ = cheerio.load(xml, { xmlMode: true });
   const items = [];
@@ -102,6 +102,19 @@ function parseRSS(xml) {
       pubDate: $('pubDate', el).first().text(),
     });
   });
+  // Atom format (entry en vez de item)
+  if (items.length === 0) {
+    $('entry').each((_, el) => {
+      const link = $('link', el).first().attr('href') || $('link', el).first().text() || $('id', el).first().text();
+      items.push({
+        title:   stripHtml($('title', el).first().text()),
+        link,
+        guid:    $('id', el).first().text() || link,
+        desc:    stripHtml($('summary', el).first().text() || $('content', el).first().text()),
+        pubDate: $('updated', el).first().text() || $('published', el).first().text(),
+      });
+    });
+  }
   return items;
 }
 
@@ -166,7 +179,7 @@ function rssToRows(items, pais, fuente, opts = {}) {
 // Helper genérico para RSS → rows
 async function fetchRSS(url, pais, fuente, opts = {}) {
   const xml = await fetchUrl(url, { timeout: opts.timeout || 12000 });
-  if (!xml || !xml.includes('<item>')) return [];
+  if (!xml || (!xml.includes('<item>') && !xml.includes('<entry>'))) return [];
   return rssToRows(parseRSS(xml), pais, fuente, opts);
 }
 
@@ -303,10 +316,10 @@ async function scrapeArgentina() {
       return n;
     }
   }
-  // INGRESAR / portales de empleo público
-  const html = await fetchUrl('https://ingresopublico.gob.ar/', { timeout: 12000 })
-    || await fetchUrl('https://www.argentina.gob.ar/servir/concursos', { timeout: 12000 })
-    || await fetchUrl('https://www.argentina.gob.ar/trabajo/ingresopublico', { timeout: 12000 });
+  // Portal de empleo público de Argentina
+  const html = await fetchUrl('https://www.argentina.gob.ar/empleo-publico', { timeout: 12000 })
+    || await fetchUrl('https://www.argentina.gob.ar/jefatura/gestion-y-empleo-publico/empleo/ingreso-publico-transparente', { timeout: 12000 })
+    || await fetchUrl('https://www.siu.edu.ar/docentes_investigadores/convocatorias_docentes.php', { timeout: 12000 });
   if (html) {
     const $ = cheerio.load(html);
     const rows = [];
@@ -1011,7 +1024,7 @@ async function scrapeEstadosUnidos() {
   // USAJobs API — requiere solo User-Agent personalizado
   const data = await fetchJSON(
     'https://data.usajobs.gov/api/search?ResultsPerPage=50&WhoMayApply=All&SortField=DatePosted&SortDirection=Desc',
-    { headers: { 'Host': 'data.usajobs.gov', 'User-Agent': 'nexu@nexu.uy', 'Authorization-Key': '' }, timeout: 12000 }
+    { headers: { 'User-Agent': 'nexu@nexu.uy' }, timeout: 12000 }
   );
   if (data) {
     const jobs = data?.SearchResult?.SearchResultItems ?? [];
@@ -1052,11 +1065,29 @@ async function scrapeCanada() {
   // GC Jobs — portal de empleos federales canadienses
   for (const url of [
     'https://emploisfp-psjobs.cfp-psc.gc.ca/psrs-srfp/applicant/page2440?jpsr=1&menu=1&poster=1&lang=en&isJobSearch=1&format=rss',
-    'https://jobs.gc.ca/srs-sre/data/rss.xml?lang=eng',
-    'https://www.canada.ca/en/public-service-commission.html',
+    'https://www.canada.ca/content/dam/canada/jobs/job-bank/documents/jobopp-rss-en.xml',
+    'https://www.jobbank.gc.ca/jobsearch/rss?searchstring=government&fsrc=16',
   ]) {
     const rows = await fetchRSS(url, 'CA', 'canada_gc_jobs');
     if (rows.length > 0) { const n = await upsert(rows,'canada_gc_jobs'); console.log(`  ✓ ${n} (GC Jobs)`); return n; }
+  }
+  // Job Bank — portal oficial de empleos del gobierno canadiense (HTML)
+  const html = await fetchUrl('https://www.jobbank.gc.ca/jobsearch/jobsearch?searchstring=federal+government&fsrc=16&sort=M', { timeout: 12000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    $('a.resultJobItem, article.results-jobs a, .jobs-search-results a').each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 5) return;
+      const link = href.startsWith('http') ? href : `https://www.jobbank.gc.ca${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'canada_jobbank', pais: 'CA',
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'canada_jobbank'); console.log(`  ✓ ${n} (Job Bank)`); return n; }
   }
   const az = await adzunaSearch('ca', 'CA', 'ca_adzuna', 'government public service federal jobs');
   if (az.length > 0) { const n = await upsert(az,'ca_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
@@ -1068,33 +1099,53 @@ async function scrapeCanada() {
 // ─── AUSTRALIA ───────────────────────────────────────────────────────────────
 async function scrapeAustralia() {
   console.log('🇦🇺 Australia...');
-  // APSJobs — API con parámetros actualizados
+  // APSJobs — portal oficial APS, múltiples endpoints posibles
   for (const url of [
-    'https://www.apsjobs.gov.au/s/global-search/services/search/global?keyword=&sort=Date&page=1&pageSize=50',
-    'https://www.apsjobs.gov.au/s/global-search/services/search/global?keyword=&sort=Date&page=0',
+    'https://www.apsjobs.gov.au/s/global-search/services/search/global?keyword=&sort=Date&pageSize=50&page=1',
+    'https://api.apsjobs.gov.au/v1/jobs?sort=date&pageSize=50',
+    'https://www.apsjobs.gov.au/s/sfsites/auraFW/aura?r=3&aura.ApexAction.execute=1',
   ]) {
     const data = await fetchJSON(url, { timeout: 12000 });
     if (data) {
-      const jobs = data.results ?? data.jobs ?? data.vacancies ?? [];
+      const jobs = data.results ?? data.jobs ?? data.vacancies ?? data.records ?? [];
       const rows = [];
       for (const job of jobs.slice(0, 50)) {
-        const titulo = job.title || job.jobTitle || job.positionTitle || '';
-        const agency = job.agency || job.organisation || job.department || '';
-        const id     = String(job.id || job.vacancyId || job.refNumber || '').replace(/\W/g,'').slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
-        const close  = job.closingDate || job.closing_date || job.CloseDate || '';
+        const titulo = job.title || job.jobTitle || job.positionTitle || job.Name || '';
+        const agency = job.agency || job.organisation || job.department || job.Agency__c || '';
+        const id     = String(job.id || job.vacancyId || job.refNumber || job.Id || '').replace(/\W/g,'').slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+        const close  = job.closingDate || job.closing_date || job.CloseDate || job.ClosingDate__c || '';
         if (!titulo || titulo.length < 4 || rows.some(r=>r.fuente_id===id)) continue;
         rows.push(makeRow({
           fuente_id: id, fuente: 'australia_apsjobs', pais: 'AU',
           titulo: agency ? `${titulo} — ${agency}` : titulo,
           cargo: titulo, organismo: agency || null,
           lugar: 'Australia', fecha_cierre: parseFecha(close),
-          url_detalle: `https://www.apsjobs.gov.au/s/job-detail?Id=${job.id||''}`,
-          url_postulacion: `https://www.apsjobs.gov.au/s/job-detail?Id=${job.id||''}`,
+          url_detalle: `https://www.apsjobs.gov.au/s/job-detail?Id=${job.id||job.Id||''}`,
+          url_postulacion: `https://www.apsjobs.gov.au/s/job-detail?Id=${job.id||job.Id||''}`,
           keywords: extraerKeywords(titulo + ' ' + agency),
         }));
       }
       if (rows.length > 0) { const n = await upsert(rows,'australia_apsjobs'); console.log(`  ✓ ${n} (APSJobs)`); return n; }
     }
+  }
+  // Scraping HTML de APSJobs como fallback
+  const html = await fetchUrl('https://www.apsjobs.gov.au/s/', { timeout: 12000 });
+  if (html) {
+    const $ = cheerio.load(html);
+    const rows = [];
+    $('a[href*="job-detail"], a[href*="vacancy"], h3 a, h4 a').each((_, el) => {
+      const titulo = $(el).text().trim();
+      const href   = $(el).attr('href') || '';
+      if (titulo.length < 5) return;
+      const link = href.startsWith('http') ? href : `https://www.apsjobs.gov.au${href}`;
+      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'australia_apsjobs', pais: 'AU',
+        titulo, cargo: titulo, lugar: 'Australia',
+        url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+      }));
+    });
+    if (rows.length > 0) { const n = await upsert(rows,'australia_apsjobs'); console.log(`  ✓ ${n} (APSJobs HTML)`); return n; }
   }
   const az = await adzunaSearch('au', 'AU', 'au_adzuna', 'government public service APS jobs');
   if (az.length > 0) { const n = await upsert(az,'au_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
