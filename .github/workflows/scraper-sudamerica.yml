@@ -1,9 +1,9 @@
 name: Scraper Sudamérica
 
 on:
-  # Cron desactivado — el scraper corre desde VPS Hetzner (IP limpia, no Azure)
-  # schedule:
-  #   - cron: '0 7 * * *'
+  schedule:
+    # Todos los días 15:00 UTC = mediodía Uruguay (Mac encendida)
+    - cron: '0 15 * * *'
   workflow_dispatch:
     # Permite correrlo manualmente desde GitHub → Actions → Run workflow
     inputs:
@@ -14,7 +14,7 @@ on:
 
 jobs:
   scrape:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 15
 
     steps:
