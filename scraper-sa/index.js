@@ -170,6 +170,82 @@ async function fetchRSS(url, pais, fuente, opts = {}) {
   return rssToRows(parseRSS(xml), pais, fuente, opts);
 }
 
+// ─── ADZUNA API ───────────────────────────────────────────────────────────────
+// Cobertura: gb,us,au,ca,de,fr,it,nl,br,mx,ar,cl,co,pl,at,be,nz,sg,za,in
+// Registro gratis en: https://developer.adzuna.com
+// GitHub Secrets: ADZUNA_APP_ID + ADZUNA_APP_KEY
+const ADZUNA_ID  = process.env.ADZUNA_APP_ID;
+const ADZUNA_KEY = process.env.ADZUNA_APP_KEY;
+
+async function adzunaSearch(cc, pais, fuente, query = 'government public sector') {
+  if (!ADZUNA_ID || !ADZUNA_KEY) return [];
+  const q   = encodeURIComponent(query);
+  const url = `https://api.adzuna.com/v1/api/jobs/${cc}/search/1?app_id=${ADZUNA_ID}&app_key=${ADZUNA_KEY}&results_per_page=50&what=${q}&sort_by=date&content-type=application/json`;
+  const data = await fetchJSON(url, { timeout: 14000 });
+  if (!data?.results?.length) return [];
+  const rows = [];
+  for (const j of data.results.slice(0, 50)) {
+    const titulo  = j.title || '';
+    const empresa = j.company?.display_name || '';
+    const lugar   = j.location?.display_name || pais;
+    const id      = String(j.id || '').replace(/\W/g,'').slice(0,48) || titulo.replace(/\W/g,'').slice(0,48);
+    const fecha   = j.created ? j.created.slice(0, 10) : null;
+    if (!titulo || titulo.length < 4 || rows.some(r => r.fuente_id === id)) continue;
+    rows.push(makeRow({
+      fuente_id: id, fuente, pais,
+      titulo: empresa ? `${titulo} — ${empresa}` : titulo,
+      cargo: titulo, organismo: empresa || null,
+      lugar, fecha_cierre: fecha,
+      url_detalle: j.redirect_url || null,
+      url_postulacion: j.redirect_url || null,
+      descripcion: j.description?.slice(0, 600) || null,
+      keywords: extraerKeywords(titulo + ' ' + (j.description || '')),
+    }));
+  }
+  return rows;
+}
+
+// ─── JOOBLE API ───────────────────────────────────────────────────────────────
+// Cobertura: ~70 países incluyendo toda LatAm
+// Registro gratis en: https://jooble.org/api/about
+// GitHub Secret: JOOBLE_API_KEY
+const JOOBLE_KEY = process.env.JOOBLE_API_KEY;
+
+async function joobleSearch(keywords, location, pais, fuente) {
+  if (!JOOBLE_KEY) return [];
+  const body = JSON.stringify({ keywords, location, resultsOnPage: 50 });
+  try {
+    const res = await fetch(`https://jooble.org/api/${JOOBLE_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': HEADERS['User-Agent'] },
+      body,
+      signal: AbortSignal.timeout(14000),
+    });
+    if (!res.ok) { console.log(`    ⚠ Jooble HTTP ${res.status}`); return []; }
+    const json = await res.json();
+    const jobs = json.jobs ?? [];
+    const rows = [];
+    for (const j of jobs.slice(0, 50)) {
+      const titulo  = j.title || '';
+      const empresa = j.company || '';
+      const id      = String(j.id || '').replace(/\W/g,'').slice(0,48) || (titulo + empresa).replace(/\W/g,'').slice(0,48);
+      if (!titulo || titulo.length < 4 || rows.some(r => r.fuente_id === id)) continue;
+      rows.push(makeRow({
+        fuente_id: id, fuente, pais,
+        titulo: empresa ? `${titulo} — ${empresa}` : titulo,
+        cargo: titulo, organismo: empresa || null,
+        lugar: j.location || location,
+        fecha_cierre: j.updated ? j.updated.slice(0, 10) : null,
+        url_detalle: j.link || null,
+        url_postulacion: j.link || null,
+        descripcion: j.snippet?.replace(/<[^>]+>/g,'').slice(0, 600) || null,
+        keywords: extraerKeywords(titulo + ' ' + (j.snippet || '')),
+      }));
+    }
+    return rows;
+  } catch (e) { console.log(`    ⚠ Jooble error: ${e.message}`); return []; }
+}
+
 // ─── URUGUAY ─────────────────────────────────────────────────────────────────
 async function scrapeUruguay() {
   console.log('🇺🇾 Uruguay...');
@@ -249,6 +325,11 @@ async function scrapeArgentina() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'argentina_concursos'); console.log(`  ✓ ${n}`); return n; }
   }
+  // APIs externas
+  const az = await adzunaSearch('ar', 'AR', 'argentina_adzuna', 'gobierno empleo público concurso');
+  if (az.length > 0) { const n = await upsert(az,'argentina_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
+  const jb = await joobleSearch('empleo público concurso gobierno', 'Argentina', 'AR', 'argentina_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'argentina_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -337,6 +418,10 @@ async function scrapeChile() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'chile_empleospublicos'); console.log(`  ✓ ${n}`); return n; }
   }
+  const az = await adzunaSearch('cl', 'CL', 'chile_adzuna', 'empleo público gobierno concurso');
+  if (az.length > 0) { const n = await upsert(az,'chile_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
+  const jb = await joobleSearch('empleo público concurso gobierno', 'Chile', 'CL', 'chile_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'chile_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -362,6 +447,10 @@ async function scrapeColombia() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'colombia_cnsc'); console.log(`  ✓ ${n}`); return n; }
   }
+  const az = await adzunaSearch('co', 'CO', 'colombia_adzuna', 'empleo público convocatoria gobierno');
+  if (az.length > 0) { const n = await upsert(az,'colombia_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
+  const jb = await joobleSearch('empleo público convocatoria gobierno', 'Colombia', 'CO', 'colombia_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'colombia_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -387,6 +476,8 @@ async function scrapePerú() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'peru_servir'); console.log(`  ✓ ${n}`); return n; }
   }
+  const jb = await joobleSearch('empleo público CAS convocatoria SERVIR', 'Peru', 'PE', 'peru_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'peru_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -443,6 +534,8 @@ async function scrapeBolivia() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'bolivia_mteps'); console.log(`  ✓ ${n}`); return n; }
   }
+  const jb = await joobleSearch('empleo público convocatoria gobierno', 'Bolivia', 'BO', 'bolivia_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'bolivia_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -472,6 +565,8 @@ async function scrapeEcuador() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'ecuador_trabajo'); console.log(`  ✓ ${n}`); return n; }
   }
+  const jb = await joobleSearch('empleo público concurso gobierno sector', 'Ecuador', 'EC', 'ecuador_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'ecuador_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -496,6 +591,10 @@ async function scrapeMexico() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'mexico_trabajaen'); console.log(`  ✓ ${n}`); return n; }
   }
+  const az = await adzunaSearch('mx', 'MX', 'mexico_adzuna', 'gobierno empleo convocatoria vacante');
+  if (az.length > 0) { const n = await upsert(az,'mexico_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
+  const jb = await joobleSearch('empleo gobierno convocatoria vacante', 'Mexico', 'MX', 'mexico_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'mexico_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -520,14 +619,17 @@ async function scrapeVenezuela() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'venezuela_oncae'); console.log(`  ✓ ${n}`); return n; }
   }
+  const jb = await joobleSearch('empleo vacante trabajo', 'Venezuela', 'VE', 'venezuela_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'venezuela_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── CUBA ────────────────────────────────────────────────────────────────────
 async function scrapeCuba() {
   console.log('🇨🇺 Cuba...');
-  // Cuba no tiene portal de empleo público accesible desde el exterior
-  console.log('  ⚠ sin fuente disponible'); return 0;
+  const jb = await joobleSearch('empleo trabajo vacante', 'Cuba', 'CU', 'cuba_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'cuba_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
+  console.log('  ⚠ sin resultados'); return 0;
 }
 
 // ─── COSTA RICA ──────────────────────────────────────────────────────────────
@@ -553,6 +655,8 @@ async function scrapeCostaRica() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'costarica_dgsc'); console.log(`  ✓ ${n}`); return n; }
   }
+  const jb = await joobleSearch('empleo gobierno servicio civil', 'Costa Rica', 'CR', 'costarica_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'costarica_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -576,6 +680,8 @@ async function scrapeGuatemala() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'guatemala_onsec'); console.log(`  ✓ ${n}`); return n; }
   }
+  const jb = await joobleSearch('empleo gobierno trabajo convocatoria', 'Guatemala', 'GT', 'guatemala_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'guatemala_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -600,6 +706,8 @@ async function scrapeElSalvador() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'elsalvador_rrhh'); console.log(`  ✓ ${n}`); return n; }
   }
+  const jb = await joobleSearch('empleo gobierno trabajo convocatoria', 'El Salvador', 'SV', 'elsalvador_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'elsalvador_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -624,6 +732,8 @@ async function scrapeHonduras() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'honduras_scgg'); console.log(`  ✓ ${n}`); return n; }
   }
+  const jb = await joobleSearch('empleo gobierno trabajo convocatoria', 'Honduras', 'HN', 'honduras_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'honduras_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -647,6 +757,8 @@ async function scrapeNicaragua() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'nicaragua_mhcp'); console.log(`  ✓ ${n}`); return n; }
   }
+  const jb = await joobleSearch('empleo gobierno trabajo convocatoria', 'Nicaragua', 'NI', 'nicaragua_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'nicaragua_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -671,6 +783,8 @@ async function scrapePanama() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'panama_gov'); console.log(`  ✓ ${n}`); return n; }
   }
+  const jb = await joobleSearch('empleo gobierno público convocatoria', 'Panama', 'PA', 'panama_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'panama_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -694,6 +808,8 @@ async function scrapeRepDominicana() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'dominicana_map'); console.log(`  ✓ ${n}`); return n; }
   }
+  const jb = await joobleSearch('empleo gobierno trabajo convocatoria', 'Republica Dominicana', 'DO', 'dominicana_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'dominicana_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -723,6 +839,10 @@ async function scrapeEspana() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'espana_sepe'); console.log(`  ✓ ${n} (SEPE)`); return n; }
   }
+  const az = await adzunaSearch('es', 'ES', 'espana_adzuna', 'oposición empleo público administración');
+  if (az.length > 0) { const n = await upsert(az,'espana_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
+  const jb = await joobleSearch('oposición empleo público administración', 'España', 'ES', 'espana_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'espana_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -748,6 +868,10 @@ async function scrapePortugal() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'portugal_bep'); console.log(`  ✓ ${n} (BEP)`); return n; }
   }
+  const az = await adzunaSearch('pt', 'PT', 'portugal_adzuna', 'emprego público concurso administração');
+  if (az.length > 0) { const n = await upsert(az,'portugal_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
+  const jb = await joobleSearch('emprego público concurso administração', 'Portugal', 'PT', 'portugal_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'portugal_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -775,6 +899,10 @@ async function scrapeItalia() {
     });
     if (htmlRows.length > 0) { const n = await upsert(htmlRows,'italia_inpa'); console.log(`  ✓ ${n} (InPA)`); return n; }
   }
+  const az = await adzunaSearch('it', 'IT', 'italia_adzuna', 'concorso pubblico lavoro amministrazione');
+  if (az.length > 0) { const n = await upsert(az,'italia_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
+  const jb = await joobleSearch('concorso pubblico lavoro amministrazione', 'Italia', 'IT', 'italia_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'italia_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -790,6 +918,10 @@ async function scrapeFrancia() {
     const rows = await fetchRSS(url, 'FR', 'francia_place_emploi');
     if (rows.length > 0) { const n = await upsert(rows,'francia_place_emploi'); console.log(`  ✓ ${n} (Place Emploi Public)`); return n; }
   }
+  const az = await adzunaSearch('fr', 'FR', 'francia_adzuna', 'concours fonction publique emploi');
+  if (az.length > 0) { const n = await upsert(az,'francia_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
+  const jb = await joobleSearch('concours fonction publique emploi', 'France', 'FR', 'francia_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'francia_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -847,6 +979,10 @@ async function scrapeAlemania() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'alemania_interamt'); console.log(`  ✓ ${n} (Interamt)`); return n; }
   }
+  const az = await adzunaSearch('de', 'DE', 'de_adzuna', 'öffentlicher Dienst Stellenangebot');
+  if (az.length > 0) { const n = await upsert(az,'de_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
+  const jb = await joobleSearch('öffentlicher Dienst Stellenangebot', 'Deutschland', 'DE', 'de_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'de_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -862,6 +998,10 @@ async function scrapeReinoUnido() {
     const rows = await fetchRSS(url, 'GB', 'uk_civilservice');
     if (rows.length > 0) { const n = await upsert(rows,'uk_civilservice'); console.log(`  ✓ ${n} (Civil Service)`); return n; }
   }
+  const az = await adzunaSearch('gb', 'GB', 'gb_adzuna', 'public sector government jobs');
+  if (az.length > 0) { const n = await upsert(az,'gb_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
+  const jb = await joobleSearch('public sector government', 'United Kingdom', 'GB', 'gb_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'gb_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -897,8 +1037,12 @@ async function scrapeEstadosUnidos() {
     if (rows.length > 0) { const n = await upsert(rows,'usa_usajobs'); console.log(`  ✓ ${n} (USAJobs)`); return n; }
   }
   // Fallback: USAJobs RSS
-  const rows = await fetchRSS('https://www.usajobs.gov/Search/Results?format=rss', 'US', 'usa_usajobs_rss');
-  if (rows.length > 0) { const n = await upsert(rows,'usa_usajobs_rss'); console.log(`  ✓ ${n} (USAJobs RSS)`); return n; }
+  const rssRows = await fetchRSS('https://www.usajobs.gov/Search/Results?format=rss', 'US', 'usa_usajobs_rss');
+  if (rssRows.length > 0) { const n = await upsert(rssRows,'usa_usajobs_rss'); console.log(`  ✓ ${n} (USAJobs RSS)`); return n; }
+  const az = await adzunaSearch('us', 'US', 'us_adzuna', 'government federal public sector jobs');
+  if (az.length > 0) { const n = await upsert(az,'us_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
+  const jb = await joobleSearch('government federal jobs', 'United States', 'US', 'us_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'us_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -914,6 +1058,10 @@ async function scrapeCanada() {
     const rows = await fetchRSS(url, 'CA', 'canada_gc_jobs');
     if (rows.length > 0) { const n = await upsert(rows,'canada_gc_jobs'); console.log(`  ✓ ${n} (GC Jobs)`); return n; }
   }
+  const az = await adzunaSearch('ca', 'CA', 'ca_adzuna', 'government public service federal jobs');
+  if (az.length > 0) { const n = await upsert(az,'ca_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
+  const jb = await joobleSearch('government public service federal', 'Canada', 'CA', 'ca_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'ca_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -948,6 +1096,10 @@ async function scrapeAustralia() {
       if (rows.length > 0) { const n = await upsert(rows,'australia_apsjobs'); console.log(`  ✓ ${n} (APSJobs)`); return n; }
     }
   }
+  const az = await adzunaSearch('au', 'AU', 'au_adzuna', 'government public service APS jobs');
+  if (az.length > 0) { const n = await upsert(az,'au_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
+  const jb = await joobleSearch('government public service APS', 'Australia', 'AU', 'au_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'au_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
