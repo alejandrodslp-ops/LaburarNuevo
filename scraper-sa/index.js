@@ -339,10 +339,10 @@ async function scrapeArgentina() {
       return n;
     }
   }
-  // Portal de empleo público de Argentina
-  const html = await fetchUrl('https://www.argentina.gob.ar/empleo-publico', { timeout: 12000 })
-    || await fetchUrl('https://www.argentina.gob.ar/jefatura/gestion-y-empleo-publico/empleo/ingreso-publico-transparente', { timeout: 12000 })
-    || await fetchUrl('https://www.siu.edu.ar/docentes_investigadores/convocatorias_docentes.php', { timeout: 12000 });
+  // Cartelera Central de Empleo Público — portal oficial Argentina
+  const html = await fetchUrl('https://www.argentina.gob.ar/desregulacion/transformacion-del-estado-y-funcion-publica/concursar/carteleracentraldeempleo', { timeout: 14000 })
+    || await fetchUrl('https://www.argentina.gob.ar/buscar/concursos', { timeout: 14000 })
+    || await fetchUrl('https://www.argentina.gob.ar/jefatura/gestion-y-empleo-publico/empleo-publico', { timeout: 14000 });
   if (html) {
     const $ = cheerio.load(html);
     const rows = [];
@@ -433,6 +433,9 @@ async function scrapeBrasil() {
 // ─── CHILE ───────────────────────────────────────────────────────────────────
 async function scrapeChile() {
   console.log('🇨🇱 Chile...');
+  // RSS oficial del Servicio Civil — encontrado en empleospublicos.cl/pub/feed/feed.aspx
+  const rssRows = await fetchRSS('https://www.empleospublicos.cl/pub/feed/feed.aspx?i=403', 'CL', 'chile_serviciocivil_rss');
+  if (rssRows.length > 0) { const n = await upsert(rssRows,'chile_serviciocivil_rss'); console.log(`  ✓ ${n} (RSS ServicioCivil)`); return n; }
   const html = await fetchUrl('https://www.empleospublicos.cl/busqueda/listaAnuncios.aspx', { timeout: 12000 });
   if (html) {
     const $ = cheerio.load(html);
@@ -579,11 +582,11 @@ async function scrapeBolivia() {
 async function scrapeEcuador() {
   console.log('🇪🇨 Ecuador...');
   for (const url of [
+    'https://encuentraempleo.trabajo.gob.ec/socioEmpleo-war/paginas/procesos/busquedaOfertaPublica.jsf',
     'https://www.trabajo.gob.ec/convocatorias-del-sector-publico/',
     'https://www.trabajo.gob.ec/convocatorias/',
-    'https://www.trabajo.gob.ec/category/convocatorias/',
   ]) {
-    const html = await fetchUrl(url, { timeout: 10000 });
+    const html = await fetchUrl(url, { timeout: 14000 });
     if (!html) continue;
     const $ = cheerio.load(html);
     const rows = [];
@@ -671,9 +674,10 @@ async function scrapeCuba() {
 // ─── COSTA RICA ──────────────────────────────────────────────────────────────
 async function scrapeCostaRica() {
   console.log('🇨🇷 Costa Rica...');
-  // DGSC tiene cert SSL inválido → insecure
-  const html = await fetchUrl('https://www.rgsc.go.cr/concursos', { timeout: 10000, insecure: true })
-    || await fetchUrl('https://www.dgsc.go.cr/concursos', { timeout: 10000, insecure: true });
+  // DGSC — portal oficial Costa Rica (URLs correctas encontradas)
+  const html = await fetchUrl('https://vacantes.dgsc.go.cr/', { timeout: 12000 })
+    || await fetchUrl('https://piep.dgsc.go.cr/', { timeout: 12000 })
+    || await fetchUrl('https://www.dgsc.go.cr/puestosVacantes.html', { timeout: 12000 });
   if (html) {
     const $ = cheerio.load(html);
     const rows = [];
@@ -964,13 +968,13 @@ async function scrapeFrancia() {
 // ─── ALEMANIA ────────────────────────────────────────────────────────────────
 async function scrapeAlemania() {
   console.log('🇩🇪 Alemania...');
-  // Bundesagentur für Arbeit — API pública gratuita
+  // Bundesagentur für Arbeit — API pública gratuita (sin angebotsart que causa 400)
   const data = await fetchJSON(
-    'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?angebotsart=1&arbeitsort=Deutschland&page=0&size=50',
-    { headers: { 'X-API-Key': 'jobboerse-jobsuche', 'Accept': 'application/json', 'Accept-Version': '3.9' }, timeout: 12000 }
+    'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?page=0&size=50&was=verwaltung',
+    { headers: { 'X-API-Key': 'jobboerse-jobsuche', 'Accept': 'application/json' }, timeout: 12000 }
   ) || await fetchJSON(
-    'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v3/jobs?angebotsart=1&page=0&size=50',
-    { headers: { 'X-API-Key': 'jobboerse-jobsuche' }, timeout: 12000 }
+    'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?page=0&size=50',
+    { headers: { 'X-API-Key': 'jobboerse-jobsuche', 'Accept': 'application/json' }, timeout: 12000 }
   );
   if (data) {
     const jobs = data.stellenangebote ?? data.jobs ?? [];
@@ -1025,14 +1029,15 @@ async function scrapeAlemania() {
 // ─── REINO UNIDO ─────────────────────────────────────────────────────────────
 async function scrapeReinoUnido() {
   console.log('🇬🇧 Reino Unido...');
-  // Civil Service Jobs RSS — portal oficial
+  // LocalGov Jobs — portal oficial UK gobierno local (RSS confirmado)
   for (const url of [
+    'https://jobs.localgov.co.uk/rss/',
+    'https://www.localgov.co.uk/RSS-Feeds/701',
     'https://www.civilservicejobs.service.gov.uk/csr/jobs.cgi?pageaction=searchbykey&key=jobs_rss',
-    'https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=&action=rss',
     'https://findajob.dwp.gov.uk/search?sb=date&sd=down&pp=25&format=rss',
   ]) {
-    const rows = await fetchRSS(url, 'GB', 'uk_civilservice');
-    if (rows.length > 0) { const n = await upsert(rows,'uk_civilservice'); console.log(`  ✓ ${n} (Civil Service)`); return n; }
+    const rows = await fetchRSS(url, 'GB', 'uk_localgov');
+    if (rows.length > 0) { const n = await upsert(rows,'uk_localgov'); console.log(`  ✓ ${n} (LocalGov)`); return n; }
   }
   const az = await adzunaSearch('gb', 'GB', 'gb_adzuna', 'public sector government jobs');
   if (az.length > 0) { const n = await upsert(az,'gb_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
