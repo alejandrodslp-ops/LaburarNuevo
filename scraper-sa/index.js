@@ -327,45 +327,60 @@ async function scrapeUruguay() {
 // ─── ARGENTINA ───────────────────────────────────────────────────────────────
 async function scrapeArgentina() {
   console.log('🇦🇷 Argentina...');
-  // Boletín Oficial — sección 2 = Personal del Estado
+  // Google Sheets público embebido en argentina.gob.ar/concursar
+  // La página carga este JSON directo vía $.getJSON — no necesita JS
+  const SHEET = 'https://sheets.googleapis.com/v4/spreadsheets/19tL43dt3hZjszOFFWuw-gdKdKscxhJ0THsUw4HCGgC8/values/Sheet1!A2%3AP?dateTimeRenderOption=FORMATTED_STRING&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE&key=AIzaSyBR7ArO3cRNRSibA8L3spSwT-imu6hz05M';
+  const data = await fetchJSON(SHEET, { timeout: 15000 });
+  if (data?.values?.length) {
+    const rows = [];
+    const seen = new Set();
+    for (const r of data.values) {
+      const jurisdiccion = r[0] || '';
+      const organismo    = r[1] || '';
+      const cantidad     = parseInt(r[2]) || 1;
+      const tipo         = r[3] || '';
+      const estado       = r[6] || '';
+      const agrupamiento = r[8] || '';
+      const zona         = r[11] || '';
+      const denominacion = r[12] || '';
+      const urlPath      = r[13] || '';
+      if (!denominacion || denominacion.length < 3) continue;
+      const esActivo = estado !== 'Finalizado';
+      const fullUrl  = urlPath
+        ? `https://www.argentina.gob.ar/${urlPath}`
+        : 'https://www.argentina.gob.ar/jefatura/gestion-y-empleo-publico/concursar/funciones-ejecutivas';
+      const id = (jurisdiccion + denominacion).replace(/[^a-zA-Z0-9]/g, '').slice(0, 48);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      rows.push(makeRow({
+        fuente_id: id, fuente: 'argentina_concursar', pais: 'AR',
+        titulo: denominacion, cargo: denominacion,
+        organismo: organismo || null,
+        lugar: zona || null,
+        tipo_vinculo: tipo || null,
+        puestos: cantidad,
+        activo: esActivo,
+        url_detalle: fullUrl, url_postulacion: fullUrl,
+        keywords: extraerKeywords(denominacion + ' ' + organismo + ' ' + agrupamiento),
+      }));
+    }
+    if (rows.length > 0) {
+      // Upsert en batches de 500 para no superar límites de Supabase
+      let total = 0;
+      for (let i = 0; i < rows.length; i += 500) {
+        total += await upsert(rows.slice(i, i + 500), 'argentina_concursar');
+      }
+      console.log(`  ✓ ${total} (Google Sheets CONCURSAR — ${rows.filter(r=>r.activo).length} activos)`);
+      return total;
+    }
+  }
+  // Boletín Oficial fallback
   const boeXml = await fetchUrl('https://www.boletinoficial.gob.ar/rss/seccion/2', { timeout: 12000 });
   if (boeXml && boeXml.includes('<item>')) {
     const items = parseRSS(boeXml);
-    console.log(`    ℹ BOE items: ${items.length}`);
     const rows = rssToRows(items, 'AR', 'argentina_boletin_oficial');
-    if (rows.length > 0) {
-      const n = await upsert(rows, 'argentina_boletin_oficial');
-      console.log(`  ✓ ${n} llamados (Boletín Oficial)`);
-      return n;
-    }
+    if (rows.length > 0) { const n = await upsert(rows,'argentina_boletin_oficial'); console.log(`  ✓ ${n} (BOE)`); return n; }
   }
-  // Cartelera Central de Empleo Público — portal oficial Argentina
-  const html = await fetchUrl('https://www.argentina.gob.ar/desregulacion/transformacion-del-estado-y-funcion-publica/concursar/carteleracentraldeempleo', { timeout: 14000 })
-    || await fetchUrl('https://www.argentina.gob.ar/buscar/concursos', { timeout: 14000 })
-    || await fetchUrl('https://www.argentina.gob.ar/jefatura/gestion-y-empleo-publico/empleo-publico', { timeout: 14000 });
-  if (html) {
-    const $ = cheerio.load(html);
-    const rows = [];
-    const sel = 'h3 a, h4 a, .card-title a, article a, li a[href*="concurso"], td a';
-    $(sel).each((_, el) => {
-      const titulo = $(el).text().trim();
-      const href   = $(el).attr('href') || '';
-      if (titulo.length < 6) return;
-      const link = href.startsWith('http') ? href : `https://www.argentina.gob.ar${href}`;
-      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
-      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'argentina_concursos', pais: 'AR',
-        titulo, cargo: titulo, url_detalle: link, url_postulacion: link,
-        keywords: extraerKeywords(titulo),
-      }));
-    });
-    if (rows.length > 0) { const n = await upsert(rows,'argentina_concursos'); console.log(`  ✓ ${n}`); return n; }
-  }
-  // APIs externas
-  const az = await adzunaSearch('ar', 'AR', 'argentina_adzuna', 'gobierno empleo público concurso');
-  if (az.length > 0) { const n = await upsert(az,'argentina_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
-  const jb = await joobleSearch('empleo público concurso gobierno', 'Argentina', 'AR', 'argentina_jooble');
-  if (jb.length > 0) { const n = await upsert(jb,'argentina_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 
@@ -433,29 +448,33 @@ async function scrapeBrasil() {
 // ─── CHILE ───────────────────────────────────────────────────────────────────
 async function scrapeChile() {
   console.log('🇨🇱 Chile...');
-  // RSS oficial del Servicio Civil — encontrado en empleospublicos.cl/pub/feed/feed.aspx
-  const rssRows = await fetchRSS('https://www.empleospublicos.cl/pub/feed/feed.aspx?i=403', 'CL', 'chile_serviciocivil_rss');
-  if (rssRows.length > 0) { const n = await upsert(rssRows,'chile_serviciocivil_rss'); console.log(`  ✓ ${n} (RSS ServicioCivil)`); return n; }
-  const html = await fetchUrl('https://www.empleospublicos.cl/busqueda/listaAnuncios.aspx', { timeout: 12000 });
+  // Portal oficial Servicio Civil — convocatorias abiertas (datos en HTML, no JS)
+  const html = await fetchUrl('https://www.empleospublicos.cl/pub/convocatorias/convocatorias.aspx', { timeout: 15000 });
   if (html) {
     const $ = cheerio.load(html);
     const rows = [];
-    // Intentar múltiples selectores posibles
-    $('tr, .anuncio-item, .item-empleo, .resultado, article').each((_, el) => {
-      const a       = $(el).find('a').first();
-      const href    = a.attr('href') || '';
-      const cargo   = a.text().trim() || $(el).find('td').first().text().trim();
-      const fechaStr= $(el).text().match(/(\d{2}\/\d{2}\/\d{4})/)?.[1] || '';
-      if (!cargo || cargo.length < 5 || !/[a-zA-ZáéíóúÁÉÍÓÚñÑ]{3}/.test(cargo)) return;
-      const link = href.startsWith('http') ? href : href ? `https://www.empleospublicos.cl${href}` : 'https://www.empleospublicos.cl';
-      const id   = href.split(/[=?]/).pop()?.replace(/\W/g,'').slice(0,40) || cargo.replace(/\W/g,'').slice(0,40);
-      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
+    $('[id="bx_caja"]').each((_, el) => {
+      const titulo  = $('[id="bx_titulos"]', el).text().trim();
+      const org     = $('strong', el).first().text().trim();
+      const emText  = $('em', el).text();
+      const fechaM  = emText.match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})/);
+      const href    = $('a.btnverficha', el).attr('href') || '';
+      if (!titulo || titulo.length < 4) return;
+      const link = href.startsWith('http') ? href
+        : href ? `https://www.empleospublicos.cl/pub/convocatorias/${href}`
+        : 'https://www.empleospublicos.cl/pub/convocatorias/convocatorias.aspx';
+      const id = href.match(/i=(\d+)/)?.[1] || titulo.replace(/\W/g,'').slice(0, 48);
+      if (rows.some(r => r.fuente_id === id)) return;
+      rows.push(makeRow({
         fuente_id: id, fuente: 'chile_empleospublicos', pais: 'CL',
-        titulo: cargo, cargo, fecha_cierre: parseFecha(fechaStr),
-        url_detalle: link, url_postulacion: link, keywords: extraerKeywords(cargo),
+        titulo, cargo: titulo, organismo: org || null,
+        fecha_inicio: fechaM ? parseFecha(fechaM[1]) : null,
+        fecha_cierre: fechaM ? parseFecha(fechaM[2]) : null,
+        url_detalle: link, url_postulacion: link,
+        keywords: extraerKeywords(titulo + ' ' + org),
       }));
     });
-    if (rows.length > 0) { const n = await upsert(rows,'chile_empleospublicos'); console.log(`  ✓ ${n}`); return n; }
+    if (rows.length > 0) { const n = await upsert(rows,'chile_empleospublicos'); console.log(`  ✓ ${n} (empleospublicos.cl)`); return n; }
   }
   const az = await adzunaSearch('cl', 'CL', 'chile_adzuna', 'empleo público gobierno concurso');
   if (az.length > 0) { const n = await upsert(az,'chile_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
@@ -467,7 +486,9 @@ async function scrapeChile() {
 // ─── COLOMBIA ────────────────────────────────────────────────────────────────
 async function scrapeColombia() {
   console.log('🇨🇴 Colombia...');
-  const html = await fetchUrl('https://www.cnsc.gov.co/index.php/convocatorias', { timeout: 12000 });
+  // cnsc.gov.co redirige: /index.php/convocatorias → /convocatorias
+  const html = await fetchUrl('https://www.cnsc.gov.co/convocatorias/en-desarrollo', { timeout: 12000 })
+    || await fetchUrl('https://www.cnsc.gov.co/convocatorias', { timeout: 12000 });
   if (html) {
     const $ = cheerio.load(html);
     const rows = [];
@@ -674,10 +695,10 @@ async function scrapeCuba() {
 // ─── COSTA RICA ──────────────────────────────────────────────────────────────
 async function scrapeCostaRica() {
   console.log('🇨🇷 Costa Rica...');
-  // DGSC — portal oficial Costa Rica (URLs correctas encontradas)
-  const html = await fetchUrl('https://vacantes.dgsc.go.cr/', { timeout: 12000 })
-    || await fetchUrl('https://piep.dgsc.go.cr/', { timeout: 12000 })
-    || await fetchUrl('https://www.dgsc.go.cr/puestosVacantes.html', { timeout: 12000 });
+  // DGSC — cert SSL inválido (cadena incompleta) → insecure: true
+  const html = await fetchUrl('https://vacantes.dgsc.go.cr/', { timeout: 12000, insecure: true })
+    || await fetchUrl('https://piep.dgsc.go.cr/', { timeout: 12000, insecure: true })
+    || await fetchUrl('https://www.dgsc.go.cr/puestosVacantes.html', { timeout: 12000, insecure: true });
   if (html) {
     const $ = cheerio.load(html);
     const rows = [];
@@ -1184,9 +1205,13 @@ async function scrapeAustralia() {
 
 // ─── GOOGLE NEWS QUERIES POR PAÍS ────────────────────────────────────────────
 const GN = {
+  UY: { q: 'llamado concurso empleo público Uruguay',          gl: 'UY', hl: 'es-419' },
   AR: { q: 'concurso público empleo gobierno Argentina',       gl: 'AR', hl: 'es-419' },
+  BR: { q: 'concurso público emprego governo Brasil',          gl: 'BR', hl: 'pt-BR'  },
   CL: { q: 'concurso público empleo gobierno Chile',          gl: 'CL', hl: 'es-419' },
+  CO: { q: 'convocatoria empleo público Colombia CNSC',        gl: 'CO', hl: 'es-419' },
   PE: { q: 'convocatoria CAS empleo público Perú',            gl: 'PE', hl: 'es-419' },
+  PY: { q: 'concurso empleo público Paraguay',                 gl: 'PY', hl: 'es-419' },
   BO: { q: 'convocatoria empleo público Bolivia',             gl: 'BO', hl: 'es-419' },
   EC: { q: 'convocatoria empleo público Ecuador',             gl: 'EC', hl: 'es-419' },
   MX: { q: 'convocatoria empleo público México',              gl: 'MX', hl: 'es-419' },
