@@ -889,28 +889,49 @@ async function scrapeRepDominicana() {
 // ─── ESPAÑA ──────────────────────────────────────────────────────────────────
 async function scrapeEspana() {
   console.log('🇪🇸 España...');
-  // BOE — sección Personal del Estado (varios canales)
+  // administracion.gob.es — XML export, solo convocatorias abiertas
+  const xmlRaw = await fetchUrl(
+    'https://administracion.gob.es/pagFront/ofertasempleopublico/descargaXMLE.htm?buscar=true&orders=id&sort=desc&tipoPlazo=1',
+    { timeout: 30000 }
+  );
+  if (xmlRaw && xmlRaw.includes('<referencia>')) {
+    const exTag = (blk, tag) => { const m = blk.match(new RegExp(`<${tag}>(.*?)</${tag}>`, 's')); return m ? m[1].trim() : null; };
+    const parseF = s => { if (!s) return null; const p = s.split('/'); return p.length===3 ? `${p[2]}-${p[1]}-${p[0]}` : null; };
+    const blocks = xmlRaw.split('<convocatorias>').slice(1);
+    const rows = [];
+    const seen = new Set();
+    for (const blk of blocks) {
+      const ref = exTag(blk, 'referencia');
+      if (!ref || seen.has(ref)) continue;
+      seen.add(ref);
+      const titulo = exTag(blk, 'titulo') || '';
+      if (titulo.length < 3) continue;
+      const organo = exTag(blk, 'organo');
+      const plazas = parseInt(exTag(blk, 'plazasconvocadas')) || 1;
+      const url    = exTag(blk, 'direccioninternet') || `https://administracion.gob.es/pagFront/ofertasempleopublico/resultadosEmpleo.htm?referencia=${ref}`;
+      const plazoBlk = blk.match(/<plazos>(.*?)<\/plazos>/s)?.[1] || '';
+      const fi = parseF(exTag(plazoBlk, 'fechainicio'));
+      const ff = parseF(exTag(plazoBlk, 'fechafin'));
+      rows.push(makeRow({
+        fuente_id: ref, fuente: 'espana_administracion', pais: 'ES',
+        titulo, cargo: titulo, organismo: organo,
+        fecha_inicio: fi, fecha_cierre: ff,
+        puestos: plazas, activo: true,
+        url_detalle: url, url_postulacion: url,
+        keywords: extraerKeywords(titulo + ' ' + (organo||'')),
+      }));
+    }
+    if (rows.length > 0) {
+      let total = 0;
+      for (let i = 0; i < rows.length; i += 500) total += await upsert(rows.slice(i, i+500), 'espana_administracion');
+      console.log(`  ✓ ${total} (administracion.gob.es — convocatorias abiertas)`);
+      return total;
+    }
+  }
+  // Fallback: BOE RSS
   for (const c of ['11', '13', '14']) {
     const rows = await fetchRSS(`https://www.boe.es/rss/canal.php?c=${c}`, 'ES', 'espana_boe');
     if (rows.length > 0) { const n = await upsert(rows,'espana_boe'); console.log(`  ✓ ${n} (BOE canal ${c})`); return n; }
-  }
-  // SEPE — convocatorias de empleo público
-  const html = await fetchUrl('https://www.sepe.es/HomeSepe/que-es-el-sepe/comunicacion-institucional/convocatorias.html', { timeout: 10000 });
-  if (html) {
-    const $ = cheerio.load(html);
-    const rows = [];
-    $('h3 a, h4 a, .titulo a, li a, td a').each((_, el) => {
-      const titulo = $(el).text().trim();
-      const href   = $(el).attr('href') || '';
-      if (titulo.length < 6) return;
-      const link = href.startsWith('http') ? href : `https://www.sepe.es${href}`;
-      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
-      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'espana_sepe', pais: 'ES',
-        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
-      }));
-    });
-    if (rows.length > 0) { const n = await upsert(rows,'espana_sepe'); console.log(`  ✓ ${n} (SEPE)`); return n; }
   }
   const az = await adzunaSearch('es', 'ES', 'espana_adzuna', 'oposición empleo público administración');
   if (az.length > 0) { const n = await upsert(az,'espana_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
