@@ -633,23 +633,35 @@ async function scrapeEcuador() {
 // ─── MÉXICO ──────────────────────────────────────────────────────────────────
 async function scrapeMexico() {
   console.log('🇲🇽 México...');
-  // Trabajaen.gob.mx — convocatorias federales
-  const html = await fetchUrl('https://www.trabajaen.gob.mx/portal/page/portal/Trabajaen/ConvocatoriasPublicadas', { timeout: 10000 });
+  // DOF — Diario Oficial de la Federación, sección vacantes gobierno federal
+  const html = await fetchUrl('https://dof.gob.mx/vacantes.php', { timeout: 12000, insecure: true });
   if (html) {
     const $ = cheerio.load(html);
     const rows = [];
-    $('a[href*="convocatori"], tr a, .resultado a').each((_, el) => {
-      const titulo = $(el).text().trim();
-      const href   = $(el).attr('href') || '';
-      if (titulo.length < 5) return;
-      const link = href.startsWith('http') ? href : `https://www.trabajaen.gob.mx${href}`;
-      const id   = encodeURIComponent(href).slice(-50) || titulo.replace(/\W/g,'').slice(0,50);
-      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'mexico_trabajaen', pais: 'MX',
-        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+    // Cada vacante tiene un <a href="vacantes/XXXXX/XXXXXX.html"> — tomamos el link
+    // y buscamos la celda de la fila anterior para obtener organismo y fecha
+    $('a[href*="vacantes/"]').each((_, el) => {
+      const href = $(el).attr('href') || '';
+      if (!href.includes('vacantes/')) return;
+      // Subir al TR que contiene el link
+      const trLink = $(el).closest('tr');
+      // El TR anterior tiene fecha + organismo
+      const trOrg  = trLink.prev('tr');
+      const tds    = trOrg.find('td').map((_, td) => $(td).clone().children().remove().end().text().trim()).toArray();
+      const fecha  = tds.find(t => /^\d{2}\/\d{2}\/\d{4}$/.test(t)) || '';
+      const organismo = tds.filter(t => t && t !== fecha && !t.match(/^Documento/i)).join(' — ').slice(0, 200) || 'Gobierno Federal MX';
+      const fullUrl = `https://dof.gob.mx/${href}`;
+      const id = href.replace(/\W/g, '').slice(-48);
+      if (rows.some(r => r.fuente_id === id)) return;
+      rows.push(makeRow({
+        fuente_id: id, fuente: 'mexico_dof', pais: 'MX',
+        titulo: organismo, cargo: organismo, organismo,
+        fecha_inicio: parseFecha(fecha),
+        url_detalle: fullUrl, url_postulacion: fullUrl,
+        keywords: extraerKeywords(organismo),
       }));
     });
-    if (rows.length > 0) { const n = await upsert(rows,'mexico_trabajaen'); console.log(`  ✓ ${n}`); return n; }
+    if (rows.length > 0) { const n = await upsert(rows,'mexico_dof'); console.log(`  ✓ ${n} (DOF vacantes)`); return n; }
   }
   const az = await adzunaSearch('mx', 'MX', 'mexico_adzuna', 'gobierno empleo convocatoria vacante');
   if (az.length > 0) { const n = await upsert(az,'mexico_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
