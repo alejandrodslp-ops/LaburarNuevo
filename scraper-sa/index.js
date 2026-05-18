@@ -8,6 +8,19 @@ import * as cheerio from 'cheerio';
 import { createClient } from '@supabase/supabase-js';
 import ws from 'ws';
 import https from 'https';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+// Cargar .env.local si existe (para cron local en Mac)
+try {
+  const dir = path.dirname(fileURLToPath(import.meta.url));
+  const env = readFileSync(path.join(dir, '.env.local'), 'utf8');
+  for (const line of env.split('\n')) {
+    const [k, ...v] = line.split('=');
+    if (k && v.length && !process.env[k.trim()]) process.env[k.trim()] = v.join('=').trim();
+  }
+} catch {}
 
 const insecureAgent = new https.Agent({ rejectUnauthorized: false });
 
@@ -215,6 +228,16 @@ async function adzunaSearch(cc, pais, fuente, query = 'government public sector'
       keywords: extraerKeywords(titulo + ' ' + (j.description || '')),
     }));
   }
+  return rows;
+}
+
+// ─── GOOGLE NEWS RSS ─────────────────────────────────────────────────────────
+// Funciona desde cualquier IP (Azure, Supabase, Mac). Sin auth. Sin costo.
+// Devuelve noticias actuales de convocatorias/concursos para cada país.
+async function googleNewsRSS(query, gl, hl, pais, fuente) {
+  const q   = encodeURIComponent(query);
+  const url = `https://news.google.com/rss/search?q=${q}&hl=${hl}&gl=${gl}&ceid=${gl}:${hl}`;
+  const rows = await fetchRSS(url, pais, fuente);
   return rows;
 }
 
@@ -1154,6 +1177,34 @@ async function scrapeAustralia() {
   console.log('  ⚠ sin resultados'); return 0;
 }
 
+// ─── GOOGLE NEWS QUERIES POR PAÍS ────────────────────────────────────────────
+const GN = {
+  AR: { q: 'concurso público empleo gobierno Argentina',       gl: 'AR', hl: 'es-419' },
+  CL: { q: 'concurso público empleo gobierno Chile',          gl: 'CL', hl: 'es-419' },
+  PE: { q: 'convocatoria CAS empleo público Perú',            gl: 'PE', hl: 'es-419' },
+  BO: { q: 'convocatoria empleo público Bolivia',             gl: 'BO', hl: 'es-419' },
+  EC: { q: 'convocatoria empleo público Ecuador',             gl: 'EC', hl: 'es-419' },
+  MX: { q: 'convocatoria empleo público México',              gl: 'MX', hl: 'es-419' },
+  VE: { q: 'convocatoria empleo público Venezuela',           gl: 'VE', hl: 'es-419' },
+  CU: { q: 'convocatoria empleo Cuba',                        gl: 'CU', hl: 'es-419' },
+  CR: { q: 'concurso empleo público Costa Rica',              gl: 'CR', hl: 'es-419' },
+  GT: { q: 'convocatoria empleo público Guatemala',           gl: 'GT', hl: 'es-419' },
+  SV: { q: 'convocatoria empleo público El Salvador',        gl: 'SV', hl: 'es-419' },
+  HN: { q: 'convocatoria empleo público Honduras',            gl: 'HN', hl: 'es-419' },
+  NI: { q: 'convocatoria empleo público Nicaragua',           gl: 'NI', hl: 'es-419' },
+  PA: { q: 'convocatoria empleo público Panamá',              gl: 'PA', hl: 'es-419' },
+  DO: { q: 'concurso oposición empleo público Dominicana',   gl: 'DO', hl: 'es-419' },
+  ES: { q: 'oposición empleo público administración España',  gl: 'ES', hl: 'es'     },
+  PT: { q: 'concurso emprego público administração Portugal', gl: 'PT', hl: 'pt-PT'  },
+  IT: { q: 'concorso pubblico lavoro amministrazione Italia', gl: 'IT', hl: 'it'     },
+  FR: { q: 'concours fonction publique emploi France',        gl: 'FR', hl: 'fr'     },
+  DE: { q: 'Stellenangebot öffentlicher Dienst Deutschland',  gl: 'DE', hl: 'de'     },
+  GB: { q: 'government public sector jobs UK civil service',  gl: 'GB', hl: 'en-GB'  },
+  US: { q: 'federal government jobs USA civil service',       gl: 'US', hl: 'en-US'  },
+  CA: { q: 'government jobs Canada federal public service',   gl: 'CA', hl: 'en-CA'  },
+  AU: { q: 'APS government jobs Australia public service',    gl: 'AU', hl: 'en-AU'  },
+};
+
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 const SCRAPERS = {
   // Sudamérica
@@ -1179,7 +1230,17 @@ console.log(`\n🌎 Nexu Scraper${TEST_MODE ? ' [TEST]' : ''} — ${Object.keys(
 let total = 0;
 for (const [pais, fn] of Object.entries(aCorrer)) {
   try {
-    total += await fn() || 0;
+    let n = await fn() || 0;
+    // Fallback universal: Google News RSS si la fuente primaria no dio resultados
+    if (n === 0 && GN[pais]) {
+      const { q, gl, hl } = GN[pais];
+      const gnRows = await googleNewsRSS(q, gl, hl, pais, `${pais.toLowerCase()}_gnews`);
+      if (gnRows.length > 0) {
+        n = await upsert(gnRows, `${pais.toLowerCase()}_gnews`);
+        if (n > 0) console.log(`  ✓ ${n} (Google News)`);
+      }
+    }
+    total += n;
   } catch (e) {
     console.error(`  ❌ ${pais} falló:`, e.message);
   }
