@@ -451,28 +451,49 @@ async function scrapeBrasil() {
 // ─── CHILE ───────────────────────────────────────────────────────────────────
 async function scrapeChile() {
   console.log('🇨🇱 Chile...');
-  // Portal oficial Servicio Civil — convocatorias abiertas (datos en HTML, no JS)
-  const html = await fetchUrl('https://www.empleospublicos.cl/pub/convocatorias/convocatorias.aspx', { timeout: 15000 });
-  if (html) {
+  // 1) Servicio Civil — API JSON de concursos abiertos
+  const scData = await fetchJSON(
+    'https://portal.serviciocivil.cl/cgi-bin/apps.cgi?id=buscar_concursos&estado=abierto&rows=50&start=0',
+    { timeout: 14000 }
+  );
+  if (scData?.response?.docs?.length) {
+    const rows = [];
+    for (const d of scData.response.docs) {
+      const titulo = d.cargo || d.titulo || '';
+      const id = String(d.id || '').replace(/\W/g,'').slice(0,48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!titulo || rows.some(r=>r.fuente_id===id)) continue;
+      rows.push(makeRow({
+        fuente_id: id, fuente: 'chile_serviciocivil', pais: 'CL',
+        titulo, cargo: titulo, organismo: d.institucion || null,
+        lugar: d.region || null,
+        fecha_cierre: parseFecha(d.fecha_cierre || d.plazo || ''),
+        url_detalle: d.url || `https://portal.serviciocivil.cl/cgi-bin/apps.cgi?id=detalle_concurso&id_concurso=${d.id}`,
+        url_postulacion: d.url || `https://portal.serviciocivil.cl/cgi-bin/apps.cgi?id=detalle_concurso&id_concurso=${d.id}`,
+        keywords: extraerKeywords(titulo + ' ' + (d.institucion||'')),
+      }));
+    }
+    if (rows.length > 0) { const n = await upsert(rows,'chile_serviciocivil'); console.log(`  ✓ ${n} (Servicio Civil API)`); return n; }
+  }
+  // 2) empleospublicos.cl — HTML scraping con múltiples selectores
+  for (const url of [
+    'https://www.empleospublicos.cl/pub/convocatorias/convocatorias.aspx',
+    'https://www.empleospublicos.cl/pub/convocatorias/',
+  ]) {
+    const html = await fetchUrl(url, { timeout: 15000 });
+    if (!html) continue;
     const $ = cheerio.load(html);
     const rows = [];
-    $('[id="bx_caja"]').each((_, el) => {
-      const titulo  = $('[id="bx_titulos"]', el).text().trim();
-      const org     = $('strong', el).first().text().trim();
-      const emText  = $('em', el).text();
-      const fechaM  = emText.match(/(\d{2}\/\d{2}\/\d{4})\s*-\s*(\d{2}\/\d{2}\/\d{4})/);
-      const href    = $('a.btnverficha', el).attr('href') || '';
+    // Selector nuevo y viejo a la vez
+    $('[id="bx_caja"], .ficha-concurso, .concurso-item, tr.convocatoria').each((_, el) => {
+      const titulo = ($('[id="bx_titulos"]', el).text() || $('h3,h4,.titulo', el).text() || $('td', el).first().text()).trim();
+      const org    = ($('strong', el).first().text() || $('.institucion', el).text()).trim();
+      const href   = ($('a.btnverficha', el).attr('href') || $('a', el).first().attr('href') || '');
       if (!titulo || titulo.length < 4) return;
-      const link = href.startsWith('http') ? href
-        : href ? `https://www.empleospublicos.cl/pub/convocatorias/${href}`
-        : 'https://www.empleospublicos.cl/pub/convocatorias/convocatorias.aspx';
-      const id = href.match(/i=(\d+)/)?.[1] || titulo.replace(/\W/g,'').slice(0, 48);
-      if (rows.some(r => r.fuente_id === id)) return;
-      rows.push(makeRow({
+      const link = href.startsWith('http') ? href : href ? `https://www.empleospublicos.cl${href}` : url;
+      const id   = href.match(/i=(\d+)/)?.[1] || titulo.replace(/\W/g,'').slice(0,48);
+      if (!rows.some(r=>r.fuente_id===id)) rows.push(makeRow({
         fuente_id: id, fuente: 'chile_empleospublicos', pais: 'CL',
         titulo, cargo: titulo, organismo: org || null,
-        fecha_inicio: fechaM ? parseFecha(fechaM[1]) : null,
-        fecha_cierre: fechaM ? parseFecha(fechaM[2]) : null,
         url_detalle: link, url_postulacion: link,
         keywords: extraerKeywords(titulo + ' ' + org),
       }));
@@ -520,21 +541,43 @@ async function scrapeColombia() {
 // ─── PERÚ ────────────────────────────────────────────────────────────────────
 async function scrapePerú() {
   console.log('🇵🇪 Perú...');
+  // 1) SERVIR API — busqueda de convocatorias CAS y otras
+  const apiData = await fetchJSON(
+    'https://www.gob.pe/api/busqueda?type=convocatorias&sort_by=date&page=1&per_page=50',
+    { timeout: 12000 }
+  );
+  if (apiData?.items?.length) {
+    const rows = [];
+    for (const item of apiData.items.slice(0,50)) {
+      const titulo = item.title || item.nombre || '';
+      const href   = item.url || item.link || '';
+      const id     = String(item.id || '').replace(/\W/g,'').slice(0,48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!titulo || rows.some(r=>r.fuente_id===id)) continue;
+      rows.push(makeRow({
+        fuente_id: id, fuente: 'peru_gobpe', pais: 'PE',
+        titulo, cargo: titulo, organismo: item.entity || item.institucion || null,
+        fecha_cierre: parseFecha(item.end_date || item.fecha_cierre || ''),
+        url_detalle: href || 'https://www.gob.pe/convocatorias',
+        url_postulacion: href || 'https://www.gob.pe/convocatorias',
+        keywords: extraerKeywords(titulo),
+      }));
+    }
+    if (rows.length > 0) { const n = await upsert(rows,'peru_gobpe'); console.log(`  ✓ ${n} (gob.pe)`); return n; }
+  }
+  // 2) SERVIR HTML
   const html = await fetchUrl('https://www.servir.gob.pe/convocatorias/', { timeout: 12000 });
   if (html) {
     const $ = cheerio.load(html);
     const rows = [];
-    $('article, .convocatoria, tr').each((_, el) => {
-      const titulo  = $(el).find('h2,h3,.title,td').first().text().trim();
-      const href    = $(el).find('a').first().attr('href') || '';
-      const fechaStr= $(el).text().match(/(\d{2}\/\d{2}\/\d{4})/)?.[1] || '';
+    $('article, .convocatoria, tr, h3, h4').each((_, el) => {
+      const titulo = ($(el).find('h2,h3,h4,.title,td').first().text() || $(el).text()).trim();
+      const href   = $(el).find('a').first().attr('href') || '';
       if (!titulo || titulo.length < 5) return;
       const link = href.startsWith('http') ? href : `https://www.servir.gob.pe${href}`;
-      rows.push(makeRow({
-        fuente_id: encodeURIComponent(href).slice(-50) || titulo.replace(/\s/g,'_').slice(0,48),
-        fuente: 'peru_servir', pais: 'PE',
-        titulo, cargo: titulo, fecha_cierre: parseFecha(fechaStr),
-        url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+      const id   = encodeURIComponent(href).slice(-50) || titulo.replace(/\s/g,'_').slice(0,48);
+      if (!rows.some(r=>r.fuente_id===id)) rows.push(makeRow({
+        fuente_id: id, fuente: 'peru_servir', pais: 'PE',
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
       }));
     });
     if (rows.length > 0) { const n = await upsert(rows,'peru_servir'); console.log(`  ✓ ${n}`); return n; }
@@ -1122,11 +1165,11 @@ async function scrapeAlemania() {
 // ─── REINO UNIDO ─────────────────────────────────────────────────────────────
 async function scrapeReinoUnido() {
   console.log('🇬🇧 Reino Unido...');
-  // LocalGov Jobs — portal oficial UK gobierno local (RSS confirmado)
+  // Civil Service Jobs + LocalGov RSS
   for (const url of [
-    'https://jobs.localgov.co.uk/rss/',
-    'https://www.localgov.co.uk/RSS-Feeds/701',
+    'https://www.civilservicejobs.service.gov.uk/csr/jobs.cgi?pageaction=searchresults&stc=1&format=rss',
     'https://www.civilservicejobs.service.gov.uk/csr/jobs.cgi?pageaction=searchbykey&key=jobs_rss',
+    'https://jobs.localgov.co.uk/rss/',
     'https://findajob.dwp.gov.uk/search?sb=date&sd=down&pp=25&format=rss',
   ]) {
     const rows = await fetchRSS(url, 'GB', 'uk_localgov');
@@ -1326,6 +1369,29 @@ const SCRAPERS = {
 const aCorrer = SOLO_PAIS && SCRAPERS[SOLO_PAIS]
   ? { [SOLO_PAIS]: SCRAPERS[SOLO_PAIS] }
   : SCRAPERS;
+
+// Fuentes con nombres viejos que ya no escribe el scraper → acumulan datos rancios
+const FUENTES_OBSOLETAS = [
+  'remoto',                   // UY viejo
+  'bolivia_googlenoticias',   'México_GoogleNoticias',  'Portugal_GoogleNoticias',
+  'España Google News',       'italia_googlenews',      'noticias_de_it',
+  'uk_googlenews',            'usa_googlenews',         'noticias_us',
+  'Venezuela_GoogLeNoticia',  'Alemania_googlenews',    'Cuba Google News',
+  'Noticias de Cug',          'Francia_GoogleNoticias', 'Colombia_GoogleNoticias',
+  'Paraguay_GoogleNoticias',  'noticias_peg',           'Banco de empleo de Cana',
+  'chile_googlenoticias',     'argentina_googlenoticias','brasil_googlenoticias',
+  'elsalvador_googlenoticias','honduras_googlenoticias', 'nicaragua_googlenoticias',
+  'costarica_googlenoticias', 'panama_googlenoticias',   'dominicana_googlenoticias',
+  'ecuador_googlenoticias',   'cuba_googlenoticias',     'venezuela_googlenoticias',
+  'peru_googlenoticias',
+];
+
+if (!TEST_MODE) {
+  for (const f of FUENTES_OBSOLETAS) {
+    await supabase.from('concursos').delete().eq('fuente', f);
+  }
+  console.log(`🧹 ${FUENTES_OBSOLETAS.length} fuentes obsoletas limpiadas`);
+}
 
 console.log(`\n🌎 Nexu Scraper${TEST_MODE ? ' [TEST]' : ''} — ${Object.keys(aCorrer).length} países — ${new Date().toISOString()}\n`);
 
