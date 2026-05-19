@@ -147,10 +147,12 @@ const _fuentesLimpiadas = new Set();
 
 async function upsert(rows, fuente) {
   if (!rows.length) return 0;
-  // Deduplicar por fuente_id dentro del batch (previene ON CONFLICT errors)
+  const hoy = new Date().toISOString().slice(0, 10);
+  // Deduplicar por fuente_id y filtrar vencidos antes de guardar
   const seen = new Set();
   const unique = rows.filter(r => {
     if (!r.fuente_id || seen.has(r.fuente_id)) return false;
+    if (r.fecha_cierre && r.fecha_cierre < hoy) return false;
     seen.add(r.fuente_id); return true;
   });
   if (TEST_MODE) {
