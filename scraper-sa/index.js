@@ -327,8 +327,8 @@ async function scrapeUruguay() {
       descripcion: descText || null,
       fecha_inicio:  periodoM ? parseFecha(periodoM[1]) : null,
       fecha_cierre:  periodoM ? parseFecha(periodoM[2]) : null,
-      url_detalle:   null,
-      url_postulacion: null,
+      url_detalle:   `https://www.uruguayconcursa.gub.uy/llamado/${fuente_id}`,
+      url_postulacion: `https://www.uruguayconcursa.gub.uy/llamado/${fuente_id}`,
       keywords: extraerKeywords(cargo),
     }));
   });
