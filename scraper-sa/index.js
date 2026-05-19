@@ -945,6 +945,15 @@ async function scrapeRepDominicana() {
 // ─── ESPAÑA ──────────────────────────────────────────────────────────────────
 async function scrapeEspana() {
   console.log('🇪🇸 España...');
+  // Limpiar todas las fuentes de España al inicio para evitar registros huérfanos
+  if (!TEST_MODE) {
+    for (const f of ['espana_administracion','espana_boe','espana_adzuna','espana_jooble','es_gnews']) {
+      if (!_fuentesLimpiadas.has(f)) {
+        await supabase.from('concursos').delete().eq('fuente', f);
+        _fuentesLimpiadas.add(f);
+      }
+    }
+  }
   // administracion.gob.es — XML export, solo convocatorias abiertas
   const xmlRaw = await fetchUrl(
     'https://administracion.gob.es/pagFront/ofertasempleopublico/descargaXMLE.htm?buscar=true&orders=id&sort=desc&tipoPlazo=1',
