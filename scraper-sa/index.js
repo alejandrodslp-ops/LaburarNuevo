@@ -1257,16 +1257,16 @@ async function scrapeEstadosUnidos() {
 // ─── CANADÁ ──────────────────────────────────────────────────────────────────
 async function scrapeCanada() {
   console.log('🇨🇦 Canadá...');
-  // GC Jobs — portal de empleos federales canadienses
+  // Job Bank RSS — empleos federales canadienses (fet=3 filtra solo gobierno federal)
   for (const url of [
+    'https://www.jobbank.gc.ca/jobsearch/feed/jobSearchRSSfeed?fet=3&sort=D',
+    'https://www.jobbank.gc.ca/jobsearch/feed/jobSearchRSSfeed?fsrc=16&sort=D',
     'https://emploisfp-psjobs.cfp-psc.gc.ca/psrs-srfp/applicant/page2440?jpsr=1&menu=1&poster=1&lang=en&isJobSearch=1&format=rss',
-    'https://www.canada.ca/content/dam/canada/jobs/job-bank/documents/jobopp-rss-en.xml',
-    'https://www.jobbank.gc.ca/jobsearch/rss?searchstring=government&fsrc=16',
   ]) {
-    const rows = await fetchRSS(url, 'CA', 'canada_gc_jobs');
-    if (rows.length > 0) { const n = await upsert(rows,'canada_gc_jobs'); console.log(`  ✓ ${n} (GC Jobs)`); return n; }
+    const rows = await fetchRSS(url, 'CA', 'canada_jobbank');
+    if (rows.length > 0) { const n = await upsert(rows,'canada_jobbank'); console.log(`  ✓ ${n} (Job Bank RSS)`); return n; }
   }
-  // Job Bank — portal oficial de empleos del gobierno canadiense (HTML)
+  // Job Bank HTML fallback
   const html = await fetchUrl('https://www.jobbank.gc.ca/jobsearch/jobsearch?searchstring=federal+government&fsrc=16&sort=M', { timeout: 12000 });
   if (html) {
     const $ = cheerio.load(html);
@@ -1433,8 +1433,32 @@ if (!TEST_MODE) {
     .lt('fecha_cierre', ayer);
   if (!errExp) console.log(`🗑  llamados vencidos eliminados (fecha_cierre < ${ayer})`);
 
-  // 3) Borrar registros _gnews con fecha_cierre en el pasado (residuo de versión anterior)
-  await supabase.from('concursos').delete().like('fuente', '%_gnews').not('fecha_cierre','is',null);
+  // 3) Borrar todos los _gnews (no guardamos noticias)
+  await supabase.from('concursos').delete().like('fuente', '%_gnews');
+  await supabase.from('concursos').delete().like('fuente', '%gnews%');
+
+  // 4) Pre-limpiar fuentes activas para que países que fallen no dejen datos viejos
+  const FUENTES_ACTIVAS = [
+    'uruguay_concursa','argentina_concursar','argentina_boletin_oficial',
+    'brasil_pciconcursos','chile_serviciocivil','chile_empleospublicos',
+    'colombia_cnsc','peru_servir','peru_bcrp','paraguay_sfp',
+    'bolivia_mteps','ecuador_mdt','ecuador_socioempleo',
+    'mexico_dof','venezuela_oncae','costarica_dgsc',
+    'guatemala_onsec','elsalvador_mtps','honduras_scgg',
+    'nicaragua_mhcp','panama_empleos','dominicana_map',
+    'espana_administracion','espana_boe','portugal_bep',
+    'italia_inpa','francia_choisirservicepublic',
+    'alemania_bundesagentur','alemania_interamt',
+    'uk_localgov','uk_civilservice',
+    'usa_usajobs','usa_usajobs_rss',
+    'canada_jobbank','canada_gc_jobs',
+    'australia_apsjobs',
+  ];
+  for (const f of FUENTES_ACTIVAS) {
+    _fuentesLimpiadas.add(f); // marcar como ya limpiadas para que upsert no las limpie de nuevo
+    await supabase.from('concursos').delete().eq('fuente', f);
+  }
+  console.log(`🧹 ${FUENTES_ACTIVAS.length} fuentes activas pre-limpiadas`);
 }
 
 console.log(`\n🌎 Nexu Scraper${TEST_MODE ? ' [TEST]' : ''} — ${Object.keys(aCorrer).length} países — ${new Date().toISOString()}\n`);
