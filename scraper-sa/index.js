@@ -183,7 +183,7 @@ function rssToRows(items, pais, fuente, opts = {}) {
       fuente_id: id, fuente, pais,
       titulo, cargo: titulo, organismo: opts.organismo || null,
       descripcion: item.desc?.slice(0, 600) || null,
-      fecha_cierre: parseFecha(item.pubDate),
+      fecha_cierre: null, // noticias no tienen fecha de cierre real — frescura la maneja DELETE-before-upsert
       lugar: opts.lugar || null,
       url_detalle: href, url_postulacion: href,
       keywords: extraerKeywords(titulo + ' ' + (item.desc || '')),
@@ -1401,6 +1401,9 @@ if (!TEST_MODE) {
     .not('fecha_cierre', 'is', null)
     .lt('fecha_cierre', ayer);
   if (!errExp) console.log(`🗑  llamados vencidos eliminados (fecha_cierre < ${ayer})`);
+
+  // 3) Borrar registros _gnews con fecha_cierre en el pasado (residuo de versión anterior)
+  await supabase.from('concursos').delete().like('fuente', '%_gnews').not('fecha_cierre','is',null);
 }
 
 console.log(`\n🌎 Nexu Scraper${TEST_MODE ? ' [TEST]' : ''} — ${Object.keys(aCorrer).length} países — ${new Date().toISOString()}\n`);
