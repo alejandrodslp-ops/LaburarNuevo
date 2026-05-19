@@ -1387,10 +1387,20 @@ const FUENTES_OBSOLETAS = [
 ];
 
 if (!TEST_MODE) {
+  // 1) Borrar fuentes renombradas/obsoletas
   for (const f of FUENTES_OBSOLETAS) {
     await supabase.from('concursos').delete().eq('fuente', f);
   }
   console.log(`🧹 ${FUENTES_OBSOLETAS.length} fuentes obsoletas limpiadas`);
+
+  // 2) Borrar llamados con fecha_cierre vencida (más de 1 día de gracia)
+  const ayer = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const { error: errExp } = await supabase
+    .from('concursos')
+    .delete()
+    .not('fecha_cierre', 'is', null)
+    .lt('fecha_cierre', ayer);
+  if (!errExp) console.log(`🗑  llamados vencidos eliminados (fecha_cierre < ${ayer})`);
 }
 
 console.log(`\n🌎 Nexu Scraper${TEST_MODE ? ' [TEST]' : ''} — ${Object.keys(aCorrer).length} países — ${new Date().toISOString()}\n`);
