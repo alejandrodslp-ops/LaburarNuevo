@@ -1432,15 +1432,7 @@ let total = 0;
 for (const [pais, fn] of Object.entries(aCorrer)) {
   try {
     let n = await fn() || 0;
-    // Fallback universal: Google News RSS si la fuente primaria no dio resultados
-    if (n === 0 && GN[pais]) {
-      const { q, gl, hl } = GN[pais];
-      const gnRows = await googleNewsRSS(q, gl, hl, pais, `${pais.toLowerCase()}_gnews`);
-      if (gnRows.length > 0) {
-        n = await upsert(gnRows, `${pais.toLowerCase()}_gnews`);
-        if (n > 0) console.log(`  ✓ ${n} (Google News)`);
-      }
-    }
+    // Fallback gnews desactivado — solo guardamos llamados reales, no noticias
     total += n;
   } catch (e) {
     console.error(`  ❌ ${pais} falló:`, e.message);
