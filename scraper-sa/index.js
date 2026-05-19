@@ -415,21 +415,30 @@ async function scrapeBrasil() {
     let sibling = $(h2).next();
     while (sibling.length && !sibling.is('h2')) {
       if (sibling.hasClass('cd') || sibling.find('.cd').length) {
-        const cdText  = sibling.hasClass('cd') ? sibling.text() : sibling.find('.cd').text();
+        const cdEl    = sibling.hasClass('cd') ? sibling : sibling.find('.cd').first();
+        const cdText  = cdEl.text();
         const ceText  = sibling.hasClass('ce') ? sibling.find('span').first().text() : sibling.next('.ce, div:has(.ce)').find('span').first().text();
         const lines   = cdText.replace(/\s+/g,' ').trim().split(/\n|\s{2,}/).map(l=>l.trim()).filter(Boolean);
         const cargoLine = lines.find(l=>!/vaga|ensino|superior|medio|tecnico|fundamental/i.test(l) && l.length>3) || lines[0] || 'Concurso';
         const vagasM  = cdText.match(/(\d+)\s+vaga/i);
         const titulo  = `${cargoLine} — ${estadoActual}`;
         const id      = `${estadoActual}_${cargoLine}_${ceText}`.replace(/\W/g,'_').slice(0,60);
+        // Buscar link específico del concurso dentro del elemento
+        const linkHref = cdEl.find('a[href*="/concurso/"]').first().attr('href')
+          || sibling.find('a[href*="/concurso/"]').first().attr('href')
+          || sibling.prev().find('a[href*="/concurso/"]').first().attr('href')
+          || '';
+        const link = linkHref
+          ? (linkHref.startsWith('http') ? linkHref : `https://www.pciconcursos.com.br${linkHref}`)
+          : 'https://www.pciconcursos.com.br/concursos/';
         if (!rows.some(r=>r.fuente_id===id)) {
           rows.push(makeRow({
             fuente_id: id, fuente: 'brasil_pciconcursos', pais: 'BR',
             titulo, cargo: cargoLine, lugar: estadoActual,
             fecha_cierre: parseFecha(ceText),
             puestos: vagasM ? parseInt(vagasM[1]) : 1,
-            url_detalle: 'https://www.pciconcursos.com.br/concursos/',
-            url_postulacion: 'https://www.pciconcursos.com.br/concursos/',
+            url_detalle: link,
+            url_postulacion: link,
             keywords: extraerKeywords(cargoLine),
           }));
         }
