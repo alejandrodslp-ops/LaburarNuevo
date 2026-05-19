@@ -2,22 +2,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl, Alert, TextInput,
-  KeyboardAvoidingView, Platform,
+  ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SIZES, SHADOWS } from '../constants/theme';
 import { supabase } from '../services/supabase';
 import { useApp as useAppContext } from '../services/AppContext';
+import { useI18n } from '../services/I18nContext';
 
 // ─────────────────────────────────────────────────────────────
 // BANDERA EMOJI POR PAÍS
 // ─────────────────────────────────────────────────────────────
 const BANDERAS = {
-  UY: '🇺🇾', AR: '🇦🇷', CL: '🇨🇱', CO: '🇨🇴',
-  PE: '🇵🇪', BR: '🇧🇷', PY: '🇵🇾', BO: '🇧🇴',
-  EC: '🇪🇨', VE: '🇻🇪',
+  // Sudamérica
+  UY:'🇺🇾', AR:'🇦🇷', BR:'🇧🇷', CL:'🇨🇱', CO:'🇨🇴',
+  PE:'🇵🇪', PY:'🇵🇾', BO:'🇧🇴', EC:'🇪🇨', VE:'🇻🇪', MX:'🇲🇽',
+  // Centroamérica y Caribe
+  CU:'🇨🇺', CR:'🇨🇷', GT:'🇬🇹', SV:'🇸🇻', HN:'🇭🇳',
+  NI:'🇳🇮', PA:'🇵🇦', DO:'🇩🇴',
+  // Europa
+  ES:'🇪🇸', PT:'🇵🇹', IT:'🇮🇹', FR:'🇫🇷', DE:'🇩🇪', GB:'🇬🇧',
+  // Anglosajones
+  US:'🇺🇸', CA:'🇨🇦', AU:'🇦🇺',
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -25,6 +32,9 @@ const BANDERAS = {
 // ─────────────────────────────────────────────────────────────
 function LlamadoCard({ match, onPress }) {
   const { concursos: c, score, cumple, keywords_match } = match;
+  const { t } = useI18n();
+
+  const esNoticia = c.fuente?.endsWith('_gnews');
 
   const diasRestantes = () => {
     if (!c.fecha_cierre) return null;
@@ -33,15 +43,22 @@ function LlamadoCard({ match, onPress }) {
   };
   const dias = diasRestantes();
 
+  const diasPublicado = () => {
+    if (!c.fecha_inicio) return null;
+    const diff = Date.now() - new Date(c.fecha_inicio).getTime();
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
+  };
+
   const tagConfig = () => {
-    if (score >= 70) return { text: '✓ Cumplís todos los requisitos', bg: COLORS.mentaSoft, color: COLORS.mentaDark };
-    if (score >= 40) return { text: `⚡ ${Math.round(score)}% compatible — postulate`, bg: '#FFF7ED', color: '#C2410C' };
-    if (score >= 15) return { text: `⚠ Compatible parcial (${Math.round(score)}%)`, bg: COLORS.goldSoft, color: '#D97706' };
-    return { text: 'Nuevo llamado', bg: COLORS.indigoSoft, color: COLORS.indigo };
+    if (esNoticia) return { text: '📰 Noticia de empleo', bg: '#F0F4FF', color: '#3B4FA8' };
+    if (score >= 70) return { text: t('cumple_total'), bg: COLORS.mentaSoft, color: COLORS.mentaDark };
+    if (score >= 40) return { text: t('compatible_x_pct', { n: Math.round(score) }), bg: '#FFF7ED', color: '#C2410C' };
+    if (score >= 15) return { text: t('compatible_parcial', { n: Math.round(score) }), bg: COLORS.goldSoft, color: '#D97706' };
+    return { text: t('nuevo_llamado'), bg: COLORS.indigoSoft, color: COLORS.indigo };
   };
   const tag = tagConfig();
 
-  const stripeColor = score >= 70 ? COLORS.menta : score >= 40 ? COLORS.coral : score >= 15 ? COLORS.gold : COLORS.indigo;
+  const stripeColor = esNoticia ? '#3B4FA8' : score >= 70 ? COLORS.menta : score >= 40 ? COLORS.coral : score >= 15 ? COLORS.gold : COLORS.indigo;
   const bandera = BANDERAS[c.pais] || '🌍';
   const esPrivado = c.tipo_vinculo === 'privado';
 
@@ -51,15 +68,15 @@ function LlamadoCard({ match, onPress }) {
       <View style={styles.cardBody}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardOrg} numberOfLines={1}>
-            {bandera} {c.organismo || (esPrivado ? 'Empresa privada' : 'Organismo público')}
+            {bandera} {c.organismo || (esPrivado ? t('empresa_privada') : t('organismo_publico'))}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             {esPrivado
               ? <View style={{ backgroundColor: '#FFF3E0', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                  <Text style={{ fontSize: 10, color: '#E65100', fontWeight: '700' }}>PRIVADO</Text>
+                  <Text style={{ fontSize: 10, color: '#E65100', fontWeight: '700' }}>{t('privado_badge')}</Text>
                 </View>
               : <View style={{ backgroundColor: '#E3F2FD', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                  <Text style={{ fontSize: 10, color: '#1565C0', fontWeight: '700' }}>PÚBLICO</Text>
+                  <Text style={{ fontSize: 10, color: '#1565C0', fontWeight: '700' }}>{t('publico_badge')}</Text>
                 </View>
             }
             {c.numero_llamado && <Text style={styles.cardNum}>#{c.numero_llamado}</Text>}
@@ -83,19 +100,22 @@ function LlamadoCard({ match, onPress }) {
 
         <View style={styles.cardFoot}>
           <View>
-            {dias !== null && (
-              <Text style={[styles.diasText, dias <= 5 && { color: COLORS.coral, fontWeight: '700' }]}>
-                {dias > 0 ? `Cierra en ${dias} días` : 'Último día'}
-              </Text>
-            )}
+            {esNoticia
+              ? diasPublicado() !== null && <Text style={styles.diasText}>🕐 Hace {diasPublicado() === 0 ? 'hoy' : `${diasPublicado()} día${diasPublicado() !== 1 ? 's' : ''}`}</Text>
+              : dias !== null && (
+                  <Text style={[styles.diasText, dias <= 5 && { color: COLORS.coral, fontWeight: '700' }]}>
+                    {dias > 0 ? t('cierra_en_n', { n: dias }) : t('ultimo_dia')}
+                  </Text>
+                )
+            }
             {c.lugar && <Text style={styles.lugarText}>📍 {c.lugar}</Text>}
           </View>
           <TouchableOpacity
-            style={[styles.btn, cumple ? styles.btnPrimary : styles.btnOutline]}
+            style={[styles.btn, (cumple && !esNoticia) ? styles.btnPrimary : styles.btnOutline]}
             onPress={() => onPress(match)}
           >
-            <Text style={[styles.btnText, !cumple && { color: COLORS.indigo }]}>
-              {cumple ? 'Postularme →' : 'Ver detalles'}
+            <Text style={[styles.btnText, (!cumple || esNoticia) && { color: COLORS.indigo }]}>
+              {esNoticia ? 'Ver noticia' : cumple ? t('postularme') : t('ver_detalles')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -109,6 +129,7 @@ function LlamadoCard({ match, onPress }) {
 // ─────────────────────────────────────────────────────────────
 export default function ConcursaScreen({ navigation, route }) {
   const { user } = useAppContext();
+  const { t } = useI18n();
   const [matches, setMatches] = useState([]);
   const [todos, setTodos] = useState([]);
   const [stats, setStats] = useState({ total: 0, paraVos: 0, cierranPronto: 0 });
@@ -116,65 +137,14 @@ export default function ConcursaScreen({ navigation, route }) {
   const [refreshing, setRefreshing] = useState(false);
   const [filtroActivo, setFiltroActivo] = useState('para_vos');
   const [sector, setSector] = useState('todos');
-  const [busqueda, setBusqueda] = useState('');
-  const [modalidad, setModalidad] = useState('todos');
   const [sinPerfil, setSinPerfil] = useState(false);
-  const [resultadosBusqueda, setResultadosBusqueda] = useState([]);
-  const [modoBusqueda, setModoBusqueda] = useState(false);
-  const [buscandoEnBD, setBuscandoEnBD] = useState(false);
 
-  // Consulta real a la BD por texto
-  async function buscarEnBD(termino) {
-    const t = (termino || '').trim();
-    if (!t) { setModoBusqueda(false); setResultadosBusqueda([]); return; }
-    setModoBusqueda(true);
-    setBuscandoEnBD(true);
-    try {
-      // Normalizar: quitar acentos para que "odontologo" encuentre "Odontólogo"
-      const sinAcentos = t.normalize('NFD').replace(/[̀-ͯ]/g, '');
-      // Buscar ambas versiones (con y sin acento)
-      const terminos = [...new Set([t.toLowerCase(), sinAcentos.toLowerCase()])];
-      const orParts = terminos.flatMap(term => [
-        `cargo.ilike.%${term}%`,
-        `titulo.ilike.%${term}%`,
-        `organismo.ilike.%${term}%`,
-        `descripcion.ilike.%${term}%`,
-      ]).join(',');
-
-      const { data, error } = await supabase
-        .from('concursos')
-        .select('id, pais, numero_llamado, titulo, cargo, organismo, tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre, puestos, url_detalle, url_postulacion')
-        .eq('activo', true)
-        .or(orParts)
-        .order('created_at', { ascending: false })
-        .limit(60);
-
-      if (error) console.error('[Buscar] Error Supabase:', error.message, error.details);
-      const hoy = new Date();
-      setResultadosBusqueda((data || []).filter(c => !c.fecha_cierre || new Date(c.fecha_cierre) >= hoy));
-    } catch (e) {
-      console.error('[Buscar] Error inesperado:', e.message);
-    }
-    setBuscandoEnBD(false);
-  }
-
-  function limpiarBusqueda() {
-    setBusqueda('');
-    setModoBusqueda(false);
-    setResultadosBusqueda([]);
-  }
-
-  // Aplicar filtros/búsqueda que vienen desde HomeScreen
+  // Aplicar filtros que vienen desde HomeScreen
   useEffect(() => {
     const p = route.params || {};
     if (p.presetFiltro) setFiltroActivo(p.presetFiltro);
     if (p.presetSector) setSector(p.presetSector);
-    if (p.presetModalidad) setModalidad(p.presetModalidad);
-    if (p.busqueda) {
-      setBusqueda(p.busqueda);
-      buscarEnBD(p.busqueda);
-    }
-  }, [route.params?.presetFiltro, route.params?.presetSector, route.params?.busqueda, route.params?.presetModalidad]);
+  }, [route.params?.presetFiltro, route.params?.presetSector]);
 
   const cargar = useCallback(async (esRefresh = false) => {
     if (esRefresh) setRefreshing(true);
@@ -188,13 +158,13 @@ export default function ConcursaScreen({ navigation, route }) {
       // Verificar que el usuario tiene perfil de worker
       const { data: perfil, error: perfilError } = await supabase
         .from('profiles')
-        .select('rol, servicios, profesiones, especialidades, pais')
+        .select('rol, servicios, profesiones, especialidades, tecnicaturas, pais')
         .eq('id', authUser.id)
         .single();
 
       console.log('[Concursa] perfil:', perfil?.rol, perfil?.pais, '| error:', perfilError?.message);
 
-      if (perfil?.rol !== 'worker') {
+      if (perfil?.rol === 'employer' || perfil?.rol === 'company') {
         setSinPerfil(true);
         return;
       }
@@ -203,6 +173,7 @@ export default function ConcursaScreen({ navigation, route }) {
         ...(perfil?.servicios || []),
         ...(perfil?.profesiones || []),
         ...(perfil?.especialidades || []),
+        ...(perfil?.tecnicaturas || []),
       ].length > 0;
 
       if (!tieneKeywords) {
@@ -223,14 +194,14 @@ export default function ConcursaScreen({ navigation, route }) {
         .select(`
           score, cumple, keywords_match,
           concursos (
-            id, pais, numero_llamado, titulo, cargo, organismo,
+            id, pais, fuente, numero_llamado, titulo, cargo, organismo,
             tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre,
             puestos, url_detalle, url_postulacion, descripcion, requisitos
           )
         `)
         .eq('worker_id', authUser.id)
         .order('score', { ascending: false })
-        .limit(80);
+        .limit(2000);
 
       if (error) throw error;
 
@@ -238,7 +209,17 @@ export default function ConcursaScreen({ navigation, route }) {
       const PAIS_ISO = {
         'uruguay':'UY','argentina':'AR','chile':'CL','colombia':'CO',
         'peru':'PE','perú':'PE','brasil':'BR','brazil':'BR','paraguay':'PY',
-        'bolivia':'BO','ecuador':'EC','venezuela':'VE',
+        'bolivia':'BO','ecuador':'EC','venezuela':'VE','mexico':'MX','méxico':'MX',
+        'cuba':'CU','costa rica':'CR','guatemala':'GT','el salvador':'SV',
+        'honduras':'HN','nicaragua':'NI','panamá':'PA','panama':'PA',
+        'república dominicana':'DO','republica dominicana':'DO',
+        'españa':'ES','espana':'ES','spain':'ES',
+        'portugal':'PT','italia':'IT','italy':'IT',
+        'francia':'FR','france':'FR','alemania':'DE','germany':'DE',
+        'reino unido':'GB','united kingdom':'GB','uk':'GB',
+        'estados unidos':'US','united states':'US','usa':'US',
+        'canadá':'CA','canada':'CA',
+        'australia':'AU',
       };
       const paisRaw = (perfil?.pais || '').toLowerCase().trim();
       const paisISO = PAIS_ISO[paisRaw] || paisRaw.slice(0,2).toUpperCase();
@@ -256,13 +237,14 @@ export default function ConcursaScreen({ navigation, route }) {
       setMatches(validos);
 
       // Cargar TODOS los concursos del país directamente (no depende de matching)
-      const { data: todosData } = await supabase
+      let todosQuery = supabase
         .from('concursos')
-        .select('id, pais, numero_llamado, titulo, cargo, organismo, tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre, puestos, url_detalle, url_postulacion')
-        .eq('pais', paisISO)
+        .select('id, pais, fuente, numero_llamado, titulo, cargo, organismo, tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre, puestos, url_detalle, url_postulacion')
         .eq('activo', true)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(2000);
+      if (paisISO) todosQuery = todosQuery.eq('pais', paisISO);
+      const { data: todosData } = await todosQuery;
 
       const todosValidos = (todosData || []).filter(c => {
         if (c.fecha_cierre && new Date(c.fecha_cierre) < hoy) return false;
@@ -297,11 +279,7 @@ export default function ConcursaScreen({ navigation, route }) {
   }, [navigation]);
 
   const handleAlertas = () => {
-    Alert.alert(
-      '🔔 Alertas activadas',
-      'Te notificaremos cuando aparezcan nuevos llamados compatibles con tu perfil.',
-      [{ text: 'OK' }]
-    );
+    Alert.alert(t('alerta_activada_tit'), t('alerta_activada_desc'), [{ text: t('ok') }]);
   };
 
   const matchesPorId = Object.fromEntries(matches.map(m => [m.concursos?.id, m]));
@@ -314,58 +292,24 @@ export default function ConcursaScreen({ navigation, route }) {
     });
   };
 
-  const REMOTO_KW = ['remoto', 'teletrabajo', 'home office', 'remote', 'virtual', 'a distancia'];
-
-  let mostrados;
-  if (modoBusqueda) {
-    // Modo búsqueda: usa resultados de la BD, ignora Para vos / Todos
-    mostrados = resultadosBusqueda
-      .map(c => matchesPorId[c.id] || { concursos: c, score: 0, cumple: false, keywords_match: [] });
-    mostrados = filtrarSector(mostrados, item => item.concursos);
-    if (modalidad !== 'todos') {
-      mostrados = mostrados.filter(item => {
-        const c = item.concursos;
-        const txt = `${c?.cargo||''} ${c?.titulo||''} ${c?.descripcion||''}`.toLowerCase();
-        const esRemoto = REMOTO_KW.some(w => txt.includes(w));
-        return modalidad === 'teletrabajo' ? esRemoto : !esRemoto;
-      });
-    }
-  } else {
-    let base = filtroActivo === 'para_vos'
-      ? matches.filter(m => m.cumple)
-      : todos.map(c => matchesPorId[c.id] || { concursos: c, score: 0, cumple: false, keywords_match: [] });
-    base = filtrarSector(base, item => item.concursos);
-    if (modalidad !== 'todos') {
-      base = base.filter(item => {
-        const c = item.concursos;
-        const txt = `${c?.cargo||''} ${c?.titulo||''} ${c?.descripcion||''}`.toLowerCase();
-        const esRemoto = REMOTO_KW.some(w => txt.includes(w));
-        return modalidad === 'teletrabajo' ? esRemoto : !esRemoto;
-      });
-    }
-    mostrados = base;
-  }
+  let mostrados = filtroActivo === 'para_vos'
+    ? matches.filter(m => m.cumple)
+    : todos.map(c => matchesPorId[c.id] || { concursos: c, score: 0, cumple: false, keywords_match: [] });
+  mostrados = filtrarSector(mostrados, item => item.concursos);
 
   if (cargando && todos.length === 0 && matches.length === 0) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={COLORS.coral} />
-        <Text style={{ color: COLORS.texto3, marginTop: 12 }}>Buscando llamados compatibles…</Text>
+        <Text style={{ color: COLORS.texto3, marginTop: 12 }}>{t('concursa_cargando')}</Text>
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
-      >
       <ScrollView
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => cargar(true)} tintColor={COLORS.coral} />
         }
@@ -382,32 +326,30 @@ export default function ConcursaScreen({ navigation, route }) {
                 <Text style={{ fontSize: 16 }}>🏛️</Text>
               </View>
               <View>
-                <Text style={[styles.brandName, { color: '#1A3A5C' }]}>Concursa</Text>
-                <Text style={[styles.brandSub, { color: 'rgba(26,58,92,0.5)' }]}>Powered by Nexu</Text>
+                <Text style={[styles.brandName, { color: '#1A3A5C' }]}>{t('concursa_brand')}</Text>
+                <Text style={[styles.brandSub, { color: 'rgba(26,58,92,0.5)' }]}>{t('concursa_sub')}</Text>
               </View>
             </View>
             <TouchableOpacity style={[styles.alertasBtn, { backgroundColor: 'rgba(26,58,92,0.12)', borderColor: 'rgba(26,58,92,0.25)' }]} onPress={handleAlertas}>
-              <Text style={[styles.alertasBtnText, { color: '#1A3A5C' }]}>🔔 Alertas</Text>
+              <Text style={[styles.alertasBtnText, { color: '#1A3A5C' }]}>{t('concursa_alertas')}</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.heroWrap}>
-            <Text style={[styles.heroTitle, { color: '#1A3A5C' }]}>Oportunidades de{'\n'}empleo público</Text>
-            <Text style={[styles.heroDesc, { color: 'rgba(26,58,92,0.6)' }]}>
-              Analizamos tu perfil y lo comparamos con los llamados abiertos en tu país para identificar las mejores oportunidades
-            </Text>
+            <Text style={[styles.heroTitle, { color: '#1A3A5C' }]}>{t('concursa_hero')}</Text>
+            <Text style={[styles.heroDesc, { color: 'rgba(26,58,92,0.6)' }]}>{t('concursa_hero_desc')}</Text>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statNum}>{stats.paraVos}</Text>
-                <Text style={styles.statLbl}>Para vos</Text>
+                <Text style={styles.statLbl}>{t('stat_para_vos')}</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statNum}>{stats.total}</Text>
-                <Text style={styles.statLbl}>Abiertos</Text>
+                <Text style={styles.statLbl}>{t('stat_abiertos')}</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statNum}>{stats.cierranPronto}</Text>
-                <Text style={styles.statLbl}>Cierran pronto</Text>
+                <Text style={styles.statLbl}>{t('stat_cierran_pronto')}</Text>
               </View>
             </View>
           </View>
@@ -420,12 +362,12 @@ export default function ConcursaScreen({ navigation, route }) {
             <View style={{ flex: 1 }}>
               <Text style={styles.matchTitle}>
                 {stats.paraVos > 0
-                  ? `Compatible con ${stats.paraVos} llamado${stats.paraVos !== 1 ? 's' : ''}`
+                  ? t('match_compatible_n', { n: stats.paraVos, s: stats.paraVos !== 1 ? 's' : '' })
                   : stats.total > 0
-                    ? 'No encontramos llamados compatibles aún'
-                    : 'Sin llamados disponibles por el momento'}
+                    ? t('match_no_compatible')
+                    : t('match_sin_llamados')}
               </Text>
-              <Text style={styles.matchSub}>Actualizado hoy · tu país</Text>
+              <Text style={styles.matchSub}>{t('match_actualizado')}</Text>
             </View>
             {stats.paraVos > 0 && (
               <Text style={styles.matchNum}>{stats.paraVos}</Text>
@@ -440,7 +382,7 @@ export default function ConcursaScreen({ navigation, route }) {
             onPress={() => setFiltroActivo('para_vos')}
           >
             <Text style={[styles.filtroTxt, filtroActivo === 'para_vos' && styles.filtroTxtActive]}>
-              Para vos ({matches.filter(m => m.cumple).length})
+              {t('filtro_para_vos', { n: matches.filter(m => m.cumple).length })}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -448,14 +390,14 @@ export default function ConcursaScreen({ navigation, route }) {
             onPress={() => setFiltroActivo('todos')}
           >
             <Text style={[styles.filtroTxt, filtroActivo === 'todos' && styles.filtroTxtActive]}>
-              Todos ({todos.length})
+              {t('filtro_todos', { n: todos.length })}
             </Text>
           </TouchableOpacity>
         </View>
 
         {/* ── FILTRO SECTOR ── */}
         <View style={styles.sectorRow}>
-          {[['todos','Todo'], ['publico','Público 🏛️'], ['privado','Privado 💼']].map(([val, label]) => (
+          {[['todos', t('sector_todo')], ['publico', t('sector_publico')], ['privado', t('sector_privado')]].map(([val, label]) => (
             <TouchableOpacity
               key={val}
               style={[styles.sectorBtn, sector === val && styles.sectorBtnActive]}
@@ -466,94 +408,33 @@ export default function ConcursaScreen({ navigation, route }) {
           ))}
         </View>
 
-        {/* ── BÚSQUEDA ── */}
-        <View style={styles.searchWrap}>
-          <View style={styles.searchRow}>
-            <View style={styles.searchBox}>
-              <Text style={{ fontSize: 13, color: COLORS.texto3 }}>🔍</Text>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Buscar en toda la base de datos..."
-                placeholderTextColor={COLORS.texto3}
-                value={busqueda}
-                onChangeText={v => { setBusqueda(v); if (!v.trim()) limpiarBusqueda(); }}
-                returnKeyType="search"
-                onSubmitEditing={() => buscarEnBD(busqueda)}
-              />
-              {busqueda.length > 0 && (
-                <TouchableOpacity onPress={limpiarBusqueda}>
-                  <Text style={{ color: COLORS.texto3, fontSize: 17, paddingHorizontal: 2 }}>×</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            <TouchableOpacity
-              style={[styles.searchBtn, buscandoEnBD && { opacity: 0.6 }]}
-              onPress={() => buscarEnBD(busqueda)}
-              disabled={buscandoEnBD}
-            >
-              {buscandoEnBD
-                ? <ActivityIndicator size="small" color={COLORS.blanco} />
-                : <Text style={styles.searchBtnTxt}>Buscar</Text>}
-            </TouchableOpacity>
-          </View>
-          <View style={styles.modRow}>
-            {[['todos','Cualquiera'], ['presencial','Presencial'], ['teletrabajo','Remoto']].map(([v, l]) => (
-              <TouchableOpacity key={v} style={[styles.modBtn, modalidad === v && styles.modBtnActive]} onPress={() => setModalidad(v)}>
-                <Text style={[styles.modTxt, modalidad === v && styles.modTxtActive]}>{l}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* ── CABECERA RESULTADOS DE BÚSQUEDA ── */}
-        {modoBusqueda && (
-          <View style={styles.busquedaHeader}>
-            <Text style={styles.busquedaHeaderTxt}>
-              {buscandoEnBD ? 'Buscando...' : `${resultadosBusqueda.length} resultado${resultadosBusqueda.length !== 1 ? 's' : ''} para "${busqueda}"`}
-            </Text>
-            <TouchableOpacity onPress={limpiarBusqueda}>
-              <Text style={styles.busquedaLimpiar}>Limpiar ×</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         {/* ── SIN PERFIL ── */}
         {sinPerfil && (
           <View style={styles.sinPerfilBox}>
-            <Text style={styles.sinPerfilTitle}>Completá tu perfil para ver matches</Text>
-            <Text style={styles.sinPerfilSub}>
-              Agregá tus servicios, profesión y especialidades para que podamos comparar tu perfil contra los llamados abiertos.
-            </Text>
+            <Text style={styles.sinPerfilTitle}>{t('sin_perfil_tit')}</Text>
+            <Text style={styles.sinPerfilSub}>{t('sin_perfil_sub')}</Text>
           </View>
         )}
 
         {/* ── LISTA DE LLAMADOS ── */}
         <View style={styles.lista}>
-          {mostrados.length === 0 && !sinPerfil && !buscandoEnBD ? (
+          {mostrados.length === 0 && !sinPerfil ? (
             <View style={styles.vacio}>
-              <Text style={{ fontSize: 40 }}>{modoBusqueda ? '🔎' : '🔍'}</Text>
+              <Text style={{ fontSize: 40 }}>🔍</Text>
               <Text style={styles.vacioTxt}>
-                {modoBusqueda
-                  ? `Sin resultados para "${busqueda}".\nProbá con otra palabra o cambiá el filtro de sector.`
-                  : filtroActivo === 'para_vos'
-                    ? 'No encontramos llamados compatibles con tu perfil por ahora.\nProbá ver todos los disponibles.'
-                    : 'No hay llamados disponibles en este momento.'}
+                {filtroActivo === 'para_vos' ? t('sin_compatibles') : t('no_hay_llamados')}
               </Text>
-              {!modoBusqueda && filtroActivo === 'para_vos' && (
+              {filtroActivo === 'para_vos' && (
                 <TouchableOpacity onPress={() => setFiltroActivo('todos')}>
-                  <Text style={{ color: COLORS.coral, fontWeight: '700', marginTop: 8 }}>Ver todos →</Text>
-                </TouchableOpacity>
-              )}
-              {modoBusqueda && (
-                <TouchableOpacity onPress={limpiarBusqueda}>
-                  <Text style={{ color: COLORS.coral, fontWeight: '700', marginTop: 8 }}>Limpiar búsqueda →</Text>
+                  <Text style={{ color: COLORS.coral, fontWeight: '700', marginTop: 8 }}>{t('ver_todos')}</Text>
                 </TouchableOpacity>
               )}
             </View>
           ) : (
             <>
               {filtroActivo === 'para_vos' && mostrados.filter(m => m.cumple).length > 0 && (
-                <Text style={styles.sectionLabel}>COMPATIBLES ✓</Text>
+                <Text style={styles.sectionLabel}>{t('compatibles_section')}</Text>
               )}
               {mostrados.map((m, i) => (
                 <LlamadoCard
@@ -567,7 +448,6 @@ export default function ConcursaScreen({ navigation, route }) {
           )}
         </View>
       </ScrollView>
-      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

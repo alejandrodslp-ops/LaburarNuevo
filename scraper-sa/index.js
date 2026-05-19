@@ -171,11 +171,20 @@ async function upsert(rows, fuente) {
 }
 
 // Helper para RSS genérico → filas
+const CINCO_DIAS_MS = 5 * 24 * 60 * 60 * 1000;
 function rssToRows(items, pais, fuente, opts = {}) {
   const rows = [];
+  const ahora = Date.now();
   for (const item of items.slice(0, 50)) {
     const titulo = item.title;
     if (!titulo || titulo.length < 5) continue;
+    // Filtrar noticias con más de 5 días de antigüedad
+    if (item.pubDate) {
+      try {
+        const pub = new Date(item.pubDate).getTime();
+        if (!isNaN(pub) && ahora - pub > CINCO_DIAS_MS) continue;
+      } catch {}
+    }
     const href = item.link || item.guid || null;
     const id   = (item.guid || href || titulo).replace(/[^a-zA-Z0-9]/g, '').slice(-48);
     if (rows.some(r => r.fuente_id === id)) continue;
@@ -183,7 +192,8 @@ function rssToRows(items, pais, fuente, opts = {}) {
       fuente_id: id, fuente, pais,
       titulo, cargo: titulo, organismo: opts.organismo || null,
       descripcion: item.desc?.slice(0, 600) || null,
-      fecha_cierre: null, // noticias no tienen fecha de cierre real — frescura la maneja DELETE-before-upsert
+      fecha_inicio: parseFecha(item.pubDate) || null, // fecha de publicación de la noticia
+      fecha_cierre: null, // noticias no tienen fecha de cierre — frescura via DELETE-before-upsert
       lugar: opts.lugar || null,
       url_detalle: href, url_postulacion: href,
       keywords: extraerKeywords(titulo + ' ' + (item.desc || '')),
