@@ -143,6 +143,8 @@ function makeRow(fields) {
   };
 }
 
+const _fuentesLimpiadas = new Set();
+
 async function upsert(rows, fuente) {
   if (!rows.length) return 0;
   // Deduplicar por fuente_id dentro del batch (previene ON CONFLICT errors)
@@ -156,15 +158,16 @@ async function upsert(rows, fuente) {
     unique.slice(0, 2).forEach(r => console.log(`    • ${r.cargo} | ${r.pais} | ${r.lugar || '—'}`));
     return unique.length;
   }
+  // Limpiar registros anteriores de esta fuente (solo la primera vez por ejecución)
+  if (!_fuentesLimpiadas.has(fuente)) {
+    _fuentesLimpiadas.add(fuente);
+    await supabase.from('concursos').delete().eq('fuente', fuente);
+  }
   const { error } = await supabase
     .from('concursos')
     .upsert(unique, { onConflict: 'fuente,fuente_id', ignoreDuplicates: false });
   if (error) { console.error(`  ❌ upsert ${fuente}:`, error.message); return 0; }
-  // Marcar vencidos
-  const hoy = new Date().toISOString().slice(0, 10);
-  await supabase.from('concursos').update({ activo: false })
-    .eq('fuente', fuente).lt('fecha_cierre', hoy).not('fecha_cierre', 'is', null);
-  return rows.length;
+  return unique.length;
 }
 
 // Helper para RSS genérico → filas
@@ -972,27 +975,32 @@ async function scrapePortugal() {
 // ─── ITALIA ──────────────────────────────────────────────────────────────────
 async function scrapeItalia() {
   console.log('🇮🇹 Italia...');
-  // tuttoconcorsi.it — agregador de concursos públicos italianos (RSS)
-  const rows = await fetchRSS('https://www.tuttoconcorsi.it/feed/', 'IT', 'italia_tuttoconcorsi');
-  if (rows.length > 0) { const n = await upsert(rows,'italia_tuttoconcorsi'); console.log(`  ✓ ${n} (tuttoconcorsi)`); return n; }
-  // InPA — HTML scraping como fallback
-  const html = await fetchUrl('https://www.inpa.gov.it/bandi-di-concorso/', { timeout: 12000 });
-  if (html) {
-    const $ = cheerio.load(html);
-    const htmlRows = [];
-    $('h3 a, h4 a, .bando-title a, article a, td a').each((_, el) => {
-      const titulo = $(el).text().trim();
-      const href   = $(el).attr('href') || '';
-      if (titulo.length < 5) return;
-      const link = href.startsWith('http') ? href : `https://www.inpa.gov.it${href}`;
-      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
-      if (!htmlRows.some(r => r.fuente_id === id)) htmlRows.push(makeRow({
+  // InPA — API WordPress (portal oficial italiano de empleo público)
+  const data = await fetchJSON(
+    'https://www.inpa.gov.it/wp-json/wp/v2/posts?per_page=50&search=concorso&_fields=id,title,date,link,excerpt',
+    { timeout: 15000 }
+  );
+  if (data && data.length > 0) {
+    const rows = [];
+    const seen = new Set();
+    for (const post of data) {
+      const id = String(post.id);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const titulo = (post.title?.rendered || '').replace(/&#\d+;/g,'').replace(/&[a-z]+;/g,'').trim();
+      if (titulo.length < 5) continue;
+      const link = post.link || 'https://www.inpa.gov.it/';
+      rows.push(makeRow({
         fuente_id: id, fuente: 'italia_inpa', pais: 'IT',
-        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
+        titulo, cargo: titulo, url_detalle: link, url_postulacion: link,
+        keywords: extraerKeywords(titulo),
       }));
-    });
-    if (htmlRows.length > 0) { const n = await upsert(htmlRows,'italia_inpa'); console.log(`  ✓ ${n} (InPA)`); return n; }
+    }
+    if (rows.length > 0) { const n = await upsert(rows,'italia_inpa'); console.log(`  ✓ ${n} (InPA WP API)`); return n; }
   }
+  // Fallback: Gazzetta Ufficiale concorsi RSS
+  const rssRows = await fetchRSS('https://www.gazzettaufficiale.it/rss/concorsi.xml', 'IT', 'italia_gazzetta');
+  if (rssRows.length > 0) { const n = await upsert(rssRows,'italia_gazzetta'); console.log(`  ✓ ${n} (Gazzetta Ufficiale)`); return n; }
   const az = await adzunaSearch('it', 'IT', 'italia_adzuna', 'concorso pubblico lavoro amministrazione');
   if (az.length > 0) { const n = await upsert(az,'italia_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
   const jb = await joobleSearch('concorso pubblico lavoro amministrazione', 'Italia', 'IT', 'italia_jooble');
@@ -1003,15 +1011,46 @@ async function scrapeItalia() {
 // ─── FRANCIA ─────────────────────────────────────────────────────────────────
 async function scrapeFrancia() {
   console.log('🇫🇷 Francia...');
-  // choisirleservicepublic.gouv.fr — nuevo dominio del portal de empleo público
-  for (const url of [
-    'https://www.choisirleservicepublic.gouv.fr/flux/rss/',
-    'https://choisirleservicepublic.gouv.fr/flux/rss/',
-    'https://place-emploi-public.gouv.fr/flux/rss/',
-  ]) {
-    const rows = await fetchRSS(url, 'FR', 'francia_place_emploi');
-    if (rows.length > 0) { const n = await upsert(rows,'francia_place_emploi'); console.log(`  ✓ ${n} (Place Emploi Public)`); return n; }
+  // choisirleservicepublic.gouv.fr — API JSON paginada (49000+ ofertas)
+  const rows = [];
+  const seen = new Set();
+  for (let page = 1; page <= 5; page++) {
+    try {
+      const res = await fetch('https://choisirleservicepublic.gouv.fr/wp-json/api/offer-list', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': HEADERS['User-Agent'],
+          'Referer': 'https://choisirleservicepublic.gouv.fr/nos-offres/',
+          'Origin': 'https://choisirleservicepublic.gouv.fr',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ page }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) { console.log(`    ⚠ Francia pág ${page}: HTTP ${res.status}`); break; }
+      const d = await res.json();
+      const items = d.items || [];
+      if (items.length === 0) break;
+      for (const item of items) {
+        const ref = item.reference || '';
+        const id  = ref.replace(/\W/g,'').slice(-48) || (item.title||'').replace(/\W/g,'').slice(0,48);
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        const titulo = item.title || '';
+        if (titulo.length < 3) continue;
+        rows.push(makeRow({
+          fuente_id: id, fuente: 'francia_choisirservicepublic', pais: 'FR',
+          titulo, cargo: titulo, organismo: item.employeur || null,
+          lugar: (item.localisation || '').replace(/<[^>]+>/g,'').trim() || null,
+          url_detalle: item.url || 'https://choisirleservicepublic.gouv.fr/nos-offres/',
+          url_postulacion: item.url || 'https://choisirleservicepublic.gouv.fr/nos-offres/',
+          keywords: extraerKeywords(titulo + ' ' + (item.employeur||'') + ' ' + (item.domain||'')),
+        }));
+      }
+    } catch(e) { console.log(`    ⚠ Francia página ${page}: ${e.message}`); break; }
   }
+  if (rows.length > 0) { const n = await upsert(rows,'francia_choisirservicepublic'); console.log(`  ✓ ${n} (choisirleservicepublic.gouv.fr)`); return n; }
   const az = await adzunaSearch('fr', 'FR', 'francia_adzuna', 'concours fonction publique emploi');
   if (az.length > 0) { const n = await upsert(az,'francia_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
   const jb = await joobleSearch('concours fonction publique emploi', 'France', 'FR', 'francia_jooble');
@@ -1024,10 +1063,10 @@ async function scrapeAlemania() {
   console.log('🇩🇪 Alemania...');
   // Bundesagentur für Arbeit — API pública gratuita (sin angebotsart que causa 400)
   const data = await fetchJSON(
-    'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?page=0&size=50&was=verwaltung',
+    'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?page=1&size=50&was=verwaltung',
     { headers: { 'X-API-Key': 'jobboerse-jobsuche', 'Accept': 'application/json' }, timeout: 12000 }
   ) || await fetchJSON(
-    'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?page=0&size=50',
+    'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?page=1&size=50',
     { headers: { 'X-API-Key': 'jobboerse-jobsuche', 'Accept': 'application/json' }, timeout: 12000 }
   );
   if (data) {
@@ -1037,7 +1076,7 @@ async function scrapeAlemania() {
       const titel       = job.titel || job.beruf || '';
       const arbeitgeber = job.arbeitgeber || '';
       const refnr       = String(job.refnr || job.hashId || '');
-      const ort         = job.arbeitsorte?.[0]?.ort || job.ort || null;
+      const ort         = job.arbeitsort?.ort || job.arbeitsorte?.[0]?.ort || job.ort || null;
       const eintr       = job.eintrittsdatum || '';
       if (!titel || titel.length < 3) continue;
       const id = refnr.replace(/\W/g,'').slice(-48) || (titel + arbeitgeber).replace(/\W/g,'').slice(0,48);
