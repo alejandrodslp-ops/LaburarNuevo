@@ -326,8 +326,8 @@ async function scrapeUruguay() {
       titulo: titleClean, cargo, organismo,
       fecha_inicio:  periodoM ? parseFecha(periodoM[1]) : null,
       fecha_cierre:  periodoM ? parseFecha(periodoM[2]) : null,
-      url_detalle:   `https://www.uruguayconcursa.gub.uy/Portal/servlet/com.si.recsel.verllamado?${fuente_id}`,
-      url_postulacion: `https://www.uruguayconcursa.gub.uy/Portal/servlet/com.si.recsel.verllamado?${fuente_id}`,
+      url_detalle:   `https://www.uruguayconcursa.gub.uy/llamado/${fuente_id}`,
+      url_postulacion: `https://www.uruguayconcursa.gub.uy/llamado/${fuente_id}`,
       keywords: extraerKeywords(cargo),
     }));
   });
