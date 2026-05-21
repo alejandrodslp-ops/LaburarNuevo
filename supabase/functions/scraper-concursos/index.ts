@@ -6,10 +6,21 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
+const USAJOBS_API_KEY  = Deno.env.get("USAJOBS_API_KEY")  ?? "";
+const CF_PROXY         = Deno.env.get("CF_PROXY_URL")     ?? "";
+const SCRAPER_API_KEY  = Deno.env.get("SCRAPER_API_KEY")  ?? "";
+
 const HEADERS = {
-  "User-Agent": "Mozilla/5.0 (compatible; Nexu/1.0; concursos@nexu.uy)",
-  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-  "Accept-Language": "es-UY,es;q=0.9",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "es-419,es;q=0.9,en;q=0.8",
+  "Accept-Encoding": "gzip, deflate, br",
+  "Connection": "keep-alive",
+  "Upgrade-Insecure-Requests": "1",
+  "Sec-Fetch-Dest": "document",
+  "Sec-Fetch-Mode": "navigate",
+  "Sec-Fetch-Site": "none",
+  "Cache-Control": "max-age=0",
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -61,6 +72,31 @@ function extraerKeywords(texto: string): string[] {
   return [...new Set(palabras)].slice(0, 15);
 }
 
+function sumarDias(fecha: string | null, dias: number): string | null {
+  if (!fecha) {
+    const d = new Date();
+    d.setDate(d.getDate() + dias);
+    return d.toISOString().slice(0, 10);
+  }
+  const d = new Date(fecha);
+  if (isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+
+function parseFechaRelativa(texto: string): string | null {
+  const m = texto.match(/hace\s+(\d+)\s+(hora|d[ií]a|semana|mes)/i);
+  if (!m) return null;
+  const num = parseInt(m[1]);
+  const unit = m[2].toLowerCase();
+  const d = new Date();
+  if (unit.startsWith("hora")) d.setHours(d.getHours() - num);
+  else if (unit.startsWith("d")) d.setDate(d.getDate() - num);
+  else if (unit.startsWith("sem")) d.setDate(d.getDate() - num * 7);
+  else if (unit.startsWith("mes")) d.setMonth(d.getMonth() - num);
+  return d.toISOString().slice(0, 10);
+}
+
 function parseFecha(str: string): string | null {
   if (!str) return null;
   const m = str.match(/(\d{2})\/(\d{2})\/(\d{4})/);
@@ -77,20 +113,37 @@ function stripHtml(html: string): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&#0047;/g, "/").replace(/&quot;/g, '"')
+    .replace(/&quot;/g, '"').replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(parseInt(d, 10)))
     .replace(/\s+/g, " ").trim();
 }
 
-async function fetchUrl(url: string, timeoutMs = 15000): Promise<string | null> {
+async function fetchViaProxy(url: string, timeoutMs = 15000): Promise<string | null> {
+  if (!CF_PROXY) return null;
+  const proxyUrl = `${CF_PROXY}${encodeURIComponent(url)}`;
+  return fetchUrl(proxyUrl, timeoutMs);
+}
+
+async function fetchViaScraperAPI(url: string, countryCode: string, timeoutMs = 20000): Promise<string | null> {
+  if (!SCRAPER_API_KEY) return null;
+  const saUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&country_code=${countryCode}&url=${encodeURIComponent(url)}`;
+  return fetchUrl(saUrl, timeoutMs, { "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" });
+}
+
+async function fetchUrl(url: string, timeoutMs = 15000, extraHeaders?: Record<string, string>): Promise<string | null> {
   try {
     const res = await fetch(url, {
-      headers: HEADERS,
+      headers: { ...HEADERS, ...extraHeaders },
       signal: AbortSignal.timeout(timeoutMs),
       redirect: "follow",
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.log(`fetchUrl ${url} → HTTP ${res.status}`);
+      return null;
+    }
     return await res.text();
-  } catch (_) {
+  } catch (e) {
+    console.log(`fetchUrl ${url} → ERROR: ${(e as Error).message}`);
     return null;
   }
 }
@@ -103,78 +156,67 @@ async function scrapeUruguay(): Promise<{ rows: ConcursoRow[]; errores: string[]
   const errores: string[] = [];
   const rows: ConcursoRow[] = [];
 
-  const xml = await fetchUrl(
-    "https://www.uruguayconcursa.gub.uy/Portal/servlet/com.si.recsel.arssllamados?,ABIERTO"
-  );
-  if (!xml || !xml.includes("<item>")) {
-    return { rows, errores: ["UY: sin items en RSS"] };
+  // API oficial del sitio — devuelve exactamente los llamados con inscripción abierta
+  let resp: string | null = null;
+  try {
+    const r = await fetch("https://uruguayconcursa.gub.uy/api-backend/llamados/recientes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ PaginadoFiltrosSDT: { PaginaActual: 1, CntPorPagina: 2000 } }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (r.ok) resp = await r.text();
+    else errores.push(`UY: API recientes HTTP ${r.status}`);
+  } catch (e) {
+    errores.push(`UY: API recientes error — ${(e as Error).message}`);
   }
 
-  const items = extraerItems(xml);
+  if (!resp) return { rows, errores: ["UY: API recientes sin respuesta"] };
 
-  for (const item of items.slice(0, 60)) {
-    const titleRaw = extraerTag(item, "title");
-    const link     = extraerTag(item, "link");
-    const descHtml = extraerTag(item, "description");
+  let lista: Record<string, unknown>[] = [];
+  try {
+    const json = JSON.parse(resp);
+    lista = (json.ListaLlamados ?? json.listaLlamados ?? []) as Record<string, unknown>[];
+  } catch {
+    return { rows, errores: ["UY: API recientes respuesta inválida"] };
+  }
 
-    // ID desde el link: verllamadorss?41210
-    const idMatch = link.match(/\?(\d+)$/);
-    if (!idMatch) continue;
-    const fuente_id = idMatch[1];
+  if (lista.length === 0) return { rows, errores: ["UY: API recientes devolvió 0 llamados"] };
 
-    // Parsear título: "Llamado Nº A0018/2026 - Cargo - Organismo"
-    const titleClean = titleRaw.replace(/^Llamado\s+N[ºo°]\s*/i, "").trim();
-    const parts = titleClean.split(" - ");
-    const numero_llamado = parts[0]?.trim() || null;
-    const cargo = parts[1]?.trim() || titleClean;
-    const organismo = parts.slice(2).join(" - ").trim() || null;
+  for (const l of lista) {
+    const id        = String(l.LlaId ?? "");
+    if (!id) continue;
 
-    // Parsear descripción HTML (tabla con período, lugar, organismo)
-    const descText = stripHtml(descHtml);
-    const periodoMatch = descText.match(/(\d{2}\/\d{2}\/\d{4})\s*[-–]\s*(\d{2}\/\d{2}\/\d{4})/);
-    const puestosMatch = descText.match(/(\d+)\s+[Pp]uesto/);
-    const lugarMatch  = descHtml.match(/<span[^>]*>Lugar de desempe[ñn]o:?<\/span>[^<]*<\/td>[^<]*<td[^>]*>&nbsp;<\/td>[^<]*<td[^>]*><span[^>]*>([^<]+)<\/span>/i)
-      || descHtml.match(/desempe[ñn]o[^<]*<\/td>[^<]*<td[^>]*>&nbsp;<\/td>[^<]*<td[^>]*><span[^>]*>([^<]+)/i);
-    const lugar = lugarMatch ? lugarMatch[1].trim() : (() => {
-      const idx = descText.indexOf("Lugar de desempeño:");
-      if (idx === -1) return null;
-      return descText.slice(idx + 19, idx + 80).split(/\s{2,}/)[0]?.trim() || null;
-    })();
+    const titulo    = String(l.LlaTit ?? l.CarNom ?? "").trim();
+    const cargo     = String(l.CarNom ?? l.LlaTit ?? "").trim();
+    if (titulo.length < 3) continue;
 
-    // Obtener detalles de la página individual del llamado
-    let descripcion: string | null = null;
-    let requisitos:  string | null = null;
-    let tipo_tarea:   string | null = null;
-    let tipo_vinculo: string | null = null;
-    let url_postulacion: string | null = null;
+    // Puestos: suma de listaOrganismoCantPuestos
+    const puestosList = (l.listaOrganismoCantPuestos as Record<string, unknown>[] | undefined) ?? [];
+    const puestos = puestosList.reduce((s: number, p) => s + (Number(p.CantPuestos ?? 1)), 0) || 1;
 
-    const detalleHtml = await fetchUrl(
-      `https://www.uruguayconcursa.gub.uy/Portal/servlet/com.si.recsel.verllamado?${fuente_id}`,
-      8000
-    );
-    if (detalleHtml) {
-      const dt = stripHtml(detalleHtml);
-      descripcion  = dt.match(/Descripci[oó]n de Funci[oó]n:\s*(.{20,800}?)(?:Requisitos|Lugar de Recepci|Tipo de Tarea)/is)?.[1]?.trim() || null;
-      requisitos   = dt.match(/Requisitos Espec[ií]ficos:\s*(.{10,800}?)(?:Lugar de Recepci|Organismo|Comentario|Tipo de)/is)?.[1]?.trim() || null;
-      tipo_tarea   = dt.match(/Tipo de Tarea:\s*([^\n\r]{2,60})/i)?.[1]?.trim() || null;
-      tipo_vinculo = dt.match(/Tipo de V[ií]nculo:\s*([^\n\r]{2,60})/i)?.[1]?.trim() || null;
-      url_postulacion = detalleHtml.match(/href="(https?:\/\/[^"]*(?:postul|comprasestatales|uruguay\.gub)[^"]*)"/)
-        ?.[1] || null;
-    }
-
-    const keywords = extraerKeywords(`${cargo} ${descripcion || ""} ${requisitos || ""}`);
+    const fechaCierreRaw = String(l.LlaFchCieIns ?? "");
+    const fechaAperRaw   = String(l.LlaFchApeIns ?? "");
 
     rows.push({
-      fuente_id, fuente: "uruguay_concursa", pais: "UY",
-      numero_llamado, titulo: titleClean, cargo, organismo,
-      descripcion, requisitos, tipo_tarea, tipo_vinculo,
-      lugar: lugar || null,
-      fecha_inicio: periodoMatch ? parseFecha(periodoMatch[1]) : null,
-      fecha_cierre: periodoMatch ? parseFecha(periodoMatch[2]) : null,
-      puestos: puestosMatch ? parseInt(puestosMatch[1]) : 1,
-      url_detalle: `https://www.uruguayconcursa.gub.uy/Portal/servlet/com.si.recsel.verllamado?${fuente_id}`,
-      url_postulacion,
-      keywords, activo: true,
+      fuente_id:      id,
+      fuente:         "uruguay_concursa",
+      pais:           "UY",
+      numero_llamado: String(l.LlaNum ?? "").trim() || null,
+      titulo, cargo,
+      organismo:      String(l.Inciso ?? l.UnidadEjecutora ?? "").trim() || null,
+      descripcion:    String(l.LlaConTra ?? "").trim().slice(0, 800) || null,
+      requisitos:     String(l.LlaReqExc ?? "").trim().slice(0, 800) || null,
+      tipo_tarea:     String(l.TipTarDsc ?? "").trim() || null,
+      tipo_vinculo:   String(l.TipVinDsc ?? "").trim() || null,
+      lugar:          String(l.LlaLugDes ?? "").trim().slice(0, 200) || null,
+      fecha_inicio:   parseFecha(fechaAperRaw),
+      fecha_cierre:   parseFecha(fechaCierreRaw) ?? sumarDias(null, 30),
+      puestos,
+      url_detalle:    `https://uruguayconcursa.gub.uy/llamado/${id}`,
+      url_postulacion: `https://uruguayconcursa.gub.uy/llamado/${id}`,
+      keywords:       extraerKeywords(`${titulo} ${cargo} ${l.TipTarDsc ?? ""} ${l.TipVinDsc ?? ""}`),
+      activo:         true,
     });
   }
 
@@ -240,7 +282,7 @@ async function scrapeIndeed(
 // Retorna noticias de concursos/convocatorias para el país dado
 // ─────────────────────────────────────────────────────────────
 async function scrapeGoogleNews(
-  locale: string, query: string, fuente: string, paisRow?: string, ceidLang = "es"
+  locale: string, query: string, fuente: string, paisRow?: string, ceidLang = "es", diasExpiry = 15
 ): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const rows: ConcursoRow[] = [];
   const errores: string[] = [];
@@ -252,6 +294,7 @@ async function scrapeGoogleNews(
     GT: "es-GT", SV: "es-SV", PA: "es-PA",
     ES: "es-ES", PT: "pt-PT", IT: "it", FR: "fr",
     DE: "de", GB: "en-GB", CA: "en-CA", AU: "en-AU",
+    SE: "sv-SE", NO: "nb-NO", JP: "ja-JP", IN: "en-IN",
     US: "es-419",
   };
   const hl = langMap[locale] ?? "es-419";
@@ -277,12 +320,15 @@ async function scrapeGoogleNews(
     if (rows.some(r => r.fuente_id === fuente_id)) continue;
 
     const href = link.startsWith("http") ? link : null;
+    const fechaPub = parseFecha(pubDate);
     rows.push({
       fuente_id, fuente, pais,
       numero_llamado: null, titulo, cargo: titulo, organismo: null,
       descripcion: desc.slice(0, 600), requisitos: null,
       tipo_tarea: null, tipo_vinculo: null, lugar: null,
-      fecha_inicio: null, fecha_cierre: null, puestos: 1,
+      fecha_inicio: fechaPub,
+      fecha_cierre: sumarDias(null, diasExpiry),
+      puestos: 1,
       url_detalle: href, url_postulacion: href,
       keywords: extraerKeywords(titulo + " " + desc), activo: true,
     });
@@ -299,26 +345,35 @@ async function scrapeGoogleNews(
 function parseComputrabajo(
   html: string, pais: string, fuente: string, baseUrl: string, rows: ConcursoRow[]
 ): void {
-  // Método 1: artículos de oferta (estructura principal de computrabajo)
+  // Computrabajo usa /ofertas-de-trabajo/oferta-de-trabajo-de-[titulo]-[id] en todos los países
+  const LINK_RE = /\/(?:empleo|ofertas-de-trabajo)\/[^"#?\s]+/;
+
   const artRe = /<article[^>]*>([\s\S]*?)<\/article>/gi;
   let m: RegExpExecArray | null;
   while ((m = artRe.exec(html)) !== null && rows.length < 60) {
     const block = m[1];
-    if (!block.includes("/empleo/")) continue;
-
-    const linkM = block.match(/href="(\/empleo\/[^"#?]+)"/i);
+    // Allow optional #fragment after the slug (Computrabajo now appends #lc=...)
+    const linkM = block.match(new RegExp(`href="(${LINK_RE.source})(?:#[^"]*)??"`, "i"));
     if (!linkM) continue;
 
-    // Título: primero del atributo title=, luego del texto del link
-    const titleM = block.match(/title="([^"]{5,100})"/)
-      || block.match(/<a[^>]+href="\/empleo\/[^"]*"[^>]*>([^<]{5,100})<\/a>/i);
-    const titulo = titleM ? stripHtml(titleM[1]).trim() : "";
+    // Título: atributo title= o texto entre las etiquetas del link
+    const titleM = block.match(/title="([^"]{5,120})"/)
+      || block.match(/<h2[^>]*>[\s\S]*?<a[^>]*>\s*([^<]{5,120})\s*<\/a>/i);
+    // Fallback: primer texto significativo del h2
+    const h2M = block.match(/<h2[^>]*>[\s\S]*?>\s*([^<]{5,120})\s*<\/a>/i);
+    const titulo = stripHtml((titleM?.[1] ?? h2M?.[1] ?? "")).trim();
     if (titulo.length < 5) continue;
 
-    const compM  = block.match(/href="\/empresa[^"]*"[^>]*>([^<]{3,80})<\/a>/i);
-    const cityM  = block.match(/href="\/(?:trabajos|empleos)-en-[^"]*"[^>]*>([^<]{3,50})<\/a>/i);
-    const href   = `${baseUrl}${linkM[1]}`;
-    const fuente_id = linkM[1].replace(/\W/g, "_").slice(-50);
+    const compM = block.match(/href="\/empresa[^"]*"[^>]*>([^<]{3,80})<\/a>/i);
+    const cityM = block.match(/href="\/(?:trabajos|empleos|ofertas)-en-[^"]*"[^>]*>([^<]{3,50})<\/a>/i);
+    // Fecha de publicación: "hace X días/horas/semanas" o datetime="YYYY-MM-DD"
+    const datetimeM = block.match(/datetime="(\d{4}-\d{2}-\d{2})"/i);
+    const haceM = block.match(/(hace\s+\d+\s+(?:hora|d[ií]a|semana|mes)[^<"]{0,10})/i);
+    const fechaPub = datetimeM ? datetimeM[1] : (haceM ? parseFechaRelativa(haceM[1]) : null);
+    const href = `${baseUrl}${linkM[1]}`;
+    // ID único: los últimos 32 chars hex del hash al final del slug
+    const hashM = linkM[1].match(/([A-F0-9]{32})(?:#|$)/i);
+    const fuente_id = hashM ? hashM[1] : linkM[1].replace(/\W/g, "_").slice(-50);
     if (rows.some(r => r.fuente_id === fuente_id)) continue;
 
     rows.push({
@@ -327,27 +382,32 @@ function parseComputrabajo(
       organismo: compM ? compM[1].trim() : null,
       descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
       lugar: cityM ? cityM[1].trim() : null,
-      fecha_inicio: null, fecha_cierre: null, puestos: 1,
+      fecha_inicio: fechaPub,
+      fecha_cierre: sumarDias(fechaPub, 45),
+      puestos: 1,
       url_detalle: href, url_postulacion: href,
       keywords: extraerKeywords(titulo), activo: true,
     });
   }
 
-  // Método 2: cualquier link /empleo/ si el método 1 no encontró nada
+  // Método 2: cualquier link de oferta si los artículos no dieron resultado
   if (rows.length === 0) {
-    const re2 = /href="(\/empleo\/[^"#?]+)"[^>]*(?:title="([^"]{5,100})"|>([^<]{5,100})<\/a>)/gi;
+    const re2 = /href="(\/(?:empleo|ofertas-de-trabajo)\/[^"#?\s]+)(?:#[^"]*)?"[^>]*>\s*([^<]{5,120})\s*<\/a>/gi;
     let m2: RegExpExecArray | null;
     while ((m2 = re2.exec(html)) !== null && rows.length < 50) {
-      const titulo = stripHtml(m2[2] || m2[3] || "").trim();
+      const titulo = stripHtml(m2[2]).trim();
       if (titulo.length < 5) continue;
       const href = `${baseUrl}${m2[1]}`;
-      const fuente_id = m2[1].replace(/\W/g, "_").slice(-50);
+      const hashM2 = m2[1].match(/([A-F0-9]{32})(?:#|$)/i);
+      const fuente_id = hashM2 ? hashM2[1] : m2[1].replace(/\W/g, "_").slice(-50);
       if (rows.some(r => r.fuente_id === fuente_id)) continue;
       rows.push({
         fuente_id, fuente, pais,
         numero_llamado: null, titulo, cargo: titulo, organismo: null,
         descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: null, fecha_inicio: null, fecha_cierre: null, puestos: 1,
+        lugar: null, fecha_inicio: null,
+        fecha_cierre: sumarDias(null, 45),
+        puestos: 1,
         url_detalle: href, url_postulacion: href,
         keywords: extraerKeywords(titulo), activo: true,
       });
@@ -363,17 +423,15 @@ async function scrapeComputrabajo(
   const errores: string[] = [];
   const base = `https://${subdomain}.computrabajo.com`;
 
-  // Intentar: sector gobierno → administración pública → todos los trabajos recientes
+  // Solo intentar la primera ruta con timeout corto — si Cloudflare bloquea falla rápido
   const paths = [
     "/trabajo-de-gobierno",
-    "/trabajo-de-administracion-publica",
     "/trabajos?q=concurso+publico&orden=fecha",
-    "/trabajos?orden=fecha",
   ];
 
   for (const path of paths) {
-    const html = await fetchUrl(`${base}${path}`, 15000);
-    if (!html) { errores.push(`${pais}: ${base}${path} sin respuesta`); continue; }
+    const html = await fetchUrl(`${base}${path}`, 7000);
+    if (!html) { errores.push(`${pais}: ${base}${path} sin respuesta`); break; }
     parseComputrabajo(html, pais, fuente, base, rows);
     if (rows.length > 0) break;
     errores.push(`${pais}: ${base}${path} accesible pero sin ítems parseables`);
@@ -392,7 +450,6 @@ async function scrapeArgentina(): Promise<{ rows: ConcursoRow[]; errores: string
   const rows: ConcursoRow[] = [];
 
   // ── 1. Boletín Oficial sección 2 (Personal del Estado) ───────────────────
-  // Acepta TODOS los ítems de la sección — ya es solo empleo público
   for (const rssUrl of [
     "https://www.boletinoficial.gob.ar/rss/seccion/2",
     "https://www.boletinoficial.gob.ar/rss/2",
@@ -422,24 +479,26 @@ async function scrapeArgentina(): Promise<{ rows: ConcursoRow[]; errores: string
     break;
   }
 
-  // ── 2. Google News — siempre accesible ───────────────────────────────────
-  const gn = await scrapeGoogleNews("AR", "concurso público Argentina convocatoria empleo postulación", "argentina_googlenews");
-  if (gn.rows.length > 0) return { rows: gn.rows, errores: [...errores, ...gn.errores] };
-  errores.push(...gn.errores);
+  // ── 2. Computrabajo Argentina ─────────────────────────────────────────────
+  const ct = await scrapeComputrabajo("ar", "AR", "argentina_concursar");
+  if (ct.rows.length > 0) return { rows: ct.rows, errores: [...errores, ...ct.errores] };
+  errores.push(...ct.errores);
 
-  if (rows.length === 0) errores.push("AR: todas las fuentes sin datos");
-  return { rows, errores };
+  // ── 3. Google News ────────────────────────────────────────────────────────
+  const gn = await scrapeGoogleNews("AR", "concurso público Argentina convocatoria empleo", "argentina_googlenews");
+  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
 }
 
 // ─────────────────────────────────────────────────────────────
 // PARSER: Chile — Indeed + Servicio Civil RSS fallback
 // ─────────────────────────────────────────────────────────────
 async function scrapeChile(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("cl", "empleo gobierno concurso público", "CL", "chile_indeed", "Chile");
-  if (ind.rows.length > 0) return ind;
+  // 1. Computrabajo Chile (accesible desde cloud)
+  const ct = await scrapeComputrabajo("cl", "CL", "chile_concursar");
+  if (ct.rows.length > 0) return ct;
 
-  // Fallback: Servicio Civil Chile HTML simple
-  const errores = [...ind.errores];
+  // 2. Servicio Civil Chile
+  const errores = [...ct.errores];
   const rows: ConcursoRow[] = [];
   const html = await fetchUrl("https://www.serviciocivil.cl/concursos/publicados/", 12000);
   if (html && html.includes("concurso")) {
@@ -455,24 +514,116 @@ async function scrapeChile(): Promise<{ rows: ConcursoRow[]; errores: string[] }
         fuente_id, fuente: "chile_serviciocivil", pais: "CL",
         numero_llamado: null, titulo, cargo: titulo, organismo: null,
         descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: null, fecha_inicio: null, fecha_cierre: null, puestos: 1,
+        lugar: null, fecha_inicio: null, fecha_cierre: sumarDias(null, 60), puestos: 1,
         url_detalle: href, url_postulacion: href,
         keywords: extraerKeywords(titulo), activo: true,
       });
     }
   }
   if (rows.length > 0) return { rows, errores };
-  errores.push("CL: todas las fuentes sin datos");
-  return { rows, errores };
+
+  // 3. Google News
+  const gn = await scrapeGoogleNews("CL", "concurso público Chile cargo vacante gobierno", "chile_googlenews");
+  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
 }
 
 // ─────────────────────────────────────────────────────────────
-// PARSER: Colombia — Indeed + CNSC fallback
+// PARSER: Colombia — CNSC (Comisión Nacional del Servicio Civil)
+// URL confirmada: https://www.cnsc.gov.co/index.php/servicios/convocatorias
+// Estructura Drupal con links /convocatorias/{slug}-{id}
 // ─────────────────────────────────────────────────────────────
 async function scrapeColombia(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("co", "empleo público convocatoria concurso", "CO", "colombia_indeed", "Colombia");
-  if (ind.rows.length > 0) return ind;
-  return scrapeGoogleNews("CO", "concurso méritos Colombia convocatoria CNSC empleo", "colombia_googlenews");
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+
+  // 1. CNSC — portal oficial de concursos del Estado colombiano
+  // Intentar también el JSON:API de Drupal (no requiere JS)
+  const drupalApiUrl = "https://www.cnsc.gov.co/jsonapi/node/convocatoria?filter[status]=1&sort=-created&page[limit]=50";
+  const drupalJson = await fetchViaProxy(drupalApiUrl) ?? await fetchUrl(drupalApiUrl, 12000);
+  if (drupalJson && drupalJson.includes('"data"')) {
+    try {
+      const parsed = JSON.parse(drupalJson);
+      const items: Record<string, unknown>[] = parsed?.data ?? [];
+      for (const item of items.slice(0, 50)) {
+        const attr = item.attributes as Record<string, unknown>;
+        const titulo = ((attr?.title ?? attr?.field_nombre ?? "") as string).trim();
+        const slug = (attr?.field_numero_convocatoria ?? attr?.drupal_internal__nid ?? "") as string | number;
+        if (!titulo || titulo.length < 5) continue;
+        const fuente_id = String(slug).replace(/\W/g, "_").slice(-48) || titulo.replace(/\W/g, "_").slice(0, 48);
+        if (rows.some(r => r.fuente_id === fuente_id)) continue;
+        rows.push({
+          fuente_id, fuente: "colombia_cnsc", pais: "CO",
+          numero_llamado: String(slug) || null,
+          titulo, cargo: titulo, organismo: null,
+          descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+          lugar: "Colombia", fecha_inicio: null, fecha_cierre: sumarDias(null, 60), puestos: 1,
+          url_detalle: `https://www.cnsc.gov.co/convocatorias/${slug}`,
+          url_postulacion: `https://www.cnsc.gov.co/convocatorias/${slug}`,
+          keywords: extraerKeywords(titulo), activo: true,
+        });
+      }
+      if (rows.length > 0) return { rows, errores };
+    } catch (_) { /* not valid JSON */ }
+  }
+
+  const cnscUrls = [
+    "https://www.cnsc.gov.co/convocatorias/en-desarrollo",
+    "https://www.cnsc.gov.co/index.php/servicios/convocatorias",
+  ];
+  for (const cnscUrl of cnscUrls) {
+    // CNSC está geo-bloqueado desde AWS — intentar vía proxy Cloudflare
+    const html = await fetchViaProxy(cnscUrl) ?? await fetchUrl(cnscUrl, 15000);
+    if (!html) { errores.push(`CO: CNSC ${cnscUrl} inaccesible`); continue; }
+
+    // Links con slug de convocatoria: /convocatorias/{entidad}-{número}
+    const linkRe = /href="((?:https?:\/\/www\.cnsc\.gov\.co)?(?:\/index\.php)?\/convocatorias\/([^"#?\s]{4,80}))"[^>]*>[\s\S]{0,200}?>([\s\S]*?)<\/a>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = linkRe.exec(html)) !== null && rows.length < 50) {
+      const rawHref = m[1];
+      const slug    = m[2];
+      const titulo  = stripHtml(m[3]).replace(/\s+/g, " ").trim();
+      if (titulo.length < 5) continue;
+      // Filtrar links de navegación genérica y páginas de sección (no convocatorias reales)
+      if (/^(ver m[aá]s|inicio|home|servicios|convocatorias|más|atrás|tutoriales|videos|historicas|lista de elegibles|nuevos procesos|universidades)$/i.test(titulo)) continue;
+      // Slugs de navegación no tienen número al final — los reales sí: /{entidad}-{número}
+      if (!/\d/.test(slug)) continue;
+
+      const href    = rawHref.startsWith("http") ? rawHref : `https://www.cnsc.gov.co${rawHref}`;
+      const fuente_id = slug.replace(/\W/g, "_").slice(-48);
+      if (rows.some(r => r.fuente_id === fuente_id)) continue;
+
+      // El slug suele ser {entidad}-{número}: extraer organismo
+      const orgFromSlug = slug.replace(/-\d+$/, "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+      rows.push({
+        fuente_id, fuente: "colombia_cnsc", pais: "CO",
+        numero_llamado: slug.match(/-(\d+)$/)?.[1] ?? null,
+        titulo, cargo: titulo,
+        organismo: orgFromSlug || null,
+        descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+        lugar: "Colombia",
+        fecha_inicio: null, fecha_cierre: sumarDias(null, 60), puestos: 1,
+        url_detalle: href, url_postulacion: href,
+        keywords: extraerKeywords(titulo + " " + orgFromSlug), activo: true,
+      });
+    }
+
+    if (rows.length < 5) {
+      errores.push(`CO: CNSC ${cnscUrl} accesible pero solo ${rows.length} items (posible JS-render)`);
+      rows.length = 0;
+      continue;
+    }
+    return { rows, errores };
+  }
+
+  // 2. Computrabajo CO
+  const ct = await scrapeComputrabajo("co", "CO", "colombia_concursar");
+  if (ct.rows.length > 0) return { rows: ct.rows, errores: [...errores, ...ct.errores] };
+  errores.push(...ct.errores);
+
+  // 3. Google News
+  const gn = await scrapeGoogleNews("US", "Colombia empleo convocatoria concurso público cargo vacante", "colombia_googlenews", "CO");
+  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -544,54 +695,99 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
 // PARSER: Perú — Indeed + SERVIR fallback
 // ─────────────────────────────────────────────────────────────
 async function scrapePerú(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("pe", "empleo público concurso CAS SERVIR", "PE", "peru_indeed", "Peru");
-  if (ind.rows.length > 0) return ind;
-  return scrapeGoogleNews("PE", "concurso público Perú plaza vacante CAS SERVIR", "peru_googlenews");
+  const ct = await scrapeComputrabajo("pe", "PE", "peru_concursar");
+  if (ct.rows.length > 0) return ct;
+  return scrapeGoogleNews("US", "Perú empleo concurso público plaza vacante CAS SERVIR", "peru_googlenews", "PE");
 }
 
-// ─────────────────────────────────────────────────────────────
-// PARSER: Paraguay — Indeed (ar con filtro) + Google News fallback
-// ─────────────────────────────────────────────────────────────
 async function scrapeParaguay(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("ar", "empleo Paraguay convocatoria trabajo", "PY", "paraguay_indeed", "Paraguay");
-  if (ind.rows.length > 0) return ind;
+  const ct = await scrapeComputrabajo("py", "PY", "paraguay_concursar");
+  if (ct.rows.length > 0) return ct;
   return scrapeGoogleNews("US", "Paraguay empleo convocatoria cargo público vacante", "paraguay_googlenews", "PY");
 }
 
-// ─────────────────────────────────────────────────────────────
-// PARSER: Bolivia — Indeed (ar con filtro) + Google News fallback
-// ─────────────────────────────────────────────────────────────
 async function scrapeBolivia(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("ar", "empleo Bolivia convocatoria trabajo público", "BO", "bolivia_indeed", "Bolivia");
-  if (ind.rows.length > 0) return ind;
+  const ct = await scrapeComputrabajo("bo", "BO", "bolivia_concursar");
+  if (ct.rows.length > 0) return ct;
   return scrapeGoogleNews("BO", "Bolivia empleo convocatoria cargo público vacante", "bolivia_googlenews");
 }
 
-// ─────────────────────────────────────────────────────────────
-// PARSER: Ecuador — Indeed + Google News fallback
-// ─────────────────────────────────────────────────────────────
 async function scrapeEcuador(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("ec", "empleo público convocatoria concurso gobierno", "EC", "ecuador_indeed", "Ecuador");
-  if (ind.rows.length > 0) return ind;
+  const ct = await scrapeComputrabajo("ec", "EC", "ecuador_concursar");
+  if (ct.rows.length > 0) return ct;
   return scrapeGoogleNews("EC", "Ecuador empleo convocatoria cargo público vacante", "ecuador_googlenews");
 }
 
 // ─────────────────────────────────────────────────────────────
-// PARSER: México — Indeed + Google News fallback
+// PARSER: México — DOF (Diario Oficial de la Federación) vacantes
+// URL confirmada: https://www.dof.gob.mx/vacantes.php — 26 convocatorias reales
 // ─────────────────────────────────────────────────────────────
 async function scrapeMexico(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("mx", "empleo gobierno convocatoria vacante plaza", "MX", "mexico_indeed", "Mexico");
-  if (ind.rows.length > 0) return ind;
-  return scrapeGoogleNews("MX", "convocatoria empleo México vacante gobierno plaza concurso", "mexico_googlenews");
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+
+  // DOF está geo-bloqueado desde AWS US-East. Intentamos primero vía proxy Cloudflare.
+  const html = await fetchViaProxy("https://www.dof.gob.mx/vacantes.php")
+    ?? await fetchUrl("https://www.dof.gob.mx/vacantes.php", 15000, {
+      "Accept-Language": "es-MX,es;q=0.9,en;q=0.8",
+      "Referer": "https://www.google.com.mx/",
+      "Sec-Fetch-Site": "cross-site",
+    });
+  if (html) {
+    // Cada vacante: href="vacantes/{id1}/{id2}.html" seguido de <div align="justify">descripción</div>
+    const vacRe = /href="(vacantes\/(\d+)\/(\d+)\.html)"[\s\S]{0,800}?<div[^>]*align="justify"[^>]*>([\s\S]*?)<\/div>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = vacRe.exec(html)) !== null && rows.length < 60) {
+      const path = m[1];
+      const id1  = m[2];
+      const id2  = m[3];
+      const desc = stripHtml(m[4]).replace(/\s+/g, " ").trim();
+      if (desc.length < 10) continue;
+
+      // Extraer nombre del organismo convocante desde la descripción
+      const orgMatch = desc.match(
+        /(?:Secretar[ií]a\s+de[l]?\s+\w[\w\s]{2,60}?|Instituto\s+\w[\w\s]{2,60}?|Comisi[oó]n\s+\w[\w\s]{2,60}?|Coordinaci[oó]n\s+\w[\w\s]{2,60}?|Subsecretar[ií]a\s+de[l]?\s+\w[\w\s]{2,60}?|Procuradur[ií]a\s+\w[\w\s]{2,60}?|Servicio\s+\w[\w\s]{2,50}?)(?=[,;.\n]|$)/i
+      );
+      const organismo = orgMatch ? orgMatch[0].trim().slice(0, 120) : null;
+
+      const fuente_id = `${id1}_${id2}`;
+      if (rows.some(r => r.fuente_id === fuente_id)) continue;
+
+      const url    = `https://www.dof.gob.mx/${path}`;
+      const titulo = organismo ? `Convocatoria — ${organismo}` : `Convocatoria DOF ${id2}`;
+
+      rows.push({
+        fuente_id, fuente: "mexico_dof", pais: "MX",
+        numero_llamado: id2,
+        titulo, cargo: titulo, organismo,
+        descripcion: desc.slice(0, 600), requisitos: null,
+        tipo_tarea: null, tipo_vinculo: null,
+        lugar: "México",
+        fecha_inicio: null, fecha_cierre: sumarDias(null, 60), puestos: 1,
+        url_detalle: url, url_postulacion: url,
+        keywords: extraerKeywords(desc), activo: true,
+      });
+    }
+    if (rows.length === 0) errores.push("MX: DOF vacantes.php sin ítems parseables");
+  } else {
+    errores.push("MX: DOF vacantes.php inaccesible");
+  }
+
+  if (rows.length > 0) return { rows, errores };
+
+  // 2. Computrabajo MX
+  const ct = await scrapeComputrabajo("mx", "MX", "mexico_concursar");
+  if (ct.rows.length > 0) return { rows: ct.rows, errores: [...errores, ...ct.errores] };
+  errores.push(...ct.errores);
+
+  // 3. Google News
+  const gn = await scrapeGoogleNews("US", "México convocatoria empleo vacante gobierno plaza concurso", "mexico_googlenews", "MX");
+  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
 }
 
-// ─────────────────────────────────────────────────────────────
-// PARSER: Venezuela — Indeed (co/cl con filtro) + Google News fallback
-// ─────────────────────────────────────────────────────────────
 async function scrapeVenezuela(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  // Venezuela tiene acceso limitado a Indeed; usar co.indeed.com con filtro geográfico
-  const ind = await scrapeIndeed("co", "empleo Venezuela trabajo vacante", "VE", "venezuela_indeed", "Venezuela");
-  if (ind.rows.length > 0) return ind;
+  const ct = await scrapeComputrabajo("ve", "VE", "venezuela_concursar");
+  if (ct.rows.length > 0) return ct;
   return scrapeGoogleNews("US", "Venezuela empleo vacante convocatoria trabajo cargo", "venezuela_googlenews", "VE");
 }
 
@@ -599,101 +795,120 @@ async function scrapeVenezuela(): Promise<{ rows: ConcursoRow[]; errores: string
 // PARSER: Costa Rica — Indeed + Google News fallback
 // ─────────────────────────────────────────────────────────────
 async function scrapCostaRica(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("cr", "empleo gobierno servicio civil convocatoria", "CR", "costarica_indeed", "Costa Rica");
-  if (ind.rows.length > 0) return ind;
+  const ct = await scrapeComputrabajo("cr", "CR", "costarica_concursar");
+  if (ct.rows.length > 0) return ct;
   return scrapeGoogleNews("CR", "Costa Rica empleo convocatoria concurso servicio civil cargo público", "costarica_googlenews");
 }
 
-// ─────────────────────────────────────────────────────────────
-// PARSER: Guatemala — Indeed + Google News fallback
-// ─────────────────────────────────────────────────────────────
 async function scrapeGuatemala(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("gt", "empleo público convocatoria gobierno trabajo", "GT", "guatemala_indeed", "Guatemala");
-  if (ind.rows.length > 0) return ind;
+  const ct = await scrapeComputrabajo("gt", "GT", "guatemala_concursar");
+  if (ct.rows.length > 0) return ct;
   return scrapeGoogleNews("GT", "Guatemala empleo convocatoria cargo público vacante plaza", "guatemala_googlenews");
 }
 
-// ─────────────────────────────────────────────────────────────
-// PARSER: El Salvador — Indeed + Google News fallback
-// ─────────────────────────────────────────────────────────────
 async function scrapeElSalvador(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("sv", "empleo público convocatoria gobierno trabajo", "SV", "elsalvador_indeed", "El Salvador");
-  if (ind.rows.length > 0) return ind;
+  const ct = await scrapeComputrabajo("sv", "SV", "elsalvador_concursar");
+  if (ct.rows.length > 0) return ct;
   return scrapeGoogleNews("US", "\"El Salvador\" empleo vacante trabajo convocatoria cargo", "elsalvador_googlenews", "SV");
 }
 
-// ─────────────────────────────────────────────────────────────
-// PARSER: Honduras — Indeed + Google News fallback
-// ─────────────────────────────────────────────────────────────
 async function scrapeHonduras(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("hn", "empleo público convocatoria gobierno trabajo", "HN", "honduras_indeed", "Honduras");
-  if (ind.rows.length > 0) return ind;
+  const ct = await scrapeComputrabajo("hn", "HN", "honduras_concursar");
+  if (ct.rows.length > 0) return ct;
   return scrapeGoogleNews("US", "Honduras empleo vacante trabajo convocatoria cargo", "honduras_googlenews", "HN");
 }
 
-// ─────────────────────────────────────────────────────────────
-// PARSER: Nicaragua — Indeed (cr/sv con filtro) + Google News fallback
-// ─────────────────────────────────────────────────────────────
 async function scrapeNicaragua(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("cr", "empleo Nicaragua trabajo convocatoria vacante", "NI", "nicaragua_indeed", "Nicaragua");
-  if (ind.rows.length > 0) return ind;
+  const ct = await scrapeComputrabajo("ni", "NI", "nicaragua_concursar");
+  if (ct.rows.length > 0) return ct;
   return scrapeGoogleNews("US", "Nicaragua empleo vacante trabajo convocatoria cargo", "nicaragua_googlenews", "NI");
 }
 
-// ─────────────────────────────────────────────────────────────
-// PARSER: Panamá — Indeed + Google News fallback
-// ─────────────────────────────────────────────────────────────
 async function scraperPanama(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("pa", "empleo gobierno público convocatoria trabajo", "PA", "panama_indeed", "Panama");
-  if (ind.rows.length > 0) return ind;
+  const ct = await scrapeComputrabajo("pa", "PA", "panama_concursar");
+  if (ct.rows.length > 0) return ct;
   return scrapeGoogleNews("US", "Panamá empleo vacante trabajo convocatoria cargo público", "panama_googlenews", "PA");
 }
 
-// ─────────────────────────────────────────────────────────────
-// PARSER: República Dominicana — Indeed + Google News fallback
-// ─────────────────────────────────────────────────────────────
 async function scrapeRepDominicana(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("ar", "empleo República Dominicana trabajo convocatoria", "DO", "dominicana_indeed", "Republica Dominicana");
-  if (ind.rows.length > 0) return ind;
+  const ct = await scrapeComputrabajo("do", "DO", "dominicana_concursar");
+  if (ct.rows.length > 0) return ct;
   return scrapeGoogleNews("US", "\"República Dominicana\" empleo vacante trabajo convocatoria", "dominicana_googlenews", "DO");
 }
 
 // ─────────────────────────────────────────────────────────────
-// PARSER: España — BOE (Boletín Oficial del Estado) + Google News
+// PARSER: España — BOE datos abiertos JSON API (sección Oposiciones y concursos)
+// El RSS del BOE devuelve body vacío desde cloud; la API JSON sí funciona.
 // ─────────────────────────────────────────────────────────────
 async function scrapeEspana(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const errores: string[] = [];
   const rows: ConcursoRow[] = [];
 
-  // BOE RSS — sección de empleo público / oposiciones
-  const boeUrl = "https://www.boe.es/rss/canal.php?c=11";
-  const xml = await fetchUrl(boeUrl, 12000);
-  if (xml && xml.includes("<item>")) {
-    for (const item of extraerItems(xml).slice(0, 50)) {
-      const titulo  = extraerTag(item, "title");
-      const link    = extraerTag(item, "link");
-      const desc    = stripHtml(extraerTag(item, "description"));
-      const pubDate = extraerTag(item, "pubDate");
-      if (!titulo || titulo.length < 5) continue;
-      const href = link.startsWith("http") ? link : `https://www.boe.es${link}`;
-      const fuente_id = link.split("/").filter(Boolean).pop()?.replace(/\W/g,"") || titulo.slice(0,30).replace(/\s/g,"_");
-      if (rows.some(r => r.fuente_id === fuente_id)) continue;
-      rows.push({
-        fuente_id, fuente: "espana_boe", pais: "ES",
-        numero_llamado: null, titulo, cargo: titulo, organismo: null,
-        descripcion: desc.slice(0, 600), requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: null, fecha_inicio: null, fecha_cierre: parseFecha(pubDate),
-        puestos: 1, url_detalle: href, url_postulacion: href,
-        keywords: extraerKeywords(titulo + " " + desc), activo: true,
-      });
+  // BOE publica de lunes a sábado. Intentamos hoy y hasta 4 días atrás
+  // para cubrir fines de semana y festivos.
+  const hoy = new Date();
+  for (let diasAtras = 0; diasAtras <= 4 && rows.length < 10; diasAtras++) {
+    const d = new Date(hoy);
+    d.setDate(d.getDate() - diasAtras);
+    const fecha = d.toISOString().slice(0, 10).replace(/-/g, "");
+
+    try {
+      const res = await fetch(
+        `https://www.boe.es/datosabiertos/api/boe/sumario/${fecha}`,
+        {
+          headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (compatible; Nexu/1.0)" },
+          signal: AbortSignal.timeout(12000),
+        }
+      );
+      if (!res.ok) { errores.push(`ES: BOE API ${fecha} status ${res.status}`); continue; }
+      const data = await res.json();
+
+      const diarios: Record<string, unknown>[] = data?.data?.sumario?.diario ?? [];
+      const diario = Array.isArray(diarios) ? diarios[0] : diarios;
+      const secciones: Record<string, unknown>[] = (diario as Record<string, unknown>)?.seccion ?? [];
+
+      for (const sec of (Array.isArray(secciones) ? secciones : [secciones])) {
+        const nombre_sec = (sec.nombre ?? "") as string;
+        if (!nombre_sec.includes("Oposiciones")) continue;
+
+        const deptos: Record<string, unknown>[] = (sec.departamento ?? []) as Record<string, unknown>[];
+        for (const depto of (Array.isArray(deptos) ? deptos : [deptos])) {
+          const nombre_depto = (depto.nombre ?? "") as string;
+          const epigrafes: Record<string, unknown>[] = (depto.epigrafe ?? []) as Record<string, unknown>[];
+          for (const epi of (Array.isArray(epigrafes) ? epigrafes : [epigrafes])) {
+            const items: Record<string, unknown>[] = (epi.item ?? []) as Record<string, unknown>[];
+            for (const item of (Array.isArray(items) ? items : [items])) {
+              const iid    = (item.identificador ?? "") as string;
+              const titulo = (item.titulo ?? "") as string;
+              const url    = (item.url_html ?? "") as string;
+              if (!titulo || titulo.length < 5 || !iid) continue;
+              const fuente_id = iid.replace(/\W/g, "").slice(-48);
+              if (rows.some(r => r.fuente_id === fuente_id)) continue;
+              rows.push({
+                fuente_id, fuente: "espana_boe", pais: "ES",
+                numero_llamado: iid,
+                titulo: nombre_depto ? `${titulo} — ${nombre_depto}` : titulo,
+                cargo: titulo, organismo: nombre_depto || null,
+                descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+                lugar: "España",
+                fecha_inicio: parseFecha(`${fecha.slice(0,4)}-${fecha.slice(4,6)}-${fecha.slice(6,8)}`),
+                fecha_cierre: sumarDias(null, 60),
+                puestos: 1,
+                url_detalle: url || null, url_postulacion: url || null,
+                keywords: extraerKeywords(titulo + " " + nombre_depto), activo: true,
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      errores.push(`ES: BOE API ${fecha} error — ${(e as Error).message}`);
     }
-    if (rows.length > 0) return { rows, errores };
-    errores.push("ES: BOE RSS accesible pero sin ítems parseables");
-  } else {
-    errores.push("ES: BOE RSS inaccesible");
   }
 
-  // Google News como respaldo
+  if (rows.length > 0) return { rows, errores };
+
+  // Google News como fallback
   const gn = await scrapeGoogleNews("ES",
     "oposición convocatoria empleo público España administración cargo vacante selección",
     "espana_googlenews");
@@ -709,7 +924,7 @@ async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[
 
   // BEP — Bolsa de Emprego Público (portal oficial Portugal)
   const bepUrl = "https://www.bep.gov.pt/offerta/index.phtml?lang=pt&area=2&action=search";
-  const html = await fetchUrl(bepUrl, 12000);
+  const html = await fetchViaProxy(bepUrl) ?? await fetchViaScraperAPI(bepUrl, "pt") ?? await fetchUrl(bepUrl, 12000);
   if (html && (html.includes("offerta") || html.includes("emprego"))) {
     const re = /href="([^"]*offerta[^"]*)"[^>]*>([^<]{5,120})</gi;
     let m;
@@ -723,7 +938,7 @@ async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[
         fuente_id, fuente: "portugal_bep", pais: "PT",
         numero_llamado: null, titulo, cargo: titulo, organismo: null,
         descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: null, fecha_inicio: null, fecha_cierre: null, puestos: 1,
+        lugar: null, fecha_inicio: null, fecha_cierre: sumarDias(null, 60), puestos: 1,
         url_detalle: href, url_postulacion: href,
         keywords: extraerKeywords(titulo), activo: true,
       });
@@ -738,10 +953,15 @@ async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[
   const ind = await scrapeIndeed("pt", "emprego público concurso administração governo", "PT", "portugal_indeed", "Portugal");
   if (ind.rows.length > 0) return { rows: ind.rows, errores: [...errores, ...ind.errores] };
 
-  const gn = await scrapeGoogleNews("PT",
+  const gnPt = await scrapeGoogleNews("PT",
     "concurso público Portugal emprego trabalho administração recrutamento",
     "portugal_googlenews", undefined, "pt");
-  return { rows: gn.rows, errores: [...errores, ...ind.errores, ...gn.errores] };
+  if (gnPt.rows.length > 0) return { rows: gnPt.rows, errores: [...errores, ...ind.errores, ...gnPt.errores] };
+
+  const gn = await scrapeGoogleNews("US",
+    "Portugal concurso emprego público administração recrutamento trabalho",
+    "portugal_googlenews2", "PT", "en");
+  return { rows: gn.rows, errores: [...errores, ...ind.errores, ...gnPt.errores, ...gn.errores] };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -751,52 +971,46 @@ async function scrapeItalia(): Promise<{ rows: ConcursoRow[]; errores: string[] 
   const rows: ConcursoRow[] = [];
   const errores: string[] = [];
 
-  // InPA — portale nazionale del reclutamento della PA
+  // InPA — WordPress REST API (la API JSON antigua devuelve HTML ahora)
   try {
     const res = await fetch(
-      "https://www.inpa.gov.it/bandi/api/v1/bandi/?page=1&page_size=40&is_closed=false",
+      "https://www.inpa.gov.it/wp-json/wp/v2/posts?per_page=40&_fields=id,title,link,date",
       {
         headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (compatible; Nexu/1.0)" },
         signal: AbortSignal.timeout(12000),
       }
     );
     if (res.ok) {
-      const data = await res.json();
-      const bandi: Record<string, unknown>[] = (data.results ?? data.bandi ?? data ?? []) as Record<string, unknown>[];
-      for (const b of bandi.slice(0, 40)) {
-        const titulo     = (b.titolo ?? b.denominazione ?? b.title ?? "") as string;
-        const organismo  = (b.ente ?? b.amministrazione ?? "") as string;
-        const id         = (b.id ?? b.codice ?? b.slug ?? "") as string | number;
-        const scadenza   = (b.data_scadenza ?? b.scadenza ?? b.closing_date ?? "") as string;
-
-        if (!titulo || titulo.length < 4) continue;
-        const fuente_id = String(id).replace(/\W/g, "").slice(-48) || titulo.replace(/\W/g, "").slice(0, 48);
+      const posts: Record<string, unknown>[] = await res.json();
+      for (const post of posts.slice(0, 40)) {
+        const id    = post.id as number;
+        const titulo = stripHtml((post.title as Record<string, string>)?.rendered ?? "");
+        const link   = (post.link as string) ?? "";
+        const fecha  = (post.date as string) ?? "";
+        if (!titulo || titulo.length < 5) continue;
+        const fuente_id = String(id);
         if (rows.some(r => r.fuente_id === fuente_id)) continue;
-
         rows.push({
           fuente_id, fuente: "italia_inpa", pais: "IT",
-          numero_llamado: String(id) || null,
-          titulo: organismo ? `${titulo} — ${organismo}` : titulo,
-          cargo: titulo, organismo: organismo || null,
+          numero_llamado: String(id), titulo, cargo: titulo, organismo: null,
           descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-          lugar: null, fecha_inicio: null, fecha_cierre: parseFecha(scadenza), puestos: 1,
-          url_detalle: `https://www.inpa.gov.it/bandi/${id}/`,
-          url_postulacion: `https://www.inpa.gov.it/bandi/${id}/`,
-          keywords: extraerKeywords(titulo + " " + organismo), activo: true,
+          lugar: null, fecha_inicio: parseFecha(fecha), fecha_cierre: sumarDias(null, 60), puestos: 1,
+          url_detalle: link || null, url_postulacion: link || null,
+          keywords: extraerKeywords(titulo), activo: true,
         });
       }
     } else {
-      errores.push(`IT: InPA API status ${res.status}`);
+      errores.push(`IT: InPA WP REST status ${res.status}`);
     }
   } catch (e) {
-    errores.push(`IT: InPA API error — ${(e as Error).message}`);
+    errores.push(`IT: InPA WP REST error — ${(e as Error).message}`);
   }
 
   if (rows.length > 0) return { rows, errores };
 
   // Fallback: Google News IT
   const gn = await scrapeGoogleNews("IT",
-    "concorso pubblico Italia lavoro assunzione bando selezione amministrazione",
+    "concorso pubblico Italia assunzione bando amministrazione selezione",
     "italia_googlenews", undefined, "it");
   return { rows: gn.rows, errores: [...errores, ...gn.errores] };
 }
@@ -806,8 +1020,8 @@ async function scrapeItalia(): Promise<{ rows: ConcursoRow[]; errores: string[] 
 // (Indeed no opera directamente en Cuba)
 // ─────────────────────────────────────────────────────────────
 async function scrapeCuba(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ind = await scrapeIndeed("co", "empleo Cuba trabajo convocatoria vacante", "CU", "cuba_indeed", "Cuba");
-  if (ind.rows.length > 0) return ind;
+  const ct = await scrapeComputrabajo("cu", "CU", "cuba_concursar");
+  if (ct.rows.length > 0) return ct;
   return scrapeGoogleNews("US", "Cuba empleo convocatoria trabajo cargo vacante oportunidad laboral", "cuba_googlenews", "CU");
 }
 
@@ -821,7 +1035,7 @@ async function scrapeAlemania(): Promise<{ rows: ConcursoRow[]; errores: string[
 
   try {
     const res = await fetch(
-      "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?angebotsart=1&page=0&size=50",
+      "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?angebotsart=1&page=1&size=50",
       {
         headers: {
           "X-API-Key": "jobboerse-jobsuche",
@@ -857,7 +1071,7 @@ async function scrapeAlemania(): Promise<{ rows: ConcursoRow[]; errores: string[
           titulo: arbeitgeber ? `${titel} — ${arbeitgeber}` : titel,
           cargo: titel, organismo: arbeitgeber || null,
           descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-          lugar: ort, fecha_inicio: parseFecha(eintr), fecha_cierre: null, puestos: 1,
+          lugar: ort, fecha_inicio: parseFecha(eintr), fecha_cierre: sumarDias(null, 60), puestos: 1,
           url_detalle: detailUrl, url_postulacion: detailUrl,
           keywords: extraerKeywords(titel + " " + arbeitgeber), activo: true,
         });
@@ -879,95 +1093,236 @@ async function scrapeAlemania(): Promise<{ rows: ConcursoRow[]; errores: string[
 }
 
 // ─────────────────────────────────────────────────────────────
-// PARSER: Reino Unido — Civil Service Jobs + Google News
+// PARSER: Reino Unido — FindAJob (portal oficial UK govt) + NHS Jobs paginado
 // ─────────────────────────────────────────────────────────────
 async function scrapeReinoUnido(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const errores: string[] = [];
   const rows: ConcursoRow[] = [];
 
-  // Civil Service Jobs RSS
-  const csUrl = "https://www.civilservicejobs.service.gov.uk/csr/jobs.cgi?pageaction=searchbykey&key=jobs_rss&action=searchbykey";
-  const xml = await fetchUrl(csUrl, 12000);
-  if (xml && xml.includes("<item>")) {
-    for (const item of extraerItems(xml).slice(0, 50)) {
-      const titulo  = extraerTag(item, "title");
-      const link    = extraerTag(item, "link");
-      const desc    = stripHtml(extraerTag(item, "description"));
-      const pubDate = extraerTag(item, "pubDate");
-      if (!titulo || titulo.length < 5) continue;
-      const fuente_id = link.replace(/\W/g,"").slice(-48) || titulo.slice(0,30).replace(/\s/g,"_");
-      if (rows.some(r => r.fuente_id === fuente_id)) continue;
-      rows.push({
-        fuente_id, fuente: "uk_civilservice", pais: "GB",
-        numero_llamado: null, titulo, cargo: titulo, organismo: null,
-        descripcion: desc.slice(0, 600), requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: null, fecha_inicio: null, fecha_cierre: parseFecha(pubDate),
-        puestos: 1, url_detalle: link || null, url_postulacion: link || null,
-        keywords: extraerKeywords(titulo + " " + desc), activo: true,
-      });
+  // 1. FindAJob — portal oficial del gobierno UK, 800+ vacantes sector público
+  try {
+    const r = await fetch("https://findajob.dwp.gov.uk/search?q=civil+service&pp=50", {
+      headers: { "User-Agent": "curl/7.79.1", "Accept": "*/*" },
+      signal: AbortSignal.timeout(15000),
+    });
+    const html = r.ok ? await r.text() : null;
+    if (html && html.includes('class="search-result"')) {
+      const parts = html.split('<div class="search-result" data-aid="');
+      for (let i = 1; i < parts.length; i++) {
+        const part = parts[i];
+        const aidMatch = part.match(/^(\d+)"/);
+        if (!aidMatch) continue;
+        const aid = aidMatch[1];
+        const content = part.slice(0, 3000);
+
+        const href  = content.match(/href="(https:\/\/findajob\.dwp\.gov\.uk\/details\/\d+)"/)?.[1];
+        const titulo = content.match(/<a class="govuk-link"[^>]*>\s*([\s\S]*?)\s*<\/a>/)?.[1]?.replace(/\s+/g, " ").trim();
+        if (!titulo || titulo.length < 3) continue;
+        if (rows.some(r => r.fuente_id === aid)) continue;
+
+        const org  = content.match(/<strong>([^<]+)<\/strong>/)?.[1]?.trim() ?? null;
+        const spans = [...content.matchAll(/<span>([^<]+)<\/span>/g)].map(m => m[1].trim());
+        const loc  = spans.find(s => !s.startsWith("£")) ?? "United Kingdom";
+        const desc = content.match(/search-result-description">\s*([\s\S]*?)\s*<\/p>/)?.[1]
+          ?.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().slice(0, 600) ?? null;
+
+        rows.push({
+          fuente_id: aid, fuente: "uk_findajob", pais: "GB",
+          numero_llamado: aid, titulo, cargo: titulo,
+          organismo: org, descripcion: desc,
+          requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+          lugar: loc, fecha_inicio: null, fecha_cierre: sumarDias(null, 45),
+          puestos: 1,
+          url_detalle:     href ?? `https://findajob.dwp.gov.uk/details/${aid}`,
+          url_postulacion: href ?? `https://findajob.dwp.gov.uk/details/${aid}`,
+          keywords: extraerKeywords(`${titulo} ${org ?? ""} ${desc ?? ""}`),
+          activo: true,
+        });
+      }
+      if (rows.length > 5) return { rows, errores };
+      errores.push(`GB: FindAJob accesible pero solo ${rows.length} ítems parseados`);
+    } else {
+      errores.push("GB: FindAJob inaccesible o bloqueado desde cloud");
     }
-    if (rows.length > 0) return { rows, errores };
-    errores.push("GB: Civil Service RSS accesible pero sin ítems");
-  } else {
-    errores.push("GB: Civil Service RSS inaccesible");
+  } catch (e) {
+    errores.push(`GB: FindAJob error — ${(e as Error).message}`);
   }
 
+  // 2. NHS Jobs — paginar 5 páginas (10 por página = 50 vacantes)
+  const nhsBase = "https://www.jobs.nhs.uk/candidate/search/results?keyword=&location=&distance=200&language=en&resultsPerPage=20&page=";
+  for (let page = 1; page <= 5; page++) {
+    const html = await fetchUrl(`${nhsBase}${page}`, 12000);
+    if (!html || !html.includes('id="job-title-')) continue;
+
+    const ids = [...html.matchAll(/id="job-title-(\d+)"/g)].map(m => m[1]);
+    for (const id of ids) {
+      const start = html.indexOf(`id="job-title-${id}"`);
+      const nextId = String(parseInt(id) + 1);
+      const end = html.indexOf(`id="job-title-${nextId}"`, start);
+      const block = html.slice(start, end > 0 ? end : start + 3000);
+
+      const href  = block.match(/href="(\/candidate\/jobadvert\/[^"?]+)/)?.[1] ?? "";
+      const ref   = href.split("/").pop() ?? `${page}-${id}`;
+      const titulo = block.match(/data-test="search-result-job-title"[^>]*>\s*([\s\S]*?)\s*<\/a>/)?.[1]?.replace(/\s+/g, " ").trim() ?? "";
+      if (!titulo || titulo.length < 3) continue;
+
+      const fuente_id = `nhs${ref.replace(/\W/g, "")}`.slice(-48);
+      if (rows.some(r => r.fuente_id === fuente_id)) continue;
+
+      const txt      = block.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+      const empleador = block.match(/data-test="search-result-location"[\s\S]*?<h3[^>]*>\s*([\s\S]*?)\s*<div/)?.[1]?.replace(/\s+/g, " ").trim() ?? null;
+      const salario  = txt.match(/Salary:\s*(.{3,60}?)(?:\s+Date posted|\s+Closing|$)/)?.[1]?.trim() ?? null;
+      const cierre   = txt.match(/Closing date:\s*(\d{1,2}\s+\w+\s+\d{4})/)?.[1] ?? null;
+      const lugar    = block.match(/class="location-font-size">\s*([\s\S]*?)\s*<\/div>/)?.[1]?.replace(/\s+/g, " ").trim() ?? "United Kingdom";
+
+      rows.push({
+        fuente_id, fuente: "uk_nhsjobs", pais: "GB",
+        numero_llamado: ref || null, titulo, cargo: titulo,
+        organismo: empleador,
+        descripcion: salario ? `Salary: ${salario}` : null,
+        requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+        lugar, fecha_inicio: null,
+        fecha_cierre: cierre ? parseFecha(cierre) : sumarDias(null, 30),
+        puestos: 1,
+        url_detalle:     `https://www.jobs.nhs.uk${href}`,
+        url_postulacion: `https://www.jobs.nhs.uk${href}`,
+        keywords: extraerKeywords(titulo + " " + (empleador ?? "")),
+        activo: true,
+      });
+    }
+  }
+  if (rows.length > 0) return { rows, errores };
+  errores.push("GB: NHS Jobs inaccesible");
+
+  // 3. Google News último recurso
   const gn = await scrapeGoogleNews("GB",
-    "UK civil service government jobs vacancy recruitment hiring public sector",
-    "uk_googlenews", undefined, "en");
+    "UK civil service government jobs vacancy hiring 2026",
+    "uk_googlenews", "GB", "en", 14);
   return { rows: gn.rows, errores: [...errores, ...gn.errores] };
 }
 
 // ─────────────────────────────────────────────────────────────
-// PARSER: Estados Unidos — USAJobs RSS + Google News
+// PARSER: Estados Unidos — USAJobs REST API oficial
 // ─────────────────────────────────────────────────────────────
 async function scrapeEstadosUnidos(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const errores: string[] = [];
   const rows: ConcursoRow[] = [];
 
-  // USAJobs RSS feed
-  const usaUrl = "https://www.usajobs.gov/Search/Results?format=rss";
-  const xml = await fetchUrl(usaUrl, 12000);
-  if (xml && xml.includes("<item>")) {
-    for (const item of extraerItems(xml).slice(0, 50)) {
-      const titulo  = extraerTag(item, "title");
-      const link    = extraerTag(item, "link");
-      const desc    = stripHtml(extraerTag(item, "description"));
-      const pubDate = extraerTag(item, "pubDate");
-      if (!titulo || titulo.length < 5) continue;
-      const fuente_id = link.replace(/\W/g,"").slice(-48) || titulo.slice(0,30).replace(/\s/g,"_");
-      if (rows.some(r => r.fuente_id === fuente_id)) continue;
-      rows.push({
-        fuente_id, fuente: "usa_usajobs", pais: "US",
-        numero_llamado: null, titulo, cargo: titulo, organismo: null,
-        descripcion: desc.slice(0, 600), requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: null, fecha_inicio: null, fecha_cierre: parseFecha(pubDate),
-        puestos: 1, url_detalle: link || null, url_postulacion: link || null,
-        keywords: extraerKeywords(titulo + " " + desc), activo: true,
-      });
+  const apiKey = Deno.env.get("USAJOBS_API_KEY") ?? "";
+
+  try {
+    const res = await fetch(
+      "https://data.usajobs.gov/api/search?ResultsPerPage=50&SortField=CloseDate&SortDirection=Desc",
+      {
+        headers: {
+          "Host": "data.usajobs.gov",
+          "User-Agent": "alejandrodslp@gmail.com",
+          "Authorization-Key": apiKey,
+        },
+        signal: AbortSignal.timeout(15000),
+      }
+    );
+
+    if (res.ok) {
+      const data = await res.json();
+      const items: Record<string, unknown>[] = data?.SearchResult?.SearchResultItems ?? [];
+
+      for (const item of items.slice(0, 50)) {
+        const d = item.MatchedObjectDescriptor as Record<string, unknown>;
+        if (!d) continue;
+
+        const titulo    = (d.PositionTitle ?? "") as string;
+        const organismo = (d.OrganizationName ?? d.DepartmentName ?? "") as string;
+        const id        = (d.PositionID ?? item.MatchedObjectId ?? "") as string;
+        const url       = ((d.ApplyURI as string[])?.[0] ?? d.PositionURI ?? "") as string;
+        const lugar     = (d.PositionLocationDisplay ?? "") as string;
+        const cierre    = (d.ApplicationCloseDate ?? d.PositionEndDate ?? "") as string;
+        const desc      = (d.QualificationSummary ?? "") as string;
+
+        if (!titulo || titulo.length < 4) continue;
+        const fuente_id = String(id).replace(/\W/g, "").slice(-48) || titulo.replace(/\W/g, "").slice(0, 48);
+        if (rows.some(r => r.fuente_id === fuente_id)) continue;
+
+        rows.push({
+          fuente_id, fuente: "usa_usajobs", pais: "US",
+          numero_llamado: id || null,
+          titulo: organismo ? `${titulo} — ${organismo}` : titulo,
+          cargo: titulo, organismo: organismo || null,
+          descripcion: (desc as string).slice(0, 600), requisitos: null,
+          tipo_tarea: null, tipo_vinculo: null,
+          lugar: lugar || "United States",
+          fecha_inicio: null, fecha_cierre: parseFecha(cierre),
+          puestos: 1,
+          url_detalle: url || null, url_postulacion: url || null,
+          keywords: extraerKeywords(titulo + " " + organismo), activo: true,
+        });
+      }
+    } else {
+      errores.push(`US: USAJobs API status ${res.status}`);
     }
-    if (rows.length > 0) return { rows, errores };
-    errores.push("US: USAJobs RSS accesible pero sin ítems");
-  } else {
-    errores.push("US: USAJobs RSS inaccesible");
+  } catch (e) {
+    errores.push(`US: USAJobs API error — ${(e as Error).message}`);
   }
 
+  if (rows.length > 0) return { rows, errores };
+
   const gn = await scrapeGoogleNews("US",
-    "USA federal government jobs vacancy hiring civil service USAJobs",
+    "USA federal government jobs vacancy hiring civil service",
     "usa_googlenews", "US", "en");
   return { rows: gn.rows, errores: [...errores, ...gn.errores] };
 }
 
 // ─────────────────────────────────────────────────────────────
-// PARSER: Canadá — GC Jobs RSS + Job Bank + Indeed CA fallback
+// PARSER: Canadá — Job Bank GC (portal federal accesible) + PSC fallback
 // ─────────────────────────────────────────────────────────────
 async function scrapeCanada(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const rows: ConcursoRow[] = [];
   const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
 
-  // PSC — Public Service Commission of Canada (RSS oficial de gobierno)
+  // 1. Job Bank Canada — portal oficial del gobierno canadiense, sin geo-block
+  const jbUrl = "https://www.jobbank.gc.ca/jobsearch/jobsearch?searchstring=&locationstring=&action=search&lang=en";
+  const jbHtml = await fetchUrl(jbUrl, 15000);
+  if (jbHtml && jbHtml.includes('article id="article-')) {
+    const ids = [...jbHtml.matchAll(/article id="article-(\d+)"/g)].map(m => m[1]);
+    for (const jobId of ids.slice(0, 40)) {
+      const start = jbHtml.indexOf(`article id="article-${jobId}"`);
+      const end   = jbHtml.indexOf(`<article id="article-`, start + 10);
+      const block = jbHtml.slice(start, end > 0 ? end : start + 3000);
+
+      const titulo   = block.match(/class="noctitle">\s*([\s\S]*?)\s*<\/span>/)?.[1]?.replace(/\s+/g, " ").trim() ?? "";
+      const fecha    = block.match(/class="date">\s*([^<]+)/)?.[1]?.trim() ?? "";
+      const empresa  = block.match(/class="business">\s*([^<]+)/)?.[1]?.trim() ?? null;
+      const ubicRaw  = block.match(/Location<\/span>\s*([\s\S]*?)\s*<\/li>/)?.[1]?.replace(/\s+/g, " ").trim() ?? "Canada";
+
+      if (!titulo || titulo.length < 3) continue;
+      const fuente_id = `jobbank_${jobId}`;
+      if (rows.some(r => r.fuente_id === fuente_id)) continue;
+
+      rows.push({
+        fuente_id, fuente: "canada_jobbank", pais: "CA",
+        numero_llamado: jobId,
+        titulo, cargo: titulo,
+        organismo: empresa,
+        descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+        lugar: ubicRaw,
+        fecha_inicio: parseFecha(fecha),
+        fecha_cierre: sumarDias(parseFecha(fecha), 45),
+        puestos: 1,
+        url_detalle:    `https://www.jobbank.gc.ca/jobsearch/jobposting/${jobId}`,
+        url_postulacion:`https://www.jobbank.gc.ca/jobsearch/jobposting/${jobId}`,
+        keywords: extraerKeywords(`${titulo} ${empresa ?? ""} ${ubicRaw}`),
+        activo: true,
+      });
+    }
+    if (rows.length > 0) return { rows, errores };
+    errores.push("CA: Job Bank accesible pero sin ítems parseables");
+  } else {
+    errores.push("CA: Job Bank inaccesible");
+  }
+
+  // 2. PSC RSS (usualmente bloqueado)
   const pscUrl = "https://emploisfp-psjobs.cfp-psc.gc.ca/srs-sre/page01.htm?poster=1&psrsection=sch&lang=english&action=searchbykey&key=jobs_rss";
-  const xml = await fetchUrl(pscUrl, 12000);
+  const xml = await fetchViaProxy(pscUrl) ?? await fetchViaScraperAPI(pscUrl, "ca") ?? await fetchUrl(pscUrl, 12000);
   if (xml && xml.includes("<item>")) {
     for (const item of extraerItems(xml).slice(0, 40)) {
       const titulo  = extraerTag(item, "title");
@@ -987,112 +1342,163 @@ async function scrapeCanada(): Promise<{ rows: ConcursoRow[]; errores: string[] 
       });
     }
     if (rows.length > 0) return { rows, errores };
-    errores.push("CA: PSC RSS accesible pero sin ítems");
-  } else {
-    errores.push("CA: PSC RSS inaccesible");
   }
 
-  // Fallback: Indeed CA
-  const ind = await scrapeIndeed("ca", "government jobs federal public service", "CA", "canada_indeed", "Canada");
-  if (ind.rows.length > 0) return { rows: ind.rows, errores: [...errores, ...ind.errores] };
-
-  const gn = await scrapeGoogleNews("CA",
-    "Canada government jobs federal hiring vacancy public service GC Jobs",
-    "canada_googlenews", undefined, "en");
-  return { rows: gn.rows, errores: [...errores, ...ind.errores, ...gn.errores] };
+  // 3. Google News último recurso
+  const gn = await scrapeGoogleNews("US",
+    "Canada federal government jobs GC Jobs public service hiring",
+    "canada_googlenews", "CA", "en", 14);
+  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
 }
 
 // ─────────────────────────────────────────────────────────────
-// PARSER: Australia — APSJobs RSS + Indeed AU fallback
+// PARSER: Australia — Victoria Careers (1.976 empleos gobierno VIC) + Google News
 // ─────────────────────────────────────────────────────────────
 async function scrapeAustralia(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const rows: ConcursoRow[] = [];
   const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
 
-  // APSJobs — portal oficial empleos federales australianos
-  const apsUrl = "https://www.apsjobs.gov.au/s/global-search/services/search/global?keyword=&category=&location=&sort=Date&page=1";
-  const res = await fetch(apsUrl, {
-    headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (compatible; Nexu/1.0)" },
-    signal: AbortSignal.timeout(12000),
-  }).catch(() => null);
+  // 1. Victoria Careers — sitemap.xml público, 1.900+ vacantes gobierno de Victoria
+  const sitemapXml = await fetchUrl("https://www.careers.vic.gov.au/sitemap.xml", 15000);
+  if (sitemapXml && sitemapXml.includes("/job/")) {
+    type JobEntry = { url: string; slug: string; lastmod: string };
+    const jobMatches = [...sitemapXml.matchAll(/<loc>(https:\/\/www\.careers\.vic\.gov\.au\/job\/([^<]+))<\/loc>\s*<lastmod>([^<]+)<\/lastmod>/g)];
+    const jobs: JobEntry[] = jobMatches.map(m => ({ url: m[1], slug: m[2], lastmod: m[3] }));
+    jobs.sort((a, b) => b.lastmod.localeCompare(a.lastmod));
 
-  if (res?.ok) {
-    const data: Record<string, unknown> = await res.json().catch(() => ({}));
-    const jobs: Record<string, unknown>[] = (data.results ?? data.jobs ?? []) as Record<string, unknown>[];
-    for (const job of jobs.slice(0, 40)) {
-      const titulo = (job.title ?? job.jobTitle ?? "") as string;
-      const agency = (job.agency ?? job.organisation ?? "") as string;
-      const id     = (job.id ?? job.vacancyId ?? job.slug ?? "") as string | number;
-      const close  = (job.closingDate ?? job.closing_date ?? "") as string;
+    // Fetch top 40 en paralelo
+    const fetched = await Promise.all(
+      jobs.slice(0, 40).map(job =>
+        fetchUrl(job.url, 10000).then(html => ({ job, html })).catch(() => ({ job, html: null as string | null }))
+      )
+    );
 
-      if (!titulo || titulo.length < 4) continue;
-      const fuente_id = String(id).replace(/\W/g, "").slice(-48) || titulo.replace(/\W/g, "").slice(0, 48);
+    for (const { job, html } of fetched) {
+      if (!html) continue;
+      const titulo = html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]+)"/)?.[1]?.trim() ??
+                     job.slug.replace(/-\d+$/, "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      if (!titulo || titulo.length < 3) continue;
+
+      const ogDesc = html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]+)"/)?.[1] ?? "";
+      const lugar  = ogDesc.match(/Location:\s*([^.]+)/)?.[1]?.trim() ?? "Victoria, Australia";
+      const cierreStr = ogDesc.match(/Applications close:\s*(\d{4}-\d{2}-\d{2})/)?.[1] ?? null;
+
+      // Organismo: a veces el título tiene formato "Cargo - Organismo"
+      const dashIdx = titulo.lastIndexOf(" - ");
+      const organismo = dashIdx > 10 ? titulo.slice(dashIdx + 3).trim() : null;
+
+      const jobId = job.slug.match(/(\d+)$/)?.[1] ?? job.slug;
+      const fuente_id = `vicjobs_${jobId}`;
       if (rows.some(r => r.fuente_id === fuente_id)) continue;
 
       rows.push({
-        fuente_id, fuente: "australia_apsjobs", pais: "AU",
-        numero_llamado: String(id) || null,
-        titulo: agency ? `${titulo} — ${agency}` : titulo,
-        cargo: titulo, organismo: agency || null,
+        fuente_id, fuente: "australia_vicjobs", pais: "AU",
+        numero_llamado: jobId,
+        titulo, cargo: titulo,
+        organismo: organismo || null,
         descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: "Australia", fecha_inicio: null, fecha_cierre: parseFecha(close), puestos: 1,
-        url_detalle: `https://www.apsjobs.gov.au/s/job-detail?Id=${id}`,
-        url_postulacion: `https://www.apsjobs.gov.au/s/job-detail?Id=${id}`,
-        keywords: extraerKeywords(titulo + " " + agency), activo: true,
+        lugar,
+        fecha_inicio: parseFecha(job.lastmod),
+        fecha_cierre: cierreStr ? parseFecha(cierreStr) : sumarDias(null, 30),
+        puestos: 1,
+        url_detalle: job.url,
+        url_postulacion: job.url,
+        keywords: extraerKeywords(`${titulo} ${organismo ?? ""} ${lugar}`),
+        activo: true,
       });
     }
+    if (rows.length > 0) return { rows, errores };
+    errores.push("AU: Victoria Careers accesible pero sin ítems parseables");
   } else {
-    errores.push("AU: APSJobs API inaccesible");
+    errores.push("AU: Victoria Careers sitemap inaccesible");
   }
 
-  if (rows.length > 0) return { rows, errores };
-
-  // Fallback: Indeed AU
-  const ind = await scrapeIndeed("au", "government jobs public service APS federal", "AU", "australia_indeed", "Australia");
-  if (ind.rows.length > 0) return { rows: ind.rows, errores: [...errores, ...ind.errores] };
-
-  const gn = await scrapeGoogleNews("AU",
+  // 2. Google News como último recurso
+  const gn = await scrapeGoogleNews("US",
     "Australia government jobs APS hiring vacancy public service recruitment",
-    "australia_googlenews", undefined, "en");
-  return { rows: gn.rows, errores: [...errores, ...ind.errores, ...gn.errores] };
+    "australia_googlenews", "AU", "en", 14);
+  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
 }
 
 // ─────────────────────────────────────────────────────────────
-// PARSER: Francia — Place de l'Emploi Public + Google News
+// PARSER: Francia — EmploiPublic.fr sitemap (536 ofertas públicas) + Google News
 // ─────────────────────────────────────────────────────────────
 async function scrapeFrancia(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const errores: string[] = [];
   const rows: ConcursoRow[] = [];
 
-  // Place de l'Emploi Public RSS oficial
-  const pepUrl = "https://place-emploi-public.gouv.fr/flux/rss/";
-  const xml = await fetchUrl(pepUrl, 12000);
-  if (xml && xml.includes("<item>")) {
-    for (const item of extraerItems(xml).slice(0, 50)) {
-      const titulo  = extraerTag(item, "title");
-      const link    = extraerTag(item, "link");
-      const desc    = stripHtml(extraerTag(item, "description"));
-      const pubDate = extraerTag(item, "pubDate");
-      if (!titulo || titulo.length < 5) continue;
-      const href = link.startsWith("http") ? link : null;
-      const fuente_id = (href || titulo).replace(/\W/g,"").slice(-48);
+  // 1. EmploiPublic.fr — sitemap_offres.xml, 500+ empleos públicos de Francia
+  const sitemapXml = await fetchUrl("https://www.emploipublic.fr/sitemaps/sitemap_offres.xml", 15000);
+  if (sitemapXml && sitemapXml.includes("/offre-emploi/")) {
+    type JobEntry = { url: string; slug: string; id: string; lastmod: string };
+    const jobMatches = [...sitemapXml.matchAll(/<loc>(https:\/\/www\.emploipublic\.fr\/offre-emploi\/offre-emploi-([^<]+))<\/loc>\s*<lastmod>([^<]+)<\/lastmod>/g)];
+    const jobs: JobEntry[] = jobMatches.map(m => {
+      const slug = m[2];
+      const id = slug.includes("-o-") ? slug.split("-o-").pop()! : slug.slice(-8);
+      return { url: m[1], slug, id, lastmod: m[3] };
+    });
+    jobs.sort((a, b) => b.lastmod.localeCompare(a.lastmod));
+
+    // Fetch top 40 en paralelo
+    const fetched = await Promise.all(
+      jobs.slice(0, 40).map(job =>
+        fetchUrl(job.url, 10000).then(html => ({ job, html })).catch(() => ({ job, html: null as string | null }))
+      )
+    );
+
+    for (const { job, html } of fetched) {
+      if (!html) continue;
+      // JSON-LD JobPosting (fuente más fiable)
+      const ldRaw = html.match(/application\/ld\+json[^>]*>([\s\S]*?)<\/script>/)?.[1];
+      let titulo = "", organismo: string | null = null, lugar: string | null = null;
+      let fechaInicio: string | null = null, fechaCierre: string | null = null;
+      if (ldRaw) {
+        try {
+          const ld = JSON.parse(ldRaw);
+          if (ld["@type"] === "jobPosting" || ld["@type"] === "JobPosting") {
+            titulo = (ld.title ?? ld.name ?? "") as string;
+            organismo = (ld.hiringOrganization?.name ?? ld.hiringOrganization ?? null) as string | null;
+            lugar = (ld.jobLocation?.address?.addressLocality ?? ld.jobLocation?.name ?? null) as string | null;
+            fechaInicio = parseFecha((ld.datePosted ?? "") as string);
+            fechaCierre = parseFecha((ld.validThrough ?? "") as string);
+          }
+        } catch { /* JSON parse error */ }
+      }
+      // Fallback og:title
+      if (!titulo) {
+        const ogTitle = html.match(/property="og:title"[^>]*content="([^"]+)"/)?.[1] ?? "";
+        titulo = ogTitle.replace(/\s*-\s*Offre d.emploi.*$/i, "").trim();
+        if (!lugar) lugar = ogTitle.match(/Offre d.emploi,\s*([^"]+)$/i)?.[1]?.trim() ?? null;
+        if (!organismo) organismo = html.match(/chez\s+([^-]{3,80})\s+-/i)?.[1]?.trim() ?? null;
+      }
+      if (!titulo || titulo.length < 3) continue;
+
+      const fuente_id = `emploipublic_${job.id}`;
       if (rows.some(r => r.fuente_id === fuente_id)) continue;
+
       rows.push({
-        fuente_id, fuente: "francia_place_emploi", pais: "FR",
-        numero_llamado: null, titulo, cargo: titulo, organismo: null,
-        descripcion: desc.slice(0, 600), requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: null, fecha_inicio: null, fecha_cierre: parseFecha(pubDate),
-        puestos: 1, url_detalle: href, url_postulacion: href,
-        keywords: extraerKeywords(titulo + " " + desc), activo: true,
+        fuente_id, fuente: "francia_emploipublic", pais: "FR",
+        numero_llamado: job.id,
+        titulo, cargo: titulo,
+        organismo,
+        descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+        lugar: lugar ?? "Francia",
+        fecha_inicio: fechaInicio,
+        fecha_cierre: fechaCierre ?? sumarDias(fechaInicio, 30),
+        puestos: 1,
+        url_detalle: job.url,
+        url_postulacion: job.url,
+        keywords: extraerKeywords(`${titulo} ${organismo ?? ""} ${lugar ?? ""}`),
+        activo: true,
       });
     }
     if (rows.length > 0) return { rows, errores };
-    errores.push("FR: RSS Place de l'Emploi Public accesible pero sin ítems");
+    errores.push("FR: EmploiPublic.fr accesible pero sin ítems parseables");
   } else {
-    errores.push("FR: RSS Place de l'Emploi Public inaccesible");
+    errores.push("FR: EmploiPublic.fr sitemap inaccesible");
   }
 
-  // Google News como respaldo
+  // 2. Google News como último recurso
   const gn = await scrapeGoogleNews("FR",
     "concours fonction publique France emploi recrutement poste administration",
     "francia_googlenews", undefined, "fr");
@@ -1100,21 +1506,229 @@ async function scrapeFrancia(): Promise<{ rows: ConcursoRow[]; errores: string[]
 }
 
 // ─────────────────────────────────────────────────────────────
+// SUECIA — JobTech API (Arbetsförmedlingen) · sv
+// 47k+ empleos, JSON estructurado: employer, city, deadline
+// ─────────────────────────────────────────────────────────────
+async function scrapeSweden(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+
+  const json = await fetchUrl(
+    "https://jobsearch.api.jobtechdev.se/search?limit=50&sort=pubdate-desc",
+    15000,
+    { "Accept": "application/json" }
+  );
+  if (!json) return { rows, errores: ["SE: JobTech API inaccesible"] };
+
+  let data: { hits?: unknown[] };
+  try { data = JSON.parse(json); } catch { return { rows, errores: ["SE: JobTech API JSON inválido"] }; }
+
+  const hits = Array.isArray(data.hits) ? data.hits as Record<string, unknown>[] : [];
+  for (const hit of hits) {
+    const titulo = (hit.headline as string) ?? "";
+    if (!titulo || titulo.length < 3) continue;
+
+    const emp    = hit.employer as Record<string, string> | null;
+    const adr    = hit.workplace_address as Record<string, string> | null;
+    const organismo = emp?.name ?? null;
+    const lugar  = adr?.city ?? adr?.municipality ?? "Sverige";
+    const url    = (hit.webpage_url as string) ?? null;
+    const fechaInicio = parseFecha((hit.publication_date as string) ?? "");
+    const deadlineRaw = hit.application_deadline as string | null;
+    const fechaCierre = deadlineRaw ? parseFecha(deadlineRaw) : sumarDias(fechaInicio, 30);
+    const fuente_id = `jobtechse_${hit.id as string ?? titulo.replace(/\W/g, "").slice(0, 30)}`;
+
+    rows.push({
+      fuente_id, fuente: "suecia_jobtechapi", pais: "SE",
+      numero_llamado: null, titulo, cargo: titulo,
+      organismo, descripcion: null, requisitos: null,
+      tipo_tarea: null, tipo_vinculo: null, lugar,
+      fecha_inicio: fechaInicio, fecha_cierre: fechaCierre,
+      puestos: 1,
+      url_detalle: url, url_postulacion: url,
+      keywords: extraerKeywords(titulo + " " + (organismo ?? "")), activo: true,
+    });
+  }
+
+  if (rows.length === 0) errores.push("SE: JobTech sin resultados");
+  return { rows, errores };
+}
+
+// ─────────────────────────────────────────────────────────────
+// NORUEGA — NAV Arbeidsplassen sitemap + og:title · nb
+// 16k+ empleos, SSR meta tags, sin employer/lugar en HTML estático
+// ─────────────────────────────────────────────────────────────
+async function scrapeNorway(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+
+  const sitemapXml = await fetchUrl("https://arbeidsplassen.nav.no/stillinger/sitemap.xml", 15000);
+  if (!sitemapXml || !sitemapXml.includes("stilling/")) {
+    return { rows, errores: ["NO: NAV sitemap inaccesible"] };
+  }
+
+  type JobEntry = { url: string; uuid: string; lastmod: string };
+  const matches = [...sitemapXml.matchAll(
+    /<loc>(https:\/\/arbeidsplassen\.nav\.no\/stillinger\/stilling\/([a-f0-9-]{36}))<\/loc>\s*<lastmod>([^<]+)<\/lastmod>/g
+  )];
+  const jobs: JobEntry[] = matches.map(m => ({ url: m[1], uuid: m[2], lastmod: m[3] }));
+  jobs.sort((a, b) => b.lastmod.localeCompare(a.lastmod));
+
+  const fetched = await Promise.all(
+    jobs.slice(0, 30).map(job =>
+      fetchUrl(job.url, 10000)
+        .then(html => ({ job, html }))
+        .catch(() => ({ job, html: null as string | null }))
+    )
+  );
+
+  for (const { job, html } of fetched) {
+    if (!html) continue;
+    const ogTitle = html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]+)"/)?.[1]?.trim() ?? null;
+    const ogDesc  = html.match(/<meta[^>]*name="description"[^>]*content="([^"]+)"/)?.[1]?.trim() ?? null;
+    if (!ogTitle) continue;
+
+    const titulo = ogTitle.replace(/\s*-\s*arbeidsplassen\.no\s*$/i, "").trim();
+    const fechaInicio = parseFecha(job.lastmod);
+
+    rows.push({
+      fuente_id: `nav_${job.uuid}`,
+      fuente: "noruega_nav", pais: "NO",
+      numero_llamado: null, titulo, cargo: titulo,
+      organismo: null, descripcion: ogDesc?.slice(0, 500) ?? null,
+      requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+      lugar: "Norge",
+      fecha_inicio: fechaInicio, fecha_cierre: sumarDias(fechaInicio, 30),
+      puestos: 1,
+      url_detalle: job.url, url_postulacion: job.url,
+      keywords: extraerKeywords(titulo + " " + (ogDesc ?? "")), activo: true,
+    });
+  }
+
+  if (rows.length === 0) errores.push("NO: NAV sin resultados parseables");
+  return { rows, errores };
+}
+
+// ─────────────────────────────────────────────────────────────
+// JAPÓN — NPA jinji.go.jp tabla HTML · ja
+// ~85 convocatorias oficiales (常勤/任期付/非常勤), tablas 2-4
+// ─────────────────────────────────────────────────────────────
+async function scrapeJapan(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+
+  const html = await fetchUrl(
+    "https://www.jinji.go.jp/saiyo/saiyo/sonota/koubo_joho.html", 15000
+  );
+  if (!html) return { rows, errores: ["JP: NPA page inaccesible"] };
+
+  const tableMatches = [...html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/g)];
+
+  for (const tableMatch of tableMatches.slice(2, 5)) {
+    const tableHtml = tableMatch[1];
+    const rowMatches = [...tableHtml.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)];
+
+    for (const rowMatch of rowMatches.slice(1)) {
+      const cells = [...rowMatch[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)];
+      if (cells.length < 3) continue;
+
+      const stripCell = (c: string) => c.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const organismo = stripCell(cells[0]?.[1] ?? "") || null;
+      const lugar     = stripCell(cells[1]?.[1] ?? "") || "日本";
+      const cell2     = cells[2]?.[1] ?? "";
+      const jobUrl    = cell2.match(/href="([^"]+)"/)?.[1] ?? null;
+      const titulo    = stripCell(cell2)
+        .replace(/※詳細[\s\S]*$/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (!titulo || titulo.length < 3) continue;
+
+      const rawId = `${(organismo ?? "").replace(/\s/g, "").slice(0, 15)}_${titulo.replace(/\s/g, "").slice(0, 20)}`;
+      const fuente_id = `npa_${rawId}`;
+      if (rows.some(r => r.fuente_id === fuente_id)) continue;
+
+      rows.push({
+        fuente_id, fuente: "japon_npa", pais: "JP",
+        numero_llamado: null, titulo, cargo: titulo,
+        organismo, descripcion: null, requisitos: null,
+        tipo_tarea: null, tipo_vinculo: null, lugar,
+        fecha_inicio: null, fecha_cierre: sumarDias(null, 45),
+        puestos: 1,
+        url_detalle: jobUrl, url_postulacion: jobUrl,
+        keywords: extraerKeywords(titulo + " " + (organismo ?? "")), activo: true,
+      });
+    }
+  }
+
+  if (rows.length === 0) errores.push("JP: NPA sin resultados parseables");
+  return { rows, errores };
+}
+
+// ─────────────────────────────────────────────────────────────
+// INDIA — Employment News RSS + Google News backup
+// ─────────────────────────────────────────────────────────────
+async function scrapeIndia(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const rows: ConcursoRow[] = [];
+  const errores: string[] = [];
+
+  // Fuente 1: Employment News RSS oficial del gobierno indio
+  const xml = await fetchUrl("https://www.employmentnews.gov.in/RSS/EmploymentNews.xml", 12000);
+  if (xml && xml.includes("<item>")) {
+    const items = extraerItems(xml);
+    for (const item of items.slice(0, 60)) {
+      const titulo   = extraerTag(item, "title");
+      const link     = extraerTag(item, "link");
+      const guid     = extraerTag(item, "guid");
+      const pubDate  = extraerTag(item, "pubDate");
+      const desc     = stripHtml(extraerTag(item, "description"));
+      if (!titulo || titulo.length < 6) continue;
+      const fuente_id = (guid || link).replace(/[^a-zA-Z0-9]/g, "").slice(-48);
+      if (rows.some(r => r.fuente_id === fuente_id)) continue;
+      const fechaPub = parseFecha(pubDate);
+      rows.push({
+        fuente_id, fuente: "india_employmentnews", pais: "IN",
+        numero_llamado: null, titulo, cargo: titulo, organismo: null,
+        descripcion: desc.slice(0, 600), requisitos: null,
+        tipo_tarea: null, tipo_vinculo: "publico", lugar: null,
+        fecha_inicio: fechaPub,
+        fecha_cierre: sumarDias(fechaPub, 30),
+        puestos: 1,
+        url_detalle: link.startsWith("http") ? link : null,
+        url_postulacion: link.startsWith("http") ? link : null,
+        keywords: extraerKeywords(titulo + " " + desc), activo: true,
+      });
+    }
+  } else {
+    errores.push("IN: Employment News RSS sin items");
+  }
+
+  // Fuente 2: Google News para cubrir UPSC, SSC, NHM, state boards
+  const gn = await scrapeGoogleNews("IN", "India government recruitment 2026 vacancy apply UPSC SSC NHM", "india_googlenews", "IN", "en", 21);
+  rows.push(...gn.rows);
+  errores.push(...gn.errores);
+
+  if (rows.length === 0) errores.push("IN: sin resultados en ninguna fuente");
+  return { rows, errores };
+}
+
+// ─────────────────────────────────────────────────────────────
 // SCRAPER PRINCIPAL — upsert a Supabase
 // ─────────────────────────────────────────────────────────────
 async function upsertRows(rows: ConcursoRow[]): Promise<number> {
   if (rows.length === 0) return 0;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const validas = rows.filter(r => !r.fecha_cierre || r.fecha_cierre >= hoy);
+  if (validas.length === 0) return 0;
   const { error } = await supabase
     .from("concursos")
-    .upsert(rows, { onConflict: "fuente,fuente_id", ignoreDuplicates: false });
+    .upsert(validas, { onConflict: "fuente,fuente_id", ignoreDuplicates: false });
   if (error) console.error("upsert error:", error.message);
-  return error ? 0 : rows.length;
+  return error ? 0 : validas.length;
 }
 
-async function marcarVencidos(fuente: string) {
-  const hoy = new Date().toISOString().slice(0, 10);
-  await supabase.from("concursos").update({ activo: false })
-    .eq("fuente", fuente).lt("fecha_cierre", hoy);
+async function marcarFuenteInactiva(fuente: string) {
+  await supabase.from("concursos").update({ activo: false }).eq("fuente", fuente);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1167,10 +1781,15 @@ serve(async (req: Request) => {
       FR: scrapeFrancia,
       DE: scrapeAlemania,
       GB: scrapeReinoUnido,
+      SE: scrapeSweden,
+      NO: scrapeNorway,
       // Anglosajones
       US: scrapeEstadosUnidos,
       CA: scrapeCanada,
       AU: scrapeAustralia,
+      // Asia
+      JP: scrapeJapan,
+      IN: scrapeIndia,
     };
 
     const paises = soloPais
@@ -1199,10 +1818,15 @@ serve(async (req: Request) => {
         if (modoTest) {
           resumen[pais] = { rows_sample: rows.slice(0, 3), total: rows.length, errores };
         } else {
+          // Para fuentes RSS que representan snapshot completo: marcar viejos inactivos
+          // antes de insertar, así el conteo refleja exactamente lo que publica el sitio.
+          // Solo para UY (uruguayconcursa) — los demás países usan acumulación con fecha_cierre.
+          if (pais === "UY" && rows.length > 0) {
+            await marcarFuenteInactiva("uruguay_concursa");
+          }
           const insertados = await upsertRows(rows);
           total_insertados += insertados;
           resumen[pais] = { insertados, total_scrapeados: rows.length, errores };
-          if (rows.length > 0) await marcarVencidos(rows[0].fuente);
         }
       }
     }

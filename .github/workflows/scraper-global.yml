@@ -1,0 +1,175 @@
+name: Scraper Global (32 países)
+
+on:
+  schedule:
+    - cron: '0 8 * * *'   # 8am UTC = 5am UY, antes de que los usuarios despierten
+    - cron: '0 20 * * *'  # 8pm UTC = 5pm UY, tarde del día
+  workflow_dispatch:
+    inputs:
+      pais:
+        description: 'País ISO (UY, AR, IN...) — vacío = todos'
+        required: false
+        default: ''
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Correr scraper Edge Function
+        run: |
+          BODY="{}"
+          if [ -n "${{ github.event.inputs.pais }}" ]; then
+            BODY="{\"pais\":\"${{ github.event.inputs.pais }}\"}"
+          fi
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -d "$BODY")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY_RESP=$(echo "$RESPONSE" | head -1)
+          echo "HTTP: $HTTP_CODE"
+          echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
+          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+
+      - name: Restaurar conteos anteriores
+        if: github.event.inputs.pais == '' || github.event.inputs.pais == null
+        uses: actions/cache@v4
+        with:
+          path: /tmp/nexu_counts_prev.json
+          key: nexu-counts-${{ github.run_number }}
+          restore-keys: nexu-counts-
+
+      - name: Verificar conteos y detectar anomalías
+        if: github.event.inputs.pais == '' || github.event.inputs.pais == null
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          python3 << 'EOF'
+          import urllib.request, json, os, sys
+          from datetime import date
+
+          url = os.environ["SUPABASE_URL"]
+          key = os.environ["SUPABASE_ANON_KEY"]
+          hoy = date.today().isoformat()
+          PREV_FILE = "/tmp/nexu_counts_prev.json"
+
+          # Cargar conteos anteriores si existen
+          prev = {}
+          if os.path.exists(PREV_FILE):
+              try:
+                  with open(PREV_FILE) as f:
+                      prev = json.load(f)
+                  print(f"Conteos previos cargados ({len(prev)} países)")
+              except Exception:
+                  pass
+
+          # Todos los países monitoreados
+          PAISES = [
+              "UY","AR","BR","ES","DE","US","FR","CA","AU","GB",
+              "MX","CL","PE","CO","PY","BO","EC","VE","CR","GT",
+              "SV","HN","NI","PA","DO","CU","PT","IN","JP","SE","IT","NO",
+          ]
+
+          # Mínimos absolutos por país
+          MINIMOS = {
+              "UY": 50, "AR": 100, "BR": 50, "ES": 20, "DE": 20,
+              "US": 10, "FR": 20, "CA": 10, "AU": 20, "GB": 10,
+              "MX": 10, "CL": 20, "PE": 10, "CO": 10,
+          }
+
+          current = {}
+          errores_query = []
+
+          for pais in PAISES:
+              endpoint = (
+                  f"{url}/rest/v1/concursos"
+                  f"?select=pais&pais=eq.{pais}&activo=eq.true"
+                  f"&or=(fecha_cierre.is.null,fecha_cierre.gte.{hoy})"
+              )
+              req = urllib.request.Request(endpoint, headers={
+                  "Authorization": f"Bearer {key}",
+                  "apikey": key,
+                  "Prefer": "count=exact",
+              })
+              try:
+                  with urllib.request.urlopen(req) as resp:
+                      cr = resp.headers.get("Content-Range", "0/0")
+                      total = int(cr.split("/")[-1]) if "/" in cr else 0
+                  current[pais] = total
+              except Exception as e:
+                  errores_query.append(f"{pais}: {e}")
+                  current[pais] = -1
+
+          # Imprimir tabla de conteos
+          print()
+          print("País | Actual | Anterior | Cambio")
+          print("-----|--------|----------|-------")
+          alertas = []
+
+          for pais in PAISES:
+              actual = current.get(pais, -1)
+              anterior = prev.get(pais, None)
+
+              if anterior is not None and anterior > 0 and actual >= 0:
+                  cambio = actual - anterior
+                  pct = (cambio / anterior) * 100
+                  if abs(pct) >= 40 and abs(cambio) >= 10:
+                      signo = "📈" if cambio > 0 else "📉"
+                      cambio_str = f"{signo} {cambio:+d} ({pct:+.0f}%)"
+                  else:
+                      cambio_str = f"{cambio:+d} ({pct:+.0f}%)"
+              elif anterior is None:
+                  cambio_str = "(primera medición)"
+                  pct = 0
+                  cambio = 0
+              else:
+                  cambio_str = "—"
+                  pct = 0
+                  cambio = 0
+
+              print(f"  {pais:4} | {actual:6} | {str(anterior or '—'):8} | {cambio_str}")
+
+              # Detectar anomalías
+              minimo = MINIMOS.get(pais)
+              if actual >= 0 and minimo and actual < minimo:
+                  alertas.append(f"⚠️  {pais}: {actual} registros (mínimo esperado: {minimo})")
+
+              if (anterior is not None and anterior > 0 and actual >= 0):
+                  if pct <= -40 and abs(cambio) >= 10:
+                      alertas.append(f"📉 {pais}: cayó de {anterior} a {actual} ({pct:.0f}%)")
+                  if pct >= 100 and abs(cambio) >= 50:
+                      alertas.append(f"📈 {pais}: subió de {anterior} a {actual} ({pct:.0f}%) — verificar duplicados")
+
+          if errores_query:
+              print()
+              print("Errores al consultar DB:")
+              for e in errores_query:
+                  print(f"  {e}")
+
+          # Guardar conteos actuales para la próxima corrida
+          try:
+              with open(PREV_FILE, "w") as f:
+                  json.dump(current, f)
+              print()
+              print(f"Conteos guardados en {PREV_FILE}")
+          except Exception as e:
+              print(f"No se pudo guardar conteos: {e}")
+
+          # Reportar anomalías
+          if alertas:
+              print()
+              print("=============================================")
+              print("ALERTAS — anomalías detectadas")
+              print("=============================================")
+              for a in alertas:
+                  print(f"  {a}")
+              print()
+              sys.exit(1)
+          else:
+              print()
+              print("✅ Sin anomalías. Todos los países están dentro de rangos normales.")
+          EOF
