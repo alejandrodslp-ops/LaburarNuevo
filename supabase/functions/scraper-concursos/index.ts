@@ -1717,8 +1717,8 @@ async function scrapeIndia(): Promise<{ rows: ConcursoRow[]; errores: string[] }
 // ─────────────────────────────────────────────────────────────
 async function upsertRows(rows: ConcursoRow[]): Promise<number> {
   if (rows.length === 0) return 0;
-  const hoy = new Date().toISOString().slice(0, 10);
-  const validas = rows.filter(r => !r.fecha_cierre || r.fecha_cierre >= hoy);
+  const manana = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const validas = rows.filter(r => !r.fecha_cierre || r.fecha_cierre >= manana);
   if (validas.length === 0) return 0;
   const { error } = await supabase
     .from("concursos")
@@ -1818,15 +1818,21 @@ serve(async (req: Request) => {
         if (modoTest) {
           resumen[pais] = { rows_sample: rows.slice(0, 3), total: rows.length, errores };
         } else {
-          // Para fuentes RSS que representan snapshot completo: marcar viejos inactivos
-          // antes de insertar, así el conteo refleja exactamente lo que publica el sitio.
-          // Solo para UY (uruguayconcursa) — los demás países usan acumulación con fecha_cierre.
-          if (pais === "UY" && rows.length > 0) {
-            await marcarFuenteInactiva("uruguay_concursa");
-          }
           const insertados = await upsertRows(rows);
           total_insertados += insertados;
           resumen[pais] = { insertados, total_scrapeados: rows.length, errores };
+
+          // UY usa snapshot completo: desactivar registros que ya no están en el API.
+          // Se hace DESPUÉS del upsert para que si falla, los registros anteriores queden visibles.
+          if (pais === "UY" && insertados > 0 && rows.length > 0) {
+            const batchIds = rows.map(r => r.fuente_id);
+            await supabase
+              .from("concursos")
+              .update({ activo: false })
+              .eq("fuente", "uruguay_concursa")
+              .eq("activo", true)
+              .not("fuente_id", "in", `(${batchIds.join(",")})`);
+          }
         }
       }
     }

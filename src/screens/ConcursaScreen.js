@@ -23,8 +23,11 @@ const BANDERAS = {
   NI:'🇳🇮', PA:'🇵🇦', DO:'🇩🇴',
   // Europa
   ES:'🇪🇸', PT:'🇵🇹', IT:'🇮🇹', FR:'🇫🇷', DE:'🇩🇪', GB:'🇬🇧',
+  SE:'🇸🇪', NO:'🇳🇴',
   // Anglosajones
   US:'🇺🇸', CA:'🇨🇦', AU:'🇦🇺',
+  // Asia
+  JP:'🇯🇵', IN:'🇮🇳',
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -158,7 +161,7 @@ export default function ConcursaScreen({ navigation, route }) {
       // Verificar que el usuario tiene perfil de worker
       const { data: perfil, error: perfilError } = await supabase
         .from('profiles')
-        .select('rol, servicios, profesiones, especialidades, tecnicaturas, pais')
+        .select('rol, servicios, profesiones, especialidades, tecnicaturas, pais, nomada_digital, idiomas_trabajo')
         .eq('id', authUser.id)
         .single();
 
@@ -206,6 +209,7 @@ export default function ConcursaScreen({ navigation, route }) {
       if (error) throw error;
 
       const hoy = new Date();
+      const hoyStr = new Date().toISOString().slice(0, 10); // "2026-05-21" — para comparar fechas sin timezone
       const PAIS_ISO = {
         'uruguay':'UY','argentina':'AR','chile':'CL','colombia':'CO',
         'peru':'PE','perú':'PE','brasil':'BR','brazil':'BR','paraguay':'PY',
@@ -220,17 +224,45 @@ export default function ConcursaScreen({ navigation, route }) {
         'estados unidos':'US','united states':'US','usa':'US',
         'canadá':'CA','canada':'CA',
         'australia':'AU',
+        'suecia':'SE','sweden':'SE',
+        'noruega':'NO','norway':'NO',
+        'japón':'JP','japon':'JP','japan':'JP',
+        'india':'IN',
+      };
+      const IDIOMA_PAISES = {
+        es: ['UY','AR','CL','CO','PE','PY','BO','EC','MX','VE','CU','CR','GT','SV','HN','NI','PA','DO','ES'],
+        pt: ['BR','PT'],
+        en: ['US','CA','GB','AU','SE','NO','IN'],
+        fr: ['FR'],
+        de: ['DE'],
+        it: ['IT'],
+        sv: ['SE'],
+        nb: ['NO'],
+        ja: ['JP'],
+        hi: ['IN'],
       };
       const paisRaw = (perfil?.pais || '').toLowerCase().trim();
       const paisISO = PAIS_ISO[paisRaw] || paisRaw.slice(0,2).toUpperCase();
 
-      // Filtrar matches por país (comparar ISO con ISO)
+      // Países permitidos según modo nómada
+      let paisesPermitidos = null; // null = solo país propio
+      if (perfil?.nomada_digital) {
+        const idiomas = perfil.idiomas_trabajo?.length ? perfil.idiomas_trabajo : ['es'];
+        paisesPermitidos = idiomas.flatMap(i => IDIOMA_PAISES[i] || []);
+        if (!paisesPermitidos.includes(paisISO)) paisesPermitidos.push(paisISO);
+      }
+
+      // Filtrar matches por país
       const validos = (matchData || []).filter(m => {
         if (!m.concursos) return false;
-        if (paisISO && m.concursos.pais && m.concursos.pais !== paisISO) return false;
-        if (m.concursos.fecha_cierre) {
-          if (new Date(m.concursos.fecha_cierre) < hoy) return false;
+        const mp = m.concursos.pais;
+        if (paisesPermitidos) {
+          if (mp && !paisesPermitidos.includes(mp)) return false;
+        } else {
+          if (paisISO && mp && mp !== paisISO) return false;
         }
+        if (m.concursos.fecha_cierre && m.concursos.fecha_cierre < hoyStr) return false;
+        if (m.concursos.fuente?.includes('gnews') || m.concursos.fuente?.includes('news')) return false;
         return true;
       });
 
@@ -243,11 +275,16 @@ export default function ConcursaScreen({ navigation, route }) {
         .eq('activo', true)
         .order('created_at', { ascending: false })
         .limit(2000);
-      if (paisISO) todosQuery = todosQuery.eq('pais', paisISO);
+      if (paisesPermitidos) {
+        todosQuery = todosQuery.in('pais', paisesPermitidos);
+      } else if (paisISO) {
+        todosQuery = todosQuery.eq('pais', paisISO);
+      }
       const { data: todosData } = await todosQuery;
 
       const todosValidos = (todosData || []).filter(c => {
-        if (c.fecha_cierre && new Date(c.fecha_cierre) < hoy) return false;
+        if (c.fecha_cierre && c.fecha_cierre < hoyStr) return false;
+        if (c.fuente?.includes('gnews') || c.fuente?.includes('news')) return false;
         return true;
       });
       console.log('[Concursa] paisISO:', paisISO, '| todos raw:', todosData?.length, '| todos validos:', todosValidos.length, '| matches:', validos.length);
@@ -310,6 +347,8 @@ export default function ConcursaScreen({ navigation, route }) {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        automaticallyAdjustContentInsets={false}
+        contentInsetAdjustmentBehavior="never"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => cargar(true)} tintColor={COLORS.coral} />
         }
@@ -330,9 +369,14 @@ export default function ConcursaScreen({ navigation, route }) {
                 <Text style={[styles.brandSub, { color: 'rgba(26,58,92,0.5)' }]}>{t('concursa_sub')}</Text>
               </View>
             </View>
-            <TouchableOpacity style={[styles.alertasBtn, { backgroundColor: 'rgba(26,58,92,0.12)', borderColor: 'rgba(26,58,92,0.25)' }]} onPress={handleAlertas}>
-              <Text style={[styles.alertasBtnText, { color: '#1A3A5C' }]}>{t('concursa_alertas')}</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => cargar(true)} style={{ padding: 6 }}>
+                <Text style={{ fontSize: 18 }}>{refreshing ? '⏳' : '🔄'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.alertasBtn, { backgroundColor: 'rgba(26,58,92,0.12)', borderColor: 'rgba(26,58,92,0.25)' }]} onPress={handleAlertas}>
+                <Text style={[styles.alertasBtnText, { color: '#1A3A5C' }]}>{t('concursa_alertas')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.heroWrap}>
