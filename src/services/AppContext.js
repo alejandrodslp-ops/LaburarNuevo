@@ -1,4 +1,5 @@
 import React,{createContext,useContext,useState,useEffect,useMemo,useCallback} from "react";
+import Constants from "expo-constants";
 import{supabase}from "./supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import{requestNotificationPermission}from "./notifications";
@@ -42,7 +43,7 @@ export function AppProvider({children}){
       if(!granted)return;
       try{
         const tokenResult=await Notifications.getExpoPushTokenAsync({
-          projectId: (await import("expo-constants")).default.expoConfig?.extra?.eas?.projectId,
+          projectId: Constants.expoConfig?.extra?.eas?.projectId,
         }).catch(e=>{ if(__DEV__) console.warn("[Nexu] push token error:",e?.message); return null; });
         const token=tokenResult?.data;
         const{data}=await supabase.auth.getUser();
