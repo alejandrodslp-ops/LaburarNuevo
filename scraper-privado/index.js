@@ -1,6 +1,5 @@
 import fetch from 'node-fetch';
 import { createClient } from '@supabase/supabase-js';
-import ws from 'ws';
 
 const SUPABASE_URL   = process.env.SUPABASE_URL;
 const SUPABASE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -10,9 +9,14 @@ const JOOBLE_API_KEY = process.env.JOOBLE_API_KEY;
 const TEST_MODE      = process.argv.includes('--test');
 const PAIS_ARG       = process.env.PAIS?.toUpperCase();
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  realtime: { transport: ws },
-});
+// Validar variables críticas antes de arrancar
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  console.error('FATAL: SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY son requeridos.');
+  process.exit(1);
+}
+
+// Sin WebSocket — el scraper no usa subscripciones realtime
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
@@ -20,7 +24,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 function normalizar(s = '') {
   return s.toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ').trim();
 }
@@ -62,7 +66,7 @@ async function fetchXML(url, timeout = 15000) {
     });
     if (!res.ok) return null;
     return await res.text();
-  } catch { return null; }
+  } catch (e) { console.log(`    fetchXML error: ${e.message}`); return null; }
 }
 
 function extraerTag(xml, tag) {
@@ -93,8 +97,9 @@ async function upsert(rows, fuente) {
   if (error) { console.error(`  ERROR upsert ${fuente}:`, error.message); return 0; }
   // Marcar vencidos
   const hoy = new Date().toISOString().slice(0, 10);
-  await supabase.from('concursos').update({ activo: false })
-    .eq('fuente', fuente).lt('fecha_cierre', hoy);
+  const { error: errVenc } = await supabase.from('concursos').update({ activo: false })
+    .eq('fuente', fuente).lt('fecha_cierre', hoy).not('fecha_cierre', 'is', null);
+  if (errVenc) console.warn(`  WARN vencidos ${fuente}:`, errVenc.message);
   return rows.length;
 }
 
@@ -754,6 +759,10 @@ if (!PAIS_ARG) {
 }
 
 // Fuentes por país
+if (PAIS_ARG && !SCRAPERS[PAIS_ARG]) {
+  console.error(`FATAL: país "${PAIS_ARG}" no reconocido. Válidos: ${Object.keys(SCRAPERS).join(', ')}`);
+  process.exit(1);
+}
 const paisesACorrer = PAIS_ARG
   ? [PAIS_ARG]
   : Object.keys(SCRAPERS).filter(p => p !== 'GLOBAL');
