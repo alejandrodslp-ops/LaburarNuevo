@@ -128,8 +128,11 @@ function ConcursoCard({ c, onPress }) {
       </View>
       <View style={{ alignItems: 'flex-end', gap: 4 }}>
         {dias != null ? (
-          <View style={[ss.statusBadge, { backgroundColor: dias <= 5 ? '#FEF2F2' : '#F0FDF4', borderColor: dias <= 5 ? '#EF4444' : '#22C55E' }]}>
-            <Text style={[ss.statusTxt, { color: dias <= 5 ? '#EF4444' : '#22C55E' }]}>{dias > 0 ? `${dias}d` : 'Vencido'}</Text>
+          <View style={[ss.statusBadge, {
+            backgroundColor: dias <= 2 ? '#FFF3E0' : dias <= 5 ? '#FFFDE7' : '#F0FDF4',
+            borderColor:     dias <= 2 ? '#FF9800' : dias <= 5 ? '#FFC107' : '#22C55E',
+          }]}>
+            <Text style={[ss.statusTxt, { color: dias <= 2 ? '#FF9800' : dias <= 5 ? '#F59E0B' : '#22C55E' }]}>{dias > 0 ? `${dias}d` : 'Vencido'}</Text>
           </View>
         ) : null}
         <Text style={{ fontSize: 10, color: '#A898B8' }}>Ver →</Text>
@@ -163,8 +166,11 @@ function OfertaCard({ o }) {
       </View>
       <View style={{ alignItems: 'flex-end', gap: 4 }}>
         {dias != null && (
-          <View style={[ss.statusBadge, { backgroundColor: dias <= 5 ? '#FEF2F2' : '#F0FDF4', borderColor: dias <= 5 ? '#EF4444' : '#22C55E' }]}>
-            <Text style={[ss.statusTxt, { color: dias <= 5 ? '#EF4444' : '#22C55E' }]}>{dias > 0 ? `${dias}d` : 'Vencida'}</Text>
+          <View style={[ss.statusBadge, {
+            backgroundColor: dias <= 2 ? '#FFF3E0' : dias <= 5 ? '#FFFDE7' : '#F0FDF4',
+            borderColor:     dias <= 2 ? '#FF9800' : dias <= 5 ? '#FFC107' : '#22C55E',
+          }]}>
+            <Text style={[ss.statusTxt, { color: dias <= 2 ? '#FF9800' : dias <= 5 ? '#F59E0B' : '#22C55E' }]}>{dias > 0 ? `${dias}d` : 'Vencida'}</Text>
           </View>
         )}
         {o.postulaciones > 0 && (
