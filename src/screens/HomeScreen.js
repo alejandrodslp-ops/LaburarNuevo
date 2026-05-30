@@ -1,5 +1,5 @@
 // src/screens/HomeScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
 import {
@@ -204,6 +204,7 @@ export default function HomeScreen({ navigation }) {
   const { t } = useI18n();
   const { modoActivo } = useApp();
   const esWorker = modoActivo === 'worker';
+  const montadoRef = useRef(true);
   const [perfil, setPerfil] = useState({ nombre: '', activo: false, diasRestantes: 0, vistas: 0, contactos: 0, avatar: null });
   const [matchesPublicos, setMatchesPublicos] = useState([]);
   const [matchesPrivados, setMatchesPrivados] = useState([]);
@@ -214,8 +215,9 @@ export default function HomeScreen({ navigation }) {
 
   async function cargar() {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data } = await supabase.auth.getUser();
+      const user = data?.user;
+      if (!user || !montadoRef.current) return;
 
       const { data } = await supabase
         .from('profiles')
@@ -290,6 +292,7 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
+    montadoRef.current = true;
     cargar();
     AsyncStorage.getItem('ir_a_editar_perfil').then(val => {
       if (val === 'true') {
@@ -297,6 +300,7 @@ export default function HomeScreen({ navigation }) {
         navigation.navigate('Cuenta', { screen: 'EditarPerfil', params: { desdeRegistro: true } });
       }
     });
+    return () => { montadoRef.current = false; };
   }, []);
   useEffect(() => {
     const unsub = navigation.addListener('focus', cargar);

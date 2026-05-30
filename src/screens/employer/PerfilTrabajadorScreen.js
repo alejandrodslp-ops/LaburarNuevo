@@ -1,4 +1,4 @@
-import React,{useState,useEffect} from 'react';
+import React,{useState,useEffect,useRef} from 'react';
 import{View,Text,ScrollView,TouchableOpacity,StyleSheet,Alert,Modal,TextInput,Pressable}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{LinearGradient}from 'expo-linear-gradient';
@@ -213,6 +213,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
   const{perfil}=route.params||{};
   const[enviando,setEnviando]=useState(false);
   const[enviado,setEnviado]=useState(false);
+  const enviandoRef=useRef(false);
   const[visDisp,setVisDisp]=useState(0);
   const[reporteVisible,setReporteVisible]=useState(false);
   const[calificarVisible,setCalificarVisible]=useState(false);
@@ -281,9 +282,12 @@ export default function PerfilTrabajadorScreen({navigation,route}){
   const tipos=(perfil?.tipos_empleo||[]);
 
   async function enviarInteres(){
+    if(enviandoRef.current||enviado)return;
+    enviandoRef.current=true;
     setEnviando(true);
     try{
-      const{data:{user}}=await supabase.auth.getUser();
+      const{data}=await supabase.auth.getUser();
+      const user=data?.user;
       if(!user)return;
 
       // Cargar datos del perfil del empleador
@@ -329,7 +333,10 @@ export default function PerfilTrabajadorScreen({navigation,route}){
       );
     }catch(e){
       Alert.alert('Error al enviar',e?.message||e?.toString()||'Error desconocido');
-    }finally{setEnviando(false);}
+    }finally{
+      enviandoRef.current=false;
+      setEnviando(false);
+    }
   }
 
   return(

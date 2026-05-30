@@ -41,10 +41,14 @@ export function AppProvider({children}){
     requestNotificationPermission().then(async(granted)=>{
       if(!granted)return;
       try{
-        const{data:token}=await Notifications.getExpoPushTokenAsync();
-        const{data:{user}}=await supabase.auth.getUser();
+        const tokenResult=await Notifications.getExpoPushTokenAsync({
+          projectId: (await import("expo-constants")).default.expoConfig?.extra?.eas?.projectId,
+        }).catch(e=>{ if(__DEV__) console.warn("[Nexu] push token error:",e?.message); return null; });
+        const token=tokenResult?.data;
+        const{data}=await supabase.auth.getUser();
+        const user=data?.user;
         if(user&&token) await supabase.from("profiles").update({push_token:token}).eq("id",user.id);
-      }catch(e){}
+      }catch(e){ if(__DEV__) console.warn("[Nexu] push setup error:",e?.message); }
     });
     supabase.auth.getSession().then(({data:{session}})=>{setSession(session);});
     const{data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>{setSession(session);});
@@ -53,7 +57,8 @@ export function AppProvider({children}){
 
   async function recargarSinLeer(){
     try{
-      const{data:{user}}=await supabase.auth.getUser();
+      const{data}=await supabase.auth.getUser();
+      const user=data?.user;
       if(!user)return;
       const{count}=await supabase
         .from("mensajes")
@@ -212,7 +217,7 @@ export function AppProvider({children}){
   async function cambiarModo(nuevoModo){
     setModoActivo(nuevoModo);
     if(session?.user?.id){
-      await AsyncStorage.setItem("modo_"+session.user.id, nuevoModo);
+      await AsyncStorage.setItem("nexu_rol_"+session.user.id, nuevoModo);
     }
   }
 

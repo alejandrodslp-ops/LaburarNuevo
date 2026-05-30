@@ -9,7 +9,7 @@ export async function registrar({ email, password, nombre, apellido1, apellido2,
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw error;
   if (data.user) {
-    await supabase.from('profiles').insert({
+    const { error: insertError } = await supabase.from('profiles').insert({
       id: data.user.id,
       nombre,
       apellido1,
@@ -17,6 +17,11 @@ export async function registrar({ email, password, nombre, apellido1, apellido2,
       rol,
       codigo_referido: generarCodigo(),
     });
+    if (insertError) {
+      // Rollback: cerrar sesión para no dejar al usuario en estado inconsistente
+      await supabase.auth.signOut().catch(() => {});
+      throw new Error('Error al crear el perfil. Intentá registrarte de nuevo.');
+    }
   }
   return data;
 }

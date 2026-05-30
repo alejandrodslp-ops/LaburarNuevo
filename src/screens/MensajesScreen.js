@@ -49,17 +49,21 @@ export default function MensajesScreen({navigation}){
 
   useEffect(()=>{
     let canal=null;
-    cargar().then(async()=>{
-      const{data:{user}}=await supabase.auth.getUser().catch(()=>({data:{user:null}}));
-      if(!user)return;
+    let montado=true;
+    (async()=>{
+      await cargar();
+      if(!montado)return;
+      const{data}=await supabase.auth.getUser().catch(()=>({data:{user:null}}));
+      const user=data?.user;
+      if(!user||!montado)return;
       canal=supabase.channel("mensajes_screen_"+user.id)
-        .on("postgres_changes",{event:"INSERT",schema:"public",table:"propuestas",filter:`worker_id=eq.${user.id}`},()=>cargar())
-        .on("postgres_changes",{event:"INSERT",schema:"public",table:"mensajes",filter:`receiver_id=eq.${user.id}`},()=>cargar())
-        .on("postgres_changes",{event:"DELETE",schema:"public",table:"mensajes",filter:`sender_id=eq.${user.id}`},()=>cargar())
-        .on("postgres_changes",{event:"DELETE",schema:"public",table:"mensajes",filter:`receiver_id=eq.${user.id}`},()=>cargar())
+        .on("postgres_changes",{event:"INSERT",schema:"public",table:"propuestas",filter:`worker_id=eq.${user.id}`},()=>{ if(montado) cargar(); })
+        .on("postgres_changes",{event:"INSERT",schema:"public",table:"mensajes",filter:`receiver_id=eq.${user.id}`},()=>{ if(montado) cargar(); })
+        .on("postgres_changes",{event:"DELETE",schema:"public",table:"mensajes",filter:`sender_id=eq.${user.id}`},()=>{ if(montado) cargar(); })
+        .on("postgres_changes",{event:"DELETE",schema:"public",table:"mensajes",filter:`receiver_id=eq.${user.id}`},()=>{ if(montado) cargar(); })
         .subscribe();
-    });
-    return()=>{ if(canal) supabase.removeChannel(canal); };
+    })();
+    return()=>{ montado=false; if(canal) supabase.removeChannel(canal); };
   },[]);
   useEffect(()=>{const u=navigation.addListener("focus",cargar);return u;},[navigation]);
 

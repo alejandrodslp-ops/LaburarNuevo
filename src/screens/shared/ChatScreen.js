@@ -42,17 +42,24 @@ export default function ChatScreen({navigation,route}){
   const[empProfile,setEmpProfile]=useState(null);
   const flatRef=useRef(null);
   const channelRef=useRef(null);
+  const montadoRef=useRef(true);
 
   useEffect(()=>{
+    montadoRef.current=true;
     iniciar();
-    return()=>{if(channelRef.current)supabase.removeChannel(channelRef.current);};
+    return()=>{
+      montadoRef.current=false;
+      if(channelRef.current)supabase.removeChannel(channelRef.current);
+    };
   },[]);
 
   async function iniciar(){
-    const{data:{user}}=await supabase.auth.getUser();
-    if(!user)return;
+    const{data}=await supabase.auth.getUser().catch(()=>({data:{user:null}}));
+    const user=data?.user;
+    if(!user||!montadoRef.current)return;
     setUserId(user.id);
     await Promise.all([cargarMensajes(user.id),cargarOferta()]);
+    if(!montadoRef.current)return;
     suscribir(user.id);
     marcarLeidos(user.id);
   }
