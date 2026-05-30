@@ -487,7 +487,7 @@ export default function EditarPerfilScreen({navigation,route}){
         </View>
         {/* Búsqueda inteligente — para usuarios sin categorías formales */}
         <View style={ss.sec}>
-          <Text style={[ss.stit,{fontWeight:"900"}]}>BÚSQUEDA DIARIA DE LLAMADOS</Text>
+          <Text style={[ss.stit,{fontWeight:"900",color:"#1A1020"}]}>BÚSQUEDA DIARIA DE LLAMADOS</Text>
           <Text style={{fontSize:13,color:"#A898B8",marginBottom:12,lineHeight:19}}>
             Si no encontrás tu oficio en la lista de arriba, describí con tus palabras qué podés hacer. Nexu va a buscar oportunidades que coincidan en diarios y portales de tu zona.
           </Text>
