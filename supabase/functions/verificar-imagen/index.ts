@@ -30,15 +30,21 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "base64 requerido" }), { status: 400, headers: CORS });
   }
 
-  // Solo verificar con Vision API si el usuario tiene perfil activo (pagó).
-  // Si no pagó, su perfil no es visible de todas formas — sin costo hasta que haya ingreso real.
+  // Solo llamar a Vision API cuando el perfil es verdaderamente público:
+  // pagó + perfil_activo_hasta vigente. Período de prueba no alcanza.
+  // Sin pago el usuario puede subir y ver su propia foto, pero nadie más la ve — costo $0.
   const { data: perfil } = await supabase
     .from("profiles")
-    .select("perfil_activo")
+    .select("perfil_activo, perfil_activo_hasta")
     .eq("id", user.id)
     .single();
 
-  if (!perfil?.perfil_activo) {
+  const verdaderamentePublico =
+    perfil?.perfil_activo === true &&
+    perfil?.perfil_activo_hasta &&
+    new Date(perfil.perfil_activo_hasta) > new Date();
+
+  if (!verdaderamentePublico) {
     return new Response(JSON.stringify({ segura: true, sin_verificar: true }), {
       headers: { "Content-Type": "application/json", ...CORS },
     });
