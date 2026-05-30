@@ -97,7 +97,7 @@ function HomeHeader({ nombre, activo, diasRestantes, vistas, contactos, onActiva
 // ── Card banners de sector ────────────────────────────────────────────────────
 function SectorCard({ icon, badge, title, sub, color, onPress }) {
   return (
-    <TouchableOpacity style={[ss.sectorCard, { backgroundColor: COLORS.arena }]} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity style={[ss.sectorCard, { backgroundColor: '#1A2640' }]} onPress={onPress} activeOpacity={0.85}>
       <View style={[ss.sectorIcon, { backgroundColor: color }]}>
         <Text style={{ fontSize: 20 }}>{icon}</Text>
       </View>
@@ -117,7 +117,7 @@ function SectorCard({ icon, badge, title, sub, color, onPress }) {
 function EmpleadorCards({ navigation }) {
   return (
     <View style={{ marginBottom: SIZES.md }}>
-      <TouchableOpacity style={[ss.sectorCard,{backgroundColor:COLORS.arena}]} onPress={()=>navigation.navigate('Buscar')} activeOpacity={0.85}>
+      <TouchableOpacity style={[ss.sectorCard,{backgroundColor:'#1A2640'}]} onPress={()=>navigation.navigate('Buscar')} activeOpacity={0.85}>
         <View style={[ss.sectorIcon,{backgroundColor:'#4DC8C4'}]}>
           <Text style={{fontSize:20}}>🔍</Text>
         </View>
@@ -130,7 +130,7 @@ function EmpleadorCards({ navigation }) {
         </View>
         <Text style={ss.sectorArrow}>›</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[ss.sectorCard,{backgroundColor:COLORS.arena}]} onPress={()=>navigation.navigate('Ofertas')} activeOpacity={0.85}>
+      <TouchableOpacity style={[ss.sectorCard,{backgroundColor:'#1A2640'}]} onPress={()=>navigation.navigate('Ofertas')} activeOpacity={0.85}>
         <View style={[ss.sectorIcon,{backgroundColor:'#E65100'}]}>
           <Text style={{fontSize:20}}>📋</Text>
         </View>
