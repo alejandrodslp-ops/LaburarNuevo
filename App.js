@@ -395,7 +395,7 @@ function Navigation({navigationRef,onTabChange}){
             <Text style={{fontSize:16,position:"absolute",bottom:2,right:-8}}>🧩</Text>
           </View>
         </View>
-        <Text style={{fontSize:22,fontWeight:"700",color:"#FFFFFF",letterSpacing:-0.3}}>Bienvenidos</Text>
+        <Text style={{fontSize:22,fontWeight:"700",color:"#FFFFFF",letterSpacing:-0.3}}>Bienvenido</Text>
         <ActivityIndicator size="small" color="rgba(255,255,255,0.4)"/>
       </LinearGradient>
     );
