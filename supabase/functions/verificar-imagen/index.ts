@@ -30,8 +30,21 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: "base64 requerido" }), { status: 400, headers: CORS });
   }
 
+  // Solo verificar con Vision API si el usuario tiene perfil activo (pagó).
+  // Si no pagó, su perfil no es visible de todas formas — sin costo hasta que haya ingreso real.
+  const { data: perfil } = await supabase
+    .from("profiles")
+    .select("perfil_activo")
+    .eq("id", user.id)
+    .single();
+
+  if (!perfil?.perfil_activo) {
+    return new Response(JSON.stringify({ segura: true, sin_verificar: true }), {
+      headers: { "Content-Type": "application/json", ...CORS },
+    });
+  }
+
   if (!VISION_KEY) {
-    // Si no hay key configurada, dejar pasar (modo desarrollo)
     return new Response(JSON.stringify({ segura: true, sin_key: true }), {
       headers: { "Content-Type": "application/json", ...CORS },
     });
