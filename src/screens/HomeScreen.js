@@ -215,8 +215,8 @@ export default function HomeScreen({ navigation }) {
 
   async function cargar() {
     try {
-      const { data } = await supabase.auth.getUser();
-      const user = data?.user;
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData?.user;
       if (!user || !montadoRef.current) return;
 
       const { data } = await supabase
