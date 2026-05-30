@@ -113,7 +113,8 @@ export default function ConcursaDetalleScreen({ route, navigation }) {
             <Row
               label="Cierre"
               value={`${formatFecha(c.fecha_cierre)}${dias !== null ? ` (${dias > 0 ? `en ${dias} días` : 'vencido'})` : ''}`}
-              highlight={dias !== null && dias <= 7 && dias >= 0}
+              highlight={dias !== null && dias <= 5 && dias >= 0}
+              highlightColor={dias <= 2 ? '#FF9800' : '#FFC107'}
             />
           )}
         </View>
@@ -166,11 +167,11 @@ export default function ConcursaDetalleScreen({ route, navigation }) {
   );
 }
 
-function Row({ label, value, highlight }) {
+function Row({ label, value, highlight, highlightColor }) {
   return (
     <View style={ss.row}>
       <Text style={ss.rowLabel}>{label}</Text>
-      <Text style={[ss.rowValue, highlight && { color: '#C2410C', fontWeight: '700' }]}>{value}</Text>
+      <Text style={[ss.rowValue, highlight && { color: highlightColor || '#C2410C', fontWeight: '700' }]}>{value}</Text>
     </View>
   );
 }

@@ -107,8 +107,8 @@ function LlamadoCard({ match, onPress }) {
             {esNoticia
               ? diasPublicado() !== null && <Text style={styles.diasText}>🕐 Hace {diasPublicado() === 0 ? 'hoy' : `${diasPublicado()} día${diasPublicado() !== 1 ? 's' : ''}`}</Text>
               : dias !== null && (
-                  <Text style={[styles.diasText, dias <= 2 && { color: '#FF6D00', fontWeight: '700' }, dias > 2 && dias <= 7 && { color: '#FF9800', fontWeight: '700' }, dias > 7 && dias <= 14 && { color: '#FFC107', fontWeight: '600' }]}>
-                    {dias > 0 ? (dias <= 2 ? `🟠 ${t('cierra_en_n', { n: dias })}` : dias <= 7 ? `🟡 ${t('cierra_en_n', { n: dias })}` : t('cierra_en_n', { n: dias })) : t('ultimo_dia')}
+                  <Text style={[styles.diasText, dias <= 2 && { color: '#FF9800', fontWeight: '700' }, dias > 2 && dias <= 5 && { color: '#FFC107', fontWeight: '700' }]}>
+                    {dias > 0 ? (dias <= 2 ? `🟠 ${t('cierra_en_n', { n: dias })}` : dias <= 5 ? `🟡 ${t('cierra_en_n', { n: dias })}` : t('cierra_en_n', { n: dias })) : t('ultimo_dia')}
                   </Text>
                 )
             }
