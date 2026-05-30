@@ -215,7 +215,7 @@ export default function EditarPerfilScreen({navigation,route}){
         if(data.perfil_visible!=null)setVis(data.perfil_visible);
         if(data.avatar_url)setAvatar(data.avatar_url);
 
-      }catch(e){console.log(e);}
+      }catch(e){if(__DEV__)console.warn('[EditarPerfil]',e?.message);}
   },[]);
   useEffect(()=>{cargarPerfil();},[cargarPerfil]);
 

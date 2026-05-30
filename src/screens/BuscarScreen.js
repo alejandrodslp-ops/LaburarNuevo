@@ -1,5 +1,5 @@
 import NexuWatermark from '../components/NexuWatermark';
-import React,{useState,useEffect} from 'react';
+import React,{useState,useEffect,useRef} from 'react';
 import{View,Text,ScrollView,TouchableOpacity,TextInput,StyleSheet,ActivityIndicator,Keyboard}from'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{supabase}from '../services/supabase';
@@ -71,7 +71,7 @@ function Card({item,onContactar}){
       </View>
       {tags.length>0&&(
         <View style={ss.tagsRow}>
-          {tags.map((tag,i)=>(<View key={i} style={ss.tag}><Text style={ss.tagTxt}>{trCat(tag,idioma)}</Text></View>))}
+          {tags.map((tag)=>(<View key={tag} style={ss.tag}><Text style={ss.tagTxt}>{trCat(tag,idioma)}</Text></View>))}
         </View>
       )}
       <TouchableOpacity style={ss.btnContactar} onPress={()=>onContactar(item)}>
@@ -91,6 +91,7 @@ export default function BuscarScreen({navigation}){
   const[resultados,setResultados]=useState([]);
   const[loading,setLoading]=useState(false);
   const[total,setTotal]=useState(0);
+  const queryIdRef=useRef(0);
   const[visDisp,setVisDisp]=useState(0);
 
   const CATS=CATS_DEF.map(c=>({...c,label:trCat(c.id,idioma)}));
@@ -145,6 +146,7 @@ export default function BuscarScreen({navigation}){
   function toggleFiltro(f){const n=filtrosActivos.includes(f)?filtrosActivos.filter(x=>x!==f):[...filtrosActivos,f];setFiltrosActivos(n);}
 
   async function ejecutar(zona,oficio,cat,filtros){
+    const thisId=++queryIdRef.current;
     setLoading(true);
     try{
       const{data:{user}}=await supabase.auth.getUser();
@@ -168,9 +170,14 @@ export default function BuscarScreen({navigation}){
       if(filtros.includes('Disponible ya'))q=q.eq('disponibilidad','Inmediata');
       const{data,error}=await q.limit(20);
       if(error)throw error;
+      if(thisId!==queryIdRef.current)return;
       setResultados(data||[]);setTotal((data||[]).length);
-    }catch(e){console.log(e.message);setResultados([]);setTotal(0);}
-    finally{setLoading(false);}
+    }catch(e){
+      if(thisId!==queryIdRef.current)return;
+      if(__DEV__)console.warn('[Buscar]',e.message);
+      setResultados([]);setTotal(0);
+    }
+    finally{if(thisId===queryIdRef.current)setLoading(false);}
   }
 
   async function onContactar(item){
@@ -218,7 +225,7 @@ export default function BuscarScreen({navigation}){
             <TextInput style={ss.searchInput} placeholder={t('buscar_placeholder_oficio')} placeholderTextColor="#A898B8" value={busqueda} onChangeText={onTexto} onSubmitEditing={onSubmit} returnKeyType="search"/>
             {busqueda.length>0&&<TouchableOpacity onPress={onLimpiar}><Text style={{fontSize:16,color:'#A898B8',marginLeft:8}}>✕</Text></TouchableOpacity>}
           </View>
-          {sugs.length>0&&(<View style={ss.suggBox}>{sugs.map((s,i)=>(<TouchableOpacity key={i} style={ss.suggItem} onPress={()=>onSug(s)}><Text style={ss.suggTxt}>🔍 {s}</Text></TouchableOpacity>))}</View>)}
+          {sugs.length>0&&(<View style={ss.suggBox}>{sugs.map((s)=>(<TouchableOpacity key={s} style={ss.suggItem} onPress={()=>onSug(s)}><Text style={ss.suggTxt}>🔍 {s}</Text></TouchableOpacity>))}</View>)}
           <View style={ss.privaBanner}>
             <Text>🔒</Text>
             <Text style={ss.privaBannerTxt}>{t('buscar_anonimo_banner')}</Text>

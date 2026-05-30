@@ -7,6 +7,7 @@ import{useApp}from "../services/AppContext";
 import{useI18n}from "../services/I18nContext";
 
 const C={coral:"#E8785A",indigo:"#2DD4BF",blanco:"#FFFFFF",crema:"#FBF8F4",cremaDark:"#F2EDE6",borde:"#EDE8E2",texto1:"#1A1020",texto2:"#5A4E6A",texto3:"#A898B8"};
+const ListSeparator=()=><View style={{height:1,backgroundColor:C.borde,marginLeft:72}}/>;
 
 function formatHora(iso){
   if(!iso)return"";
@@ -191,7 +192,7 @@ export default function MensajesScreen({navigation}){
           data={items}
           keyExtractor={i=>i.id}
           renderItem={({item})=><Row item={item} onPress={()=>onPresItem(item)} onLongPress={()=>onLongPressItem(item)}/>}
-          ItemSeparatorComponent={()=><View style={ss.sep}/>}
+          ItemSeparatorComponent={ListSeparator}
           showsVerticalScrollIndicator={false}
         />
       )}

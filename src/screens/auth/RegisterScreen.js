@@ -33,10 +33,14 @@ const[load,setLoad]=useState(false);
 const ROLES={worker:"Trabajador",employer:"Empleador",company:"Empresa"};
 
 async function handleRegistrar(){
-if(nombre1.trim().length<2){Alert.alert("Error","Ingresa tu primer nombre");return;}
-if(apellido1.trim().length<2){Alert.alert("Error","Ingresa tu primer apellido");return;}
-if(apellido2.trim().length<2){Alert.alert("Error","Ingresa tu segundo apellido");return;}
-if(!email.includes("@")){Alert.alert("Error","Email no valido");return;}
+const emailClean=email.trim().toLowerCase();
+const nombre1Clean=nombre1.trim();
+const apellido1Clean=apellido1.trim();
+const apellido2Clean=apellido2.trim();
+if(nombre1Clean.length<2){Alert.alert("Error","Ingresa tu primer nombre");return;}
+if(apellido1Clean.length<2){Alert.alert("Error","Ingresa tu primer apellido");return;}
+if(apellido2Clean.length<2){Alert.alert("Error","Ingresa tu segundo apellido");return;}
+if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailClean)){Alert.alert("Error","Email no valido");return;}
 if(pass.length<8){Alert.alert("Error","La contrasena debe tener al menos 8 caracteres");return;}
 if(!terminos){Alert.alert("Error","Debes aceptar los terminos y condiciones");return;}
 setLoad(true);
@@ -54,7 +58,7 @@ try{
 await AsyncStorage.setItem("coach_perfil_pendiente","true");
 await AsyncStorage.setItem("ir_a_editar_perfil","true");
 await AsyncStorage.setItem("verificar_email_pendiente","true");
-const resultado=await registrar({email,password:pass,nombre:nombre1,apellido1,apellido2,rol});
+const resultado=await registrar({email:emailClean,password:pass,nombre:nombre1Clean,apellido1:apellido1Clean,apellido2:apellido2Clean,rol});
 // Marcar como registrado en la waitlist (silencioso)
 supabase.functions.invoke('waitlist',{body:{accion:'registrado',email:email.trim().toLowerCase()}}).catch(()=>{});
 const refCode=await AsyncStorage.getItem("referral_code");

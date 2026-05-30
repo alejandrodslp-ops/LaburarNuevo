@@ -1,4 +1,4 @@
-import React,{createContext,useContext,useState,useEffect} from "react";
+import React,{createContext,useContext,useState,useEffect,useMemo,useCallback} from "react";
 import{supabase}from "./supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import{requestNotificationPermission}from "./notifications";
@@ -206,13 +206,13 @@ export function AppProvider({children}){
     }catch{setEmpleadorDatosCompletos(false);}
   }
 
-  function marcarPerfilCompleto(){setPerfilCompleto(true);}
-  function marcarEmpleadorDatosCompletos(){setEmpleadorDatosCompletos(true);}
-  function dismissCoach(){setCoachPendiente(false);}
-  function activarCoachEditar(){setCoachEditarPendiente(true);}
-  function dismissCoachEditar(){setCoachEditarPendiente(false);}
-  function clearEmailPendiente(){setEmailPendiente(false);}
-  function completarCalificacion(){setCalificacionPendiente(null);}
+  const marcarPerfilCompleto=useCallback(()=>setPerfilCompleto(true),[]);
+  const marcarEmpleadorDatosCompletos=useCallback(()=>setEmpleadorDatosCompletos(true),[]);
+  const dismissCoach=useCallback(()=>setCoachPendiente(false),[]);
+  const activarCoachEditar=useCallback(()=>setCoachEditarPendiente(true),[]);
+  const dismissCoachEditar=useCallback(()=>setCoachEditarPendiente(false),[]);
+  const clearEmailPendiente=useCallback(()=>setEmailPendiente(false),[]);
+  const completarCalificacion=useCallback(()=>setCalificacionPendiente(null),[]);
 
   async function cambiarModo(nuevoModo){
     setModoActivo(nuevoModo);
@@ -221,8 +221,19 @@ export function AppProvider({children}){
     }
   }
 
+  const value=useMemo(()=>({
+    session,modoActivo,cambiarModo,suscripcionActiva,setSuscripcionActiva,
+    coachPendiente,dismissCoach,coachEditarPendiente,activarCoachEditar,dismissCoachEditar,
+    mensajesSinLeer,recargarSinLeer,perfilCompleto,marcarPerfilCompleto,
+    empleadorDatosCompletos,marcarEmpleadorDatosCompletos,
+    emailPendiente,clearEmailPendiente,calificacionPendiente,completarCalificacion,
+  }),[
+    session,modoActivo,suscripcionActiva,coachPendiente,coachEditarPendiente,
+    mensajesSinLeer,perfilCompleto,empleadorDatosCompletos,emailPendiente,calificacionPendiente,
+  ]);
+
   return(
-    <AppContext.Provider value={{session,modoActivo,cambiarModo,suscripcionActiva,setSuscripcionActiva,coachPendiente,dismissCoach,coachEditarPendiente,activarCoachEditar,dismissCoachEditar,mensajesSinLeer,recargarSinLeer,perfilCompleto,marcarPerfilCompleto,empleadorDatosCompletos,marcarEmpleadorDatosCompletos,emailPendiente,clearEmailPendiente,calificacionPendiente,completarCalificacion}}>
+    <AppContext.Provider value={value}>
       {children}
     </AppContext.Provider>
   );

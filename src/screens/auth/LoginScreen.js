@@ -18,12 +18,13 @@ const[ver,setVer]=useState(false);
 const[load,setLoad]=useState(false);
 
 async function handleLogin(){
-if(!email.includes("@")){Alert.alert(t('error'),t('email_no_valido'));return;}
+const emailClean=email.trim().toLowerCase();
+if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailClean)){Alert.alert(t('error'),t('email_no_valido'));return;}
 if(pass.length<6){Alert.alert(t('error'),t('contrasena_corta'));return;}
 setLoad(true);
 try{
 await AsyncStorage.setItem('nexu_rol_pending',rolSeleccionado);
-await login({email,password:pass});
+await login({email:emailClean,password:pass});
 }catch(e){
 await AsyncStorage.removeItem('nexu_rol_pending');
 Alert.alert(t('error_sesion'),e.message||t('intentalo_nuevo'));

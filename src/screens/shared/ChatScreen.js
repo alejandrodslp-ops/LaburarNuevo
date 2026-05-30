@@ -246,7 +246,7 @@ export default function ChatScreen({navigation,route}){
         <FlatList
           ref={flatRef}
           data={msgs}
-          keyExtractor={i=>i.id?.toString()||Math.random().toString()}
+          keyExtractor={i=>i.id?.toString()??i.created_at}
           renderItem={({item})=><Burbuja m={item}/>}
           ListHeaderComponent={esNexu?null:<OfertaCard/>}
           contentContainerStyle={ss.lista}

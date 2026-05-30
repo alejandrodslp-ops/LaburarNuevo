@@ -13,6 +13,7 @@ const SMS_TEXTO='NEXU ACTIVAR';
 export default function PagoActivacionScreen({navigation}){
   const[loadingMP,setLoadingMP]=useState(false);
   const[loadingTarjeta,setLoadingTarjeta]=useState(false);
+  const[loadingSMS,setLoadingSMS]=useState(false);
   const[esperando,setEsperando]=useState(false);
   const[mostrarAyuda,setMostrarAyuda]=useState(false);
   const intervaloRef=useRef(null);
@@ -90,6 +91,8 @@ export default function PagoActivacionScreen({navigation}){
   }
 
   async function handleSMS(){
+    if(loadingSMS||esperando)return;
+    setLoadingSMS(true);
     try{
       const isAvailable=await SMS.isAvailableAsync();
       if(!isAvailable){Alert.alert('SMS no disponible','Tu dispositivo no soporta envío de SMS.');return;}
@@ -102,6 +105,7 @@ export default function PagoActivacionScreen({navigation}){
       const{result}=await SMS.sendSMSAsync([SMS_NUMERO],SMS_TEXTO);
       if(result==='sent'||result==='unknown') setEsperando(true);
     }catch(e){Alert.alert('Error','No se pudo enviar el SMS.');}
+    finally{setLoadingSMS(false);}
   }
 
   return(
@@ -167,7 +171,7 @@ export default function PagoActivacionScreen({navigation}){
           </LinearGradient>
         </TouchableOpacity>
 
-        <TouchableOpacity style={ss.btnWrap} onPress={handleSMS} disabled={esperando}>
+        <TouchableOpacity style={ss.btnWrap} onPress={handleSMS} disabled={loadingSMS||esperando}>
           <LinearGradient colors={['#7C3AED','#5B21B6']} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
             <Text style={ss.btnTxt}>📱 Pagar con SMS</Text>
           </LinearGradient>
