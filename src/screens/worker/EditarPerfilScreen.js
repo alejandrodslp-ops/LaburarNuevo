@@ -9,7 +9,7 @@ import{supabase}from "../../services/supabase";
 import{useI18n}from "../../services/I18nContext";
 import{useApp}from "../../services/AppContext";
 import{trItem,trArray,SERVICIOS_TR,PROFESIONES_TR,SUBCATS_TR,SEXOS_TR,ESTADOS_TR,DISPS_TR,TIPOS_TR,LANGS_TR,TECNICATURAS_POR_PAIS,LICENCIATURAS_POR_PAIS}from "../../data/oficios";
-const VISION_KEY="AIzaSyDIrHU7wnjh2aGQwRPaDF4mMr33acuoCxk";
+// VISION_KEY removida — la moderación de imágenes se hace en la edge function verificar-imagen
 const MONEDA_LOCAL_POR_PAIS={"Uruguay":"UYU","Argentina":"ARS","Brasil":"BRL","Chile":"CLP","Paraguay":"PYG","Bolivia":"BOB","Perú":"PEN","Peru":"PEN","Colombia":"COP","México":"MXN","Mexico":"MXN","Ecuador":"USD","Venezuela":"VES","Cuba":"CUP","Costa Rica":"CRC","Guatemala":"GTQ","El Salvador":"USD","Honduras":"HNL","Nicaragua":"NIO","Panamá":"PAB","República Dominicana":"DOP","España":"EUR","Spain":"EUR","Portugal":"EUR","Francia":"EUR","France":"EUR","Italia":"EUR","Italy":"EUR","Alemania":"EUR","Germany":"EUR","Reino Unido":"GBP","United Kingdom":"GBP","Estados Unidos":"USD","United States":"USD","Canadá":"CAD","Canada":"CAD","Australia":"AUD","Suecia":"SEK","Sweden":"SEK","Noruega":"NOK","Norway":"NOK","Japón":"JPY","Japan":"JPY","India":"INR"};
 const SIMBOLOS_MONEDA={"UYU":"$U","USD":"US$","ARS":"$","BRL":"R$","CLP":"$","PEN":"S/","COP":"$","MXN":"$","PYG":"₲","BOB":"Bs.","VES":"Bs.S","CUP":"$MN","CRC":"₡","GTQ":"Q","HNL":"L","NIO":"C$","PAB":"B/.","DOP":"RD$","EUR":"€","GBP":"£","CAD":"CA$","AUD":"AU$","JPY":"¥","SEK":"kr","NOK":"kr","INR":"₹"};
 const BARRIOS_POR_CIUDAD={"Montevideo":["Ciudad Vieja","Centro","Cordon","Palermo","Pocitos","Buceo","Malvin","Punta Carretas","Parque Rodo","Tres Cruces","Aguada","Goes","La Blanqueada","Union","Colon","Sayago","Paso de la Arena","Carrasco","Prado","Bella Vista","Cerro","La Teja","Nuevo Paris","Penarol","Piedras Blancas","Manga","Casabo","Lezica","Maronas"],"Buenos Aires":["Palermo","Recoleta","San Telmo","La Boca","Belgrano","Caballito","Villa Crespo","Almagro","Boedo","Flores","Floresta","Villa del Parque","Coghlan","Saavedra","Nunez","Colegiales","Chacarita","Paternal","Villa Urquiza","Devoto","Monte Castro","Mataderos","Liniers","Lugano","Soldati","Pompeya","Barracas","Constitucion","Monserrat","San Nicolas","Retiro","Puerto Madero"],"Santiago":["Las Condes","Providencia","Vitacura","Lo Barnechea","La Reina","Nunoa","Santiago Centro","Independencia","Recoleta","Conchalí","Huechuraba","Quilicura","Pudahuel","Cerro Navia","Lo Prado","Quinta Normal","Estacion Central","Maipu","Cerrillos","San Miguel","La Cisterna","La Florida","Penalolen","Macul"],"Lima":["Miraflores","San Isidro","Barranco","Surco","La Molina","San Borja","Pueblo Libre","Jesus Maria","Lince","Magdalena","San Miguel","Callao","Rimac","La Victoria","Ate","Santa Anita","San Juan de Lurigancho","Comas","Los Olivos","San Martin de Porres"],"Bogota":["Chapinero","Usaquen","Suba","Engativa","Fontibon","Kennedy","Bosa","Ciudad Bolivar","San Cristobal","Usme","Tunjuelito","Teusaquillo","Barrios Unidos","Santa Fe"],"Ciudad de Mexico":["Condesa","Roma","Polanco","Coyoacan","San Angel","Tlalpan","Iztapalapa","Gustavo A Madero","Azcapotzalco","Miguel Hidalgo","Cuauhtemoc","Benito Juarez","Alvaro Obregon","Iztacalco","Venustiano Carranza"],"Sao Paulo":["Jardins","Moema","Vila Madalena","Pinheiros","Itaim Bibi","Morumbi","Lapa","Barra Funda","Consolacao","Liberdade","Bela Vista","Republica","Santa Cecilia","Higienopolis","Perdizes","Butanta"]};
@@ -279,11 +279,8 @@ export default function EditarPerfilScreen({navigation,route}){
       if(result.canceled)return;
       const asset=result.assets[0];
       setAvatarUploading(true);
-      const visionRes=await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${VISION_KEY}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({requests:[{image:{content:asset.base64},features:[{type:"SAFE_SEARCH_DETECTION"}]}]})});
-      const visionData=await visionRes.json();
-      const safe=visionData.responses?.[0]?.safeSearchAnnotation;
-      const bloqueado=["LIKELY","VERY_LIKELY"];
-      if(bloqueado.includes(safe?.adult)||bloqueado.includes(safe?.violence)||bloqueado.includes(safe?.racy)){
+      const{data:visionData,error:visionErr}=await supabase.functions.invoke("verificar-imagen",{body:{base64:asset.base64}});
+      if(!visionErr&&visionData?.segura===false){
         Alert.alert(t('foto_no_permitida_tit'),t('foto_no_permitida_msg'));
         setAvatarUploading(false);
         return;

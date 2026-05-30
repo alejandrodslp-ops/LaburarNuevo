@@ -39,8 +39,22 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}));
 
+  // ── Modo usuario: el propio usuario recién registrado solicita su bienvenida ──
+  // No requiere admin_secret — se autentica con su propio JWT
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (authHeader && body?.user_id && !body?.admin_secret) {
+    const verifier = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: { user }, error } = await verifier.auth.getUser(authHeader.replace("Bearer ", ""));
+    // Solo puede enviarse a sí mismo
+    if (!error && user && user.id === body.user_id) {
+      const ok = await enviarA(db, body.user_id, body?.rol);
+      return new Response(JSON.stringify({ ok }), { headers: CORS });
+    }
+    return new Response(JSON.stringify({ error: "No autorizado" }), { status: 401, headers: CORS });
+  }
+
   // ── Modo admin: enviar a usuario específico ───────────────────
-  if (body?.admin_secret === ADMIN_SECRET && body?.user_id) {
+  if (ADMIN_SECRET && body?.admin_secret === ADMIN_SECRET && body?.user_id) {
     const ok = await enviarA(db, body.user_id, body?.rol);
     return new Response(JSON.stringify({ ok }), { headers: CORS });
   }

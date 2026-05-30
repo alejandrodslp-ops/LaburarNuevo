@@ -59,7 +59,7 @@ const resultado=await registrar({email,password:pass,nombre:nombre1,apellido1,ap
 supabase.functions.invoke('waitlist',{body:{accion:'registrado',email:email.trim().toLowerCase()}}).catch(()=>{});
 const refCode=await AsyncStorage.getItem("referral_code");
 if(refCode){await acreditarReferido(refCode,resultado?.user?.id);await AsyncStorage.removeItem("referral_code");}
-if(resultado?.user?.id){supabase.functions.invoke("mensaje-bienvenida",{body:{admin_secret:"nexu-admin-2026",user_id:resultado.user.id,rol}}).catch(()=>{});}
+if(resultado?.user?.id){supabase.functions.invoke("mensaje-bienvenida",{body:{user_id:resultado.user.id,rol}}).catch(()=>{});}
 // Si hay session automatica, AppContext detecta el flag y navega a VerificarEmail
 }catch(e){
 await AsyncStorage.removeItem("coach_perfil_pendiente");
@@ -74,7 +74,7 @@ if(esEmailExistente){
     if(loginErr)throw new Error("Ese correo ya tiene una cuenta registrada. Verificá tu contraseña e intentá iniciar sesión.");
     // Guardar el rol seleccionado para esta sesión
     await AsyncStorage.setItem('nexu_rol_pending',rol);
-    supabase.functions.invoke("mensaje-bienvenida",{body:{admin_secret:"nexu-admin-2026",user_id:loginData.user.id,rol}}).catch(()=>{});
+    supabase.functions.invoke("mensaje-bienvenida",{body:{user_id:loginData.user.id,rol}}).catch(()=>{});
     // onAuthStateChange en AppContext se encarga del resto
   }catch(loginErr){
     Alert.alert("Correo ya registrado",loginErr.message||"Ese correo ya tiene una cuenta. Iniciá sesión desde la pantalla de login.");
