@@ -489,7 +489,7 @@ export default function EditarPerfilScreen({navigation,route}){
         <View style={ss.sec}>
           <Text style={ss.stit}>BÚSQUEDA DIARIA DE LLAMADOS</Text>
           <Text style={{fontSize:13,color:"#A898B8",marginBottom:12,lineHeight:19}}>
-            Si no encontrás tu oficio en la lista de arriba, describí con tus palabras qué podés ofrecer. Nexu va a buscar llamados y oportunidades que coincidan en diarios, portales y bases públicas de 32 países.
+            Si no encontrás tu oficio en la lista de arriba, describí con tus palabras qué podés hacer. Nexu va a buscar oportunidades que coincidan en diarios y portales de tu zona.
           </Text>
           <Field
             label="¿Qué podés ofrecer?"
