@@ -31,50 +31,73 @@ async function verificarAdmin(authHeader: string): Promise<{ email: string | nul
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
 async function getStats(db: ReturnType<typeof createClient>) {
-  const now      = new Date();
-  const weekAgo  = new Date(now.getTime() - 7  * 86400000).toISOString();
-  const monthAgo = new Date(now.getTime() - 30 * 86400000).toISOString();
+  const now      = new Date().toISOString();
+  const in7days  = new Date(Date.now() + 7  * 86400000).toISOString();
+  const weekAgo  = new Date(Date.now() - 7  * 86400000).toISOString();
+  const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
-  const { data: ps } = await db.from("profiles").select(
-    "id, pais, ciudad, perfil_activo, perfil_activo_hasta, periodo_gratis_hasta, avatar_url, visualizaciones_disponibles, created_at, vistas, contactos, rating, servicios, profesiones"
-  );
-  const arr = ps ?? [];
+  // Todos los COUNTs en paralelo — cero filas transferidas, solo números
+  const [
+    totalRes, activosRes, enPruebaRes, inactivosRes,
+    vencenRes, semanaRes, mesRes, sinFotoRes, conSaldoRes,
+    totalMensajesRes, mensajesSemanaRes,
+  ] = await Promise.all([
+    db.from("profiles").select("*", { count: "exact", head: true }),
+    db.from("profiles").select("*", { count: "exact", head: true })
+      .eq("perfil_activo", true).not("perfil_activo_hasta", "is", null).gt("perfil_activo_hasta", now),
+    db.from("profiles").select("*", { count: "exact", head: true })
+      .eq("perfil_activo", false).not("periodo_gratis_hasta", "is", null).gt("periodo_gratis_hasta", now),
+    db.from("profiles").select("*", { count: "exact", head: true })
+      .eq("perfil_activo", false).or(`periodo_gratis_hasta.is.null,periodo_gratis_hasta.lte.${now}`),
+    db.from("profiles").select("*", { count: "exact", head: true })
+      .eq("perfil_activo", true).not("perfil_activo_hasta", "is", null)
+      .gt("perfil_activo_hasta", now).lt("perfil_activo_hasta", in7days),
+    db.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", weekAgo),
+    db.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", monthAgo),
+    db.from("profiles").select("*", { count: "exact", head: true }).is("avatar_url", null),
+    db.from("profiles").select("*", { count: "exact", head: true }).gt("visualizaciones_disponibles", 0),
+    db.from("mensajes").select("*", { count: "exact", head: true }),
+    db.from("mensajes").select("*", { count: "exact", head: true }).gte("created_at", weekAgo),
+  ]);
 
-  const activos          = arr.filter((p: any) => p.perfil_activo && p.perfil_activo_hasta && new Date(p.perfil_activo_hasta) > now).length;
-  const enPrueba         = arr.filter((p: any) => !p.perfil_activo && p.periodo_gratis_hasta && new Date(p.periodo_gratis_hasta) > now).length;
-  const inactivos        = arr.filter((p: any) => !p.perfil_activo && (!p.periodo_gratis_hasta || new Date(p.periodo_gratis_hasta) <= now)).length;
-  const vencenEn7Dias    = arr.filter((p: any) => p.perfil_activo && p.perfil_activo_hasta && new Date(p.perfil_activo_hasta) > now && new Date(p.perfil_activo_hasta) < new Date(now.getTime() + 7 * 86400000)).length;
-  const nuevosEstaSemana = arr.filter((p: any) => p.created_at >= weekAgo).length;
-  const nuevosEsteMes    = arr.filter((p: any) => p.created_at >= monthAgo).length;
-  const sinFoto          = arr.filter((p: any) => !p.avatar_url).length;
-  const employersConSaldo= arr.filter((p: any) => (p.visualizaciones_disponibles ?? 0) > 0).length;
-  const perfilesCompletos= arr.filter((p: any) => p.avatar_url && ((p.servicios?.length ?? 0) > 0 || (p.profesiones?.length ?? 0) > 0)).length;
+  const totalUsuarios = totalRes.count    ?? 0;
+  const activos       = activosRes.count  ?? 0;
+  const enPrueba      = enPruebaRes.count ?? 0;
+  const inactivos     = inactivosRes.count ?? 0;
+  const vencenEn7Dias = vencenRes.count   ?? 0;
+  const sinFoto       = sinFotoRes.count  ?? 0;
+  const employersConSaldo = conSaldoRes.count ?? 0;
+
+  // Solo columnas necesarias para distribuciones y tendencias
+  const [{ data: distData }, { data: pgd }] = await Promise.all([
+    db.from("profiles").select("pais, ciudad, created_at, avatar_url, servicios, profesiones"),
+    db.from("pagos").select("monto, created_at, estado"),
+  ]);
+
+  const arr = distData ?? [];
 
   const porPais: Record<string,number> = {};
   const porCiudad: Record<string,number> = {};
+  const porHora: Record<number,number> = {};
+  let perfilesCompletos = 0;
+
   for (const p of arr as any[]) {
     if (p.pais)   porPais[p.pais]     = (porPais[p.pais]     ?? 0) + 1;
     if (p.ciudad) porCiudad[p.ciudad] = (porCiudad[p.ciudad] ?? 0) + 1;
+    if (p.created_at) porHora[new Date(p.created_at).getUTCHours()] = (porHora[new Date(p.created_at).getUTCHours()] ?? 0) + 1;
+    if (p.avatar_url && ((p.servicios?.length ?? 0) > 0 || (p.profesiones?.length ?? 0) > 0)) perfilesCompletos++;
   }
+
   const paises   = Object.entries(porPais).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([pais,count])=>({pais,count}));
   const ciudades = Object.entries(porCiudad).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([ciudad,count])=>({ciudad,count}));
-
-  // Horas pico de registro (UTC)
-  const porHora: Record<number,number> = {};
-  for (const p of arr as any[]) {
-    if (p.created_at) {
-      const h = new Date(p.created_at).getUTCHours();
-      porHora[h] = (porHora[h] ?? 0) + 1;
-    }
-  }
-  const horasPico = Object.entries(porHora)
-    .sort((a, b) => b[1] - a[1]).slice(0, 6)
+  const horasPico = Object.entries(porHora).sort((a,b)=>b[1]-a[1]).slice(0,6)
     .map(([h, count]) => ({ hora: `${String(h).padStart(2,'0')}:00`, count: Number(count) }));
 
   // Tendencia mensual — últimos 6 meses
   const mesesKeys: string[] = [];
   for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const d = new Date();
+    d.setMonth(d.getMonth() - i, 1);
     mesesKeys.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
   }
   const regPorMes: Record<string,number> = Object.fromEntries(mesesKeys.map(k => [k, 0]));
@@ -84,11 +107,10 @@ async function getStats(db: ReturnType<typeof createClient>) {
   }
   const registrosPorMes = mesesKeys.map(mes => ({ mes, count: regPorMes[mes] }));
 
-  const { data: pgd } = await db.from("pagos").select("monto, created_at, estado");
-  const aprobados    = (pgd ?? []).filter((p: any) => p.estado === "aprobado");
-  const ingresoTotal = aprobados.reduce((s: number, p: any) => s + (p.monto ?? 0), 0);
-  const ingresoSemana= aprobados.filter((p: any) => p.created_at >= weekAgo).reduce((s: number, p: any) => s + (p.monto ?? 0), 0);
-  const ingresoMes   = aprobados.filter((p: any) => p.created_at >= monthAgo).reduce((s: number, p: any) => s + (p.monto ?? 0), 0);
+  const aprobados = (pgd ?? []).filter((p: any) => p.estado === "aprobado");
+  const ingresoTotal  = aprobados.reduce((s: number, p: any) => s + (p.monto ?? 0), 0);
+  const ingresoSemana = aprobados.filter((p: any) => p.created_at >= weekAgo).reduce((s: number, p: any) => s + (p.monto ?? 0), 0);
+  const ingresoMes    = aprobados.filter((p: any) => p.created_at >= monthAgo).reduce((s: number, p: any) => s + (p.monto ?? 0), 0);
 
   const actPorMes: Record<string,number> = Object.fromEntries(mesesKeys.map(k => [k, 0]));
   for (const p of aprobados as any[]) {
@@ -97,54 +119,74 @@ async function getStats(db: ReturnType<typeof createClient>) {
   }
   const activacionesPorMes = mesesKeys.map(mes => ({ mes, count: actPorMes[mes] }));
 
-  // Mensajes enviados
-  const semanaAtras = new Date(now.getTime() - 7 * 86400000).toISOString();
-  const [{ count: totalMensajes }, { count: mensajesSemana }] = await Promise.all([
-    db.from("mensajes").select("*", { count: "exact", head: true }),
-    db.from("mensajes").select("*", { count: "exact", head: true }).gte("created_at", semanaAtras),
-  ]);
+  const tasaActivacion = totalUsuarios > 0 ? Math.round((activos / totalUsuarios) * 100) : 0;
 
-  const tasaActivacion = arr.length > 0 ? Math.round((activos / arr.length) * 100) : 0;
-
-  return ok({ totalUsuarios: arr.length, activos, enPrueba, inactivos, vencenEn7Dias, nuevosEstaSemana, nuevosEsteMes, sinFoto, employersConSaldo, paises, ciudades, ingresoTotal, ingresoSemana, ingresoMes, cantidadPagos: aprobados.length, registrosPorMes, activacionesPorMes, horasPico, totalMensajes: totalMensajes ?? 0, mensajesSemana: mensajesSemana ?? 0, tasaActivacion, perfilesCompletos });
+  return ok({
+    totalUsuarios, activos, enPrueba, inactivos, vencenEn7Dias,
+    nuevosEstaSemana: semanaRes.count ?? 0, nuevosEsteMes: mesRes.count ?? 0,
+    sinFoto, employersConSaldo, paises, ciudades,
+    ingresoTotal, ingresoSemana, ingresoMes, cantidadPagos: aprobados.length,
+    registrosPorMes, activacionesPorMes, horasPico,
+    totalMensajes: totalMensajesRes.count ?? 0, mensajesSemana: mensajesSemanaRes.count ?? 0,
+    tasaActivacion, perfilesCompletos,
+  });
 }
 
 // ── Listar ────────────────────────────────────────────────────────────────────
 async function listarUsuarios(db: ReturnType<typeof createClient>, params: any) {
-  const busqueda = ((params?.busqueda as string) ?? "").trim().toLowerCase();
-  const filtro   = (params?.filtro   as string) ?? "todos";
-  const paisFlt  = ((params?.pais    as string) ?? "").trim().toLowerCase();
-  const ciudadFlt= ((params?.ciudad  as string) ?? "").trim().toLowerCase();
-  const pagina   = Number(params?.pagina ?? 0);
-  const limite   = Number(params?.limite ?? 40);
+  const busqueda  = ((params?.busqueda as string) ?? "").trim();
+  const filtro    = (params?.filtro   as string) ?? "todos";
+  const paisFlt   = ((params?.pais    as string) ?? "").trim();
+  const ciudadFlt = ((params?.ciudad  as string) ?? "").trim();
+  const pagina    = Math.max(0, Number(params?.pagina ?? 0));
+  const limite    = Math.min(100, Math.max(1, Number(params?.limite ?? 40)));
+  const esEmailSearch = busqueda.includes("@");
 
   let q = db.from("profiles").select(
-    "id, nombre, apellido1, servicios, profesiones, pais, ciudad, perfil_activo, perfil_activo_hasta, vistas, contactos, rating, avatar_url, visualizaciones_disponibles, created_at"
+    "id, nombre, apellido1, servicios, profesiones, pais, ciudad, perfil_activo, perfil_activo_hasta, vistas, contactos, rating, avatar_url, visualizaciones_disponibles, created_at",
+    { count: "exact" }
   );
+
+  // Filtros en SQL — no en JS
   if (filtro === "activo")    q = q.eq("perfil_activo", true);
   if (filtro === "inactivo")  q = q.eq("perfil_activo", false);
   if (filtro === "con_saldo") q = q.gt("visualizaciones_disponibles", 0);
+  if (paisFlt)   q = q.ilike("pais",   `%${paisFlt}%`);
+  if (ciudadFlt) q = q.ilike("ciudad", `%${ciudadFlt}%`);
 
-  const { data: authData } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  // Búsqueda por nombre/apellido en SQL; búsqueda por email se resuelve en JS
+  if (busqueda && !esEmailSearch) {
+    q = q.or(`nombre.ilike.%${busqueda}%,apellido1.ilike.%${busqueda}%`);
+  }
+
+  q = q.order("created_at", { ascending: false });
+
+  // Paginación en SQL cuando no hay búsqueda por email
+  if (!esEmailSearch) {
+    q = q.range(pagina * limite, (pagina + 1) * limite - 1);
+  }
+
+  const [{ data: rawPerfiles, count: totalSQL }, { data: authData }] = await Promise.all([
+    q,
+    // Solo cargar emails si hay búsqueda por email; de lo contrario no es necesario
+    esEmailSearch
+      ? db.auth.admin.listUsers({ page: 1, perPage: 1000 })
+      : Promise.resolve({ data: { users: [] } }),
+  ]);
+
   const emailMap: Record<string,string> = {};
-  for (const u of authData?.users ?? []) emailMap[u.id] = u.email ?? "—";
+  for (const u of (authData as any)?.users ?? []) emailMap[u.id] = u.email ?? "—";
 
-  const { data: rawPerfiles } = await q.order("created_at", { ascending: false });
-  let filtrados = (rawPerfiles ?? []).map((p: any) => ({ ...p, email: emailMap[p.id] ?? "—" }));
+  let usuarios = (rawPerfiles ?? []).map((p: any) => ({ ...p, email: emailMap[p.id] ?? "—" }));
 
-  if (busqueda) filtrados = filtrados.filter((p: any) =>
-    p.nombre?.toLowerCase().includes(busqueda) ||
-    p.apellido1?.toLowerCase().includes(busqueda) ||
-    p.email?.toLowerCase().includes(busqueda) ||
-    p.ciudad?.toLowerCase().includes(busqueda) ||
-    p.pais?.toLowerCase().includes(busqueda) ||
-    p.servicios?.some((s: string) => s.toLowerCase().includes(busqueda)) ||
-    p.profesiones?.some((s: string) => s.toLowerCase().includes(busqueda))
-  );
-  if (paisFlt)   filtrados = filtrados.filter((p: any) => p.pais?.toLowerCase().includes(paisFlt));
-  if (ciudadFlt) filtrados = filtrados.filter((p: any) => p.ciudad?.toLowerCase().includes(ciudadFlt));
+  // Filtrado por email solo cuando aplica (en JS, inevitable)
+  if (esEmailSearch) {
+    const term = busqueda.toLowerCase();
+    usuarios = usuarios.filter((p: any) => p.email?.toLowerCase().includes(term));
+    return ok({ usuarios: usuarios.slice(pagina * limite, (pagina + 1) * limite), total: usuarios.length });
+  }
 
-  return ok({ usuarios: filtrados.slice(pagina*limite, (pagina+1)*limite), total: filtrados.length });
+  return ok({ usuarios, total: totalSQL ?? usuarios.length });
 }
 
 // ── Detalle ───────────────────────────────────────────────────────────────────
