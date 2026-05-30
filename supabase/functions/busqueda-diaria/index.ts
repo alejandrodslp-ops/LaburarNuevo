@@ -41,12 +41,15 @@ serve(async (req) => {
   }
 
   // 1. Cargar workers con búsqueda diaria activa
+  const MAX_POR_EJECUCION = 200;
+
   const { data: workers, error } = await supabase
     .from("profiles")
-    .select("id, pais, ciudad, servicios, profesiones, descripcion_libre, expo_push_token")
+    .select("id, pais, ciudad, servicios, profesiones, descripcion_libre")
     .eq("busqueda_diaria_on", true)
     .eq("perfil_activo", true)
-    .not("descripcion_libre", "is", null);
+    .not("descripcion_libre", "is", null)
+    .limit(MAX_POR_EJECUCION);
 
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   if (!workers?.length) return new Response(JSON.stringify({ ok: true, procesados: 0 }), {
@@ -63,7 +66,7 @@ serve(async (req) => {
     await Promise.allSettled(lote.map(async (w) => {
       try {
         // 2. Extraer keywords del texto libre + servicios/profesiones
-        const kwsLibre  = extraerKeywords(w.descripcion_libre || "");
+        const kwsLibre  = extraerKeywords((w.descripcion_libre || "").slice(0, 500));
         const kwsServ   = (w.servicios   || []).flatMap((s: string) => extraerKeywords(s)).slice(0, 4);
         const kwsProf   = (w.profesiones || []).flatMap((p: string) => extraerKeywords(p)).slice(0, 4);
         const keywords  = [...new Set([...kwsLibre, ...kwsServ, ...kwsProf])].slice(0, 6);
@@ -105,12 +108,15 @@ serve(async (req) => {
           notificado:      false,
         }));
 
-        await supabase
+        // Solo insertar los que NO existen ya — ignoreDuplicates descarta los viejos
+        const { count: insertados } = await supabase
           .from("concurso_matches")
-          .upsert(matches, { onConflict: "concurso_id,worker_id", ignoreDuplicates: true });
+          .upsert(matches, { onConflict: "concurso_id,worker_id", ignoreDuplicates: true })
+          .select("id", { count: "exact", head: true });
 
-        totalNuevos += matches.length;
-        console.log(`  ✓ Worker ${w.id}: ${matches.length} nuevos resultados`);
+        const nuevos = insertados ?? 0;
+        totalNuevos += nuevos;
+        if (nuevos > 0) console.log(`  ✓ Worker ${w.id}: ${nuevos} resultados nuevos`);
       } catch (e) {
         console.error(`  ❌ Worker ${w.id}:`, (e as Error).message);
       }

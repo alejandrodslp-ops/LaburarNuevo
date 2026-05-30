@@ -64,7 +64,7 @@ function LlamadoCard({ match, onPress }) {
   };
   const tag = tagConfig();
 
-  const stripeColor = esNoticia ? '#3B4FA8' : score >= 70 ? COLORS.menta : score >= 40 ? COLORS.coral : score >= 15 ? COLORS.gold : COLORS.indigo;
+  const stripeColor = esBusquedaPersonal ? '#7C3AED' : esNoticia ? '#3B4FA8' : score >= 70 ? COLORS.menta : score >= 40 ? COLORS.coral : score >= 15 ? COLORS.gold : COLORS.indigo;
   const bandera = BANDERAS[c.pais] || '🌍';
   const esPrivado = c.tipo_vinculo === 'privado';
 

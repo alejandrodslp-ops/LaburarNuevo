@@ -68,11 +68,10 @@ export async function scrapeGoogleNews(
     for (const item of items) {
       const titulo = extraerTag(item, 'title');
       const link   = extraerTag(item, 'link') || extraerTag(item, 'guid');
-      const pubDate = extraerTag(item, 'pubDate');
       const fuente_str = extraerTag(item, 'source') || 'Google News';
       if (!titulo || titulo.length < 5) continue;
 
-      const fuente_id = `${fuente}_${Buffer.from(link || titulo).toString('base64').slice(0, 40).replace(/[^a-zA-Z0-9]/g, '_')}`;
+      const fuente_id = `${fuente}_${btoa(encodeURIComponent((link || titulo).slice(0, 60))).slice(0, 40).replace(/[^a-zA-Z0-9]/g, '_')}`;
 
       rows.push({
         fuente_id,

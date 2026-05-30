@@ -322,8 +322,8 @@ export default function EditarPerfilScreen({navigation,route}){
     ];
     const tieneCategoria=serviciosFinales.length+profesionesFinales.length+tecnicaturasFinales.length>0;
     const tieneDescripcionLibre=descripcionLibre.trim().length>10;
-    if(!tieneCategoria&&!tieneDescripcionLibre){Alert.alert(t('error'),'Seleccioná al menos un servicio o profesión, o describí lo que podés ofrecer (mínimo 10 caracteres)');return;}
-    if(busquedaDiariaOn&&!tieneCategoria&&!tieneDescripcionLibre){Alert.alert(t('error'),'Para activar la búsqueda diaria necesitás describir qué ofrecés');return;}
+    if(busquedaDiariaOn&&!tieneDescripcionLibre&&!tieneCategoria){Alert.alert(t('error'),'Para activar la búsqueda diaria describí qué podés ofrecer (mínimo 10 caracteres)');return;}
+    if(!tieneCategoria&&!tieneDescripcionLibre){Alert.alert(t('error'),'Seleccioná al menos un servicio o profesión, o describí lo que podés ofrecer');return;}
     setSaving(true);
     try{
       const{data:{user}}=await supabase.auth.getUser();
@@ -494,7 +494,7 @@ export default function EditarPerfilScreen({navigation,route}){
           <Field
             label="¿Qué podés ofrecer?"
             value={descripcionLibre}
-            onChange={setDescripcionLibre}
+            onChange={v=>setDescripcionLibre(v.slice(0,500))}
             placeholder="Ej: cuido personas mayores, cocino, hago mandados y limpieza"
             multi
             optional
