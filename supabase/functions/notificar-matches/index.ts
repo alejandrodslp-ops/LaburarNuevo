@@ -12,8 +12,17 @@ const CORS = {
 };
 
 // Envía notificaciones push a workers que tienen matches nuevos sin notificar
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+
+  // Solo el cron interno (service_role) puede llamar esta función
+  if (req.headers.get("Authorization") !== `Bearer ${SERVICE_KEY}`) {
+    return new Response(JSON.stringify({ error: "No autorizado" }), {
+      status: 401, headers: { "Content-Type": "application/json", ...CORS },
+    });
+  }
 
   try {
     // Traer todos los matches que cumplen y no fueron notificados todavía

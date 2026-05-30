@@ -7,6 +7,31 @@ const supabase = createClient(
 );
 
 // ─────────────────────────────────────────────────────────────
+// PAIS_ISO — constante de módulo (antes estaba duplicada en dos funciones)
+// ─────────────────────────────────────────────────────────────
+const PAIS_ISO: Record<string, string> = {
+  "uruguay":"UY","argentina":"AR","chile":"CL","colombia":"CO",
+  "peru":"PE","perú":"PE","brasil":"BR","brazil":"BR",
+  "paraguay":"PY","bolivia":"BO","ecuador":"EC","venezuela":"VE",
+  "mexico":"MX","méxico":"MX","cuba":"CU",
+  "costa rica":"CR","panama":"PA","panamá":"PA",
+  "guatemala":"GT","el salvador":"SV",
+  "honduras":"HN","nicaragua":"NI",
+  "republica dominicana":"DO","república dominicana":"DO",
+  "espana":"ES","españa":"ES","spain":"ES",
+  "portugal":"PT","italia":"IT","italy":"IT",
+  "francia":"FR","france":"FR","alemania":"DE","germany":"DE",
+  "reino unido":"GB","united kingdom":"GB","uk":"GB",
+  "estados unidos":"US","united states":"US","usa":"US",
+  "canadá":"CA","canada":"CA",
+  "australia":"AU",
+  "suecia":"SE","sweden":"SE",
+  "noruega":"NO","norway":"NO",
+  "japon":"JP","japón":"JP","japan":"JP",
+  "india":"IN",
+};
+
+// ─────────────────────────────────────────────────────────────
 // IDIOMA POR PAÍS — para traducir keywords del perfil
 // ─────────────────────────────────────────────────────────────
 const PAIS_LANG: Record<string, string> = {
@@ -15,7 +40,8 @@ const PAIS_LANG: Record<string, string> = {
   IT: "it",
   PT: "pt", BR: "pt",
   GB: "en", US: "en", CA: "en", AU: "en",
-  // Todo lo demás → "es" (LatAm, ES, etc.)
+  SE: "en", NO: "en", IN: "en",
+  // Todo lo demás → "es" (LatAm, ES, JP, etc.)
 };
 
 // Traducciones de términos canónicos (guardados en español en DB)
@@ -304,24 +330,7 @@ function calcularScore(
   const totalUnicos = new Set(rawKws.map(normalizar)).size;
   let score = totalUnicos > 0 ? Math.round((matched.length / totalUnicos) * 80) : 0;
 
-  // Bonus país — normalizar nombre completo a código ISO
-  const PAIS_ISO: Record<string, string> = {
-    "uruguay":"UY","argentina":"AR","chile":"CL","colombia":"CO",
-    "peru":"PE","perú":"PE","brasil":"BR","brazil":"BR",
-    "paraguay":"PY","bolivia":"BO","ecuador":"EC","venezuela":"VE",
-    "mexico":"MX","méxico":"MX","cuba":"CU",
-    "costa rica":"CR","panama":"PA","panamá":"PA",
-    "guatemala":"GT","el salvador":"SV",
-    "honduras":"HN","nicaragua":"NI",
-    "republica dominicana":"DO","república dominicana":"DO",
-    "espana":"ES","españa":"ES","spain":"ES",
-    "portugal":"PT","italia":"IT","italy":"IT",
-    "francia":"FR","france":"FR","alemania":"DE","germany":"DE",
-    "reino unido":"GB","united kingdom":"GB","uk":"GB",
-    "estados unidos":"US","united states":"US","usa":"US",
-    "canadá":"CA","canada":"CA",
-    "australia":"AU",
-  };
+  // Bonus país
   const perfilPaisRaw = normalizar(perfil.pais || "uruguay");
   const perfilPaisISO = PAIS_ISO[perfilPaisRaw] || perfilPaisRaw.slice(0, 2).toUpperCase();
   if (perfilPaisISO === concurso.pais.toUpperCase()) score += 15;
@@ -357,24 +366,6 @@ async function matchWorker(workerId: string): Promise<{ procesados: number; erro
   if (perfilErr || !perfil) return { procesados: 0, error: perfilErr?.message };
   if (perfil.rol !== "worker") return { procesados: 0 };
 
-  // Normalizar nombre de país a código ISO
-  const PAIS_ISO: Record<string, string> = {
-    "uruguay":"UY","argentina":"AR","chile":"CL","colombia":"CO",
-    "peru":"PE","perú":"PE","brasil":"BR","brazil":"BR",
-    "paraguay":"PY","bolivia":"BO","ecuador":"EC","venezuela":"VE",
-    "mexico":"MX","méxico":"MX","cuba":"CU",
-    "costa rica":"CR","panama":"PA","panamá":"PA",
-    "guatemala":"GT","el salvador":"SV",
-    "honduras":"HN","nicaragua":"NI",
-    "republica dominicana":"DO","república dominicana":"DO",
-    "espana":"ES","españa":"ES","spain":"ES",
-    "portugal":"PT","italia":"IT","italy":"IT",
-    "francia":"FR","france":"FR","alemania":"DE","germany":"DE",
-    "reino unido":"GB","united kingdom":"GB","uk":"GB",
-    "estados unidos":"US","united states":"US","usa":"US",
-    "canadá":"CA","canada":"CA",
-    "australia":"AU",
-  };
   const paisRaw = (perfil.pais || "uruguay").toLowerCase()
     .normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
   const pais = PAIS_ISO[paisRaw] || paisRaw.slice(0, 2).toUpperCase();
@@ -445,10 +436,15 @@ serve(async (req: Request) => {
         });
       }
 
+      // Procesar en lotes paralelos de 20 — evita timeout con muchos workers
+      const BATCH = 20;
       let totalProcesados = 0;
-      for (const w of workers) {
-        const r = await matchWorker(w.id);
-        totalProcesados += r.procesados;
+      for (let i = 0; i < workers.length; i += BATCH) {
+        const lote = workers.slice(i, i + BATCH);
+        const results = await Promise.allSettled(lote.map(w => matchWorker(w.id)));
+        for (const r of results) {
+          if (r.status === "fulfilled") totalProcesados += r.value.procesados;
+        }
       }
 
       // Notificar workers con matches nuevos
