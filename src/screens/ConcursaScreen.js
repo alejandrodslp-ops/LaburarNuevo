@@ -38,7 +38,8 @@ function LlamadoCard({ match, onPress }) {
   const { concursos: c, score, cumple, keywords_match } = match;
   const { t } = useI18n();
 
-  const esNoticia = c.fuente?.endsWith('_gnews');
+  const esBusquedaPersonal = c.fuente === 'busqueda_diaria_gnews';
+  const esNoticia = c.fuente?.endsWith('_gnews') && !esBusquedaPersonal;
 
   const diasRestantes = () => {
     if (!c.fecha_cierre) return null;
@@ -54,6 +55,7 @@ function LlamadoCard({ match, onPress }) {
   };
 
   const tagConfig = () => {
+    if (esBusquedaPersonal) return { text: '🔍 Tu búsqueda diaria', bg: '#F3E8FF', color: '#7C3AED' };
     if (esNoticia) return { text: '📰 Noticia de empleo', bg: '#F0F4FF', color: '#3B4FA8' };
     if (score >= 70) return { text: t('cumple_total'), bg: COLORS.mentaSoft, color: COLORS.mentaDark };
     if (score >= 40) return { text: t('compatible_x_pct', { n: Math.round(score) }), bg: '#FFF7ED', color: '#C2410C' };

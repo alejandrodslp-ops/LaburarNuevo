@@ -142,6 +142,8 @@ export default function EditarPerfilScreen({navigation,route}){
   const[sueldoMax,setSueldoMax]=useState("");
   const[sueldoMoneda,setSueldoMoneda]=useState(monedaDefecto());
   const[vis,setVis]=useState(false);
+  const[descripcionLibre,setDescripcionLibre]=useState("");
+  const[busquedaDiariaOn,setBusquedaDiariaOn]=useState(false);
   const[saving,setSaving]=useState(false);
   const[avatar,setAvatar]=useState(null);
   const[avatarUploading,setAvatarUploading]=useState(false);
@@ -214,6 +216,8 @@ export default function EditarPerfilScreen({navigation,route}){
         setSueldoMoneda(data.sueldo_moneda||MONEDA_LOCAL_POR_PAIS[data.pais]||monedaDefecto());
         if(data.perfil_visible!=null)setVis(data.perfil_visible);
         if(data.avatar_url)setAvatar(data.avatar_url);
+        if(data.descripcion_libre)setDescripcionLibre(data.descripcion_libre);
+        if(data.busqueda_diaria_on!=null)setBusquedaDiariaOn(data.busqueda_diaria_on||false);
 
       }catch(e){if(__DEV__)console.warn('[EditarPerfil]',e?.message);}
   },[]);
@@ -316,13 +320,16 @@ export default function EditarPerfilScreen({navigation,route}){
       ...tecnicaturas,...(otroTecActivo&&otroTecTxt.trim()?[otroTecTxt.trim()]:[]),
       ...licenciaturas,...(otroLicActivo&&otroLicTxt.trim()?[otroLicTxt.trim()]:[]),
     ];
-    if(serviciosFinales.length+profesionesFinales.length+tecnicaturasFinales.length<1){Alert.alert(t('error'),'Seleccioná al menos un servicio, profesión, tecnicatura o licenciatura');return;}
+    const tieneCategoria=serviciosFinales.length+profesionesFinales.length+tecnicaturasFinales.length>0;
+    const tieneDescripcionLibre=descripcionLibre.trim().length>10;
+    if(!tieneCategoria&&!tieneDescripcionLibre){Alert.alert(t('error'),'Seleccioná al menos un servicio o profesión, o describí lo que podés ofrecer (mínimo 10 caracteres)');return;}
+    if(busquedaDiariaOn&&!tieneCategoria&&!tieneDescripcionLibre){Alert.alert(t('error'),'Para activar la búsqueda diaria necesitás describir qué ofrecés');return;}
     setSaving(true);
     try{
       const{data:{user}}=await supabase.auth.getUser();
       if(!user){navigation.navigate("Login");return;}
       const telefVerif=telefono===telefonoGuardado.current?telefonoVerificado:false;
-      const{error}=await supabase.from("profiles").upsert({id:user.id,nombre,nombre2,apellido1,apellido2,fecha_nac:fechaNac,sexo,estado_civil:estadoCivil,nacionalidad,bio,telefono,telefono_verificado:telefVerif,pais,ciudad,barrio,servicios:serviciosFinales,profesiones:profesionesFinales,tecnicaturas:tecnicaturasFinales,especialidades:subEsp,disponibilidad:disp,tipos_empleo:tipos,idiomas:langs,referencias:refs,perfil_visible:vis,anios_experiencia:aniosExp?Number(aniosExp):null,sueldo_pretension_min:sueldoMin?Number(sueldoMin):null,sueldo_pretension_max:sueldoMax?Number(sueldoMax):null,sueldo_moneda:sueldoMoneda||"USD",updated_at:new Date().toISOString()});
+      const{error}=await supabase.from("profiles").upsert({id:user.id,nombre,nombre2,apellido1,apellido2,fecha_nac:fechaNac,sexo,estado_civil:estadoCivil,nacionalidad,bio,telefono,telefono_verificado:telefVerif,pais,ciudad,barrio,servicios:serviciosFinales,profesiones:profesionesFinales,tecnicaturas:tecnicaturasFinales,especialidades:subEsp,disponibilidad:disp,tipos_empleo:tipos,idiomas:langs,referencias:refs,perfil_visible:vis,anios_experiencia:aniosExp?Number(aniosExp):null,sueldo_pretension_min:sueldoMin?Number(sueldoMin):null,sueldo_pretension_max:sueldoMax?Number(sueldoMax):null,sueldo_moneda:sueldoMoneda||"USD",descripcion_libre:descripcionLibre.trim()||null,busqueda_diaria_on:busquedaDiariaOn,updated_at:new Date().toISOString()});
       if(error)throw error;
       marcarPerfilCompleto();
       await AsyncStorage.setItem('activacion_pendiente','true');
@@ -477,6 +484,34 @@ export default function EditarPerfilScreen({navigation,route}){
               {otroLicActivo&&<TextInput style={ss.otroInput} value={otroLicTxt} onChangeText={setOtroLicTxt} placeholder="Escribí tu licenciatura..." placeholderTextColor="#A898B8" maxLength={60}/>}
             </View>
           )}
+        </View>
+        {/* Búsqueda inteligente — para usuarios sin categorías formales */}
+        <View style={ss.sec}>
+          <Text style={ss.stit}>BÚSQUEDA DIARIA DE LLAMADOS</Text>
+          <Text style={{fontSize:13,color:"#A898B8",marginBottom:12,lineHeight:19}}>
+            Si no encontrás tu oficio en la lista de arriba, describí con tus palabras qué podés ofrecer. Nexu va a buscar llamados y oportunidades que coincidan en diarios, portales y bases públicas de 32 países.
+          </Text>
+          <Field
+            label="¿Qué podés ofrecer?"
+            value={descripcionLibre}
+            onChange={setDescripcionLibre}
+            placeholder="Ej: cuido personas mayores, cocino, hago mandados y limpieza"
+            multi
+            optional
+            optLbl="opcional"
+          />
+          <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginTop:12,paddingVertical:12,paddingHorizontal:4,borderTopWidth:1,borderTopColor:"#EDE8E2"}}>
+            <View style={{flex:1,marginRight:16}}>
+              <Text style={{fontSize:14,fontWeight:"700",color:"#1A1020",marginBottom:3}}>Buscar llamados para mí cada día</Text>
+              <Text style={{fontSize:12,color:"#A898B8",lineHeight:17}}>Recibís una notificación cada mañana con oportunidades nuevas que coincidan con lo que ofrecés</Text>
+            </View>
+            <Switch
+              value={busquedaDiariaOn}
+              onValueChange={setBusquedaDiariaOn}
+              trackColor={{false:"#EDE8E2",true:"#2DD4BF"}}
+              thumbColor={busquedaDiariaOn?"#0D9488":"#f4f3f4"}
+            />
+          </View>
         </View>
         <View style={ss.sec}>
           <Text style={ss.stit}>{t('disponibilidad_lbl').toUpperCase()}</Text>

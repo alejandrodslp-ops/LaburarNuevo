@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Generar íconos Nexu</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&family=Cormorant:wght@700&family=Bebas+Neue&family=DM+Serif+Display:ital@1&family=Inter:wght@900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0D1117; color: white; font-family: Arial, sans-serif; text-align: center; padding: 40px 20px; min-height: 100vh; }
+  h2 { color: #E8785A; font-size: 26px; margin-bottom: 8px; letter-spacing: -1px; }
+  .sub { color: rgba(255,255,255,0.4); font-size: 13px; margin-bottom: 32px; }
+  #loader { color: #2DD4BF; font-size: 15px; padding: 20px; }
+  .grid { display: flex; gap: 28px; justify-content: center; flex-wrap: wrap; margin-bottom: 40px; }
+  .opcion { cursor: pointer; }
+  .opcion canvas { display: block; border-radius: 22%; transition: box-shadow 0.2s, transform 0.15s; box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
+  .opcion:hover canvas { box-shadow: 0 0 0 3px #E8785A; transform: scale(1.05); }
+  .opcion.active canvas { box-shadow: 0 0 0 4px #E8785A; }
+  .lbl { margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.6; }
+  .lbl strong { display: block; color: rgba(255,255,255,0.8); font-size: 13px; }
+  .opcion.active .lbl strong { color: #E8785A; }
+  .btns { display: none; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
+  .btns.show { display: flex; }
+  .btn { padding: 13px 24px; background: #E8785A; color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .btn.teal { background: #2DD4BF; color: #0D1117; }
+  .btn:hover { opacity: 0.85; }
+  #elegida { color: #2DD4BF; font-size: 14px; margin: 16px 0 8px; min-height: 20px; }
+</style>
+</head>
+<body>
+
+<h2>Elegí el estilo de letra</h2>
+<p class="sub">Tocá la que más te guste → aparecen los botones para descargar</p>
+
+<div id="loader">⏳ Cargando fuentes...</div>
+<div class="grid" id="grid" style="display:none"></div>
+
+<div id="elegida"></div>
+<div class="btns" id="btns">
+  <button class="btn" onclick="descargar('sel','icon.png')">⬇ icon.png</button>
+  <button class="btn" onclick="descargar('sel','adaptive-icon.png')">⬇ adaptive-icon.png</button>
+  <button class="btn teal" onclick="descargarSmall('sel','favicon.png',64)">⬇ favicon.png</button>
+  <button class="btn" onclick="descargarSplash()">⬇ splash.png</button>
+</div>
+
+<canvas id="sel" width="1024" height="1024" style="display:none"></canvas>
+<canvas id="sp"  width="1284" height="2778" style="display:none"></canvas>
+
+<script>
+const FUENTES = [
+  { id:'playfair', nom:'Playfair Display', desc:'Clásica · editorial',   css:"900 {s}px 'Playfair Display', serif"  },
+  { id:'cormorant',nom:'Cormorant',        desc:'Lujo · minimalista',   css:"700 {s}px 'Cormorant', serif"          },
+  { id:'bebas',    nom:'Bebas Neue',       desc:'Bold · impacto',       css:"400 {s}px 'Bebas Neue', sans-serif"    },
+  { id:'dm',       nom:'DM Serif Display', desc:'Serif · moderno',      css:"400 {s}px 'DM Serif Display', serif"   },
+];
+
+function draw(ctx, W, H, fontCss) {
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#0D1117';
+  ctx.fillRect(0,0,W,H);
+
+  const fs = Math.round(W * 0.268);
+  ctx.fillStyle = '#E8785A';
+  ctx.font = fontCss.replace('{s}', fs);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  const baseY = H * 0.575;
+  ctx.fillText('Nexu', W/2, baseY);
+
+  const tw = ctx.measureText('Nexu').width;
+  const right = W/2 + tw/2;
+
+  // APP — anclado al borde derecho del canvas, superpuesto 30% en la parte baja de Nexu
+  const as = Math.round(fs * 0.25);
+  ctx.fillStyle = '#2DD4BF';
+  ctx.font = `700 ${as}px 'Inter', sans-serif`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'alphabetic';
+
+  // x: borde derecho del canvas con pequeño margen
+  const appX = W * 0.90;
+  // y: baseline de Nexu menos 30% de la altura de las letras (superpuesto hacia arriba)
+  const appY = baseY - fs * 0.02;
+  ctx.fillText('APP', appX, appY);
+}
+
+function init() {
+  document.getElementById('loader').style.display = 'none';
+  document.getElementById('grid').style.display = 'flex';
+
+  FUENTES.forEach(f => {
+    const wrap = document.createElement('div');
+    wrap.className = 'opcion';
+    wrap.id = 'op-' + f.id;
+
+    const cv = document.createElement('canvas');
+    cv.width = 1024; cv.height = 1024;
+    cv.style.width = '170px'; cv.style.height = '170px';
+    draw(cv.getContext('2d'), 1024, 1024, f.css);
+
+    const lbl = document.createElement('div');
+    lbl.className = 'lbl';
+    lbl.innerHTML = `<strong>${f.nom}</strong>${f.desc}`;
+
+    wrap.appendChild(cv); wrap.appendChild(lbl);
+    wrap.onclick = () => elegir(f, cv);
+    document.getElementById('grid').appendChild(wrap);
+  });
+}
+
+// Intentar con fonts.ready, con fallback por timeout
+let drawn = false;
+document.fonts.ready.then(() => { if (!drawn) { drawn = true; init(); } });
+setTimeout(() => { if (!drawn) { drawn = true; init(); } }, 3000);
+
+function elegir(f, _) {
+  document.querySelectorAll('.opcion').forEach(el => el.classList.remove('active'));
+  document.getElementById('op-' + f.id).classList.add('active');
+  draw(document.getElementById('sel').getContext('2d'), 1024, 1024, f.css);
+  draw(document.getElementById('sp').getContext('2d'),  1284, 2778, f.css);
+  document.getElementById('elegida').textContent = '✓ Seleccionaste: ' + f.nom;
+  document.getElementById('btns').classList.add('show');
+}
+
+function descargar(id, name) {
+  const a = document.createElement('a');
+  a.download = name; a.href = document.getElementById(id).toDataURL('image/png'); a.click();
+}
+function descargarSplash() {
+  const a = document.createElement('a');
+  a.download = 'splash.png'; a.href = document.getElementById('sp').toDataURL('image/png'); a.click();
+}
+function descargarSmall(id, name, sz) {
+  const src = document.getElementById(id);
+  const t = document.createElement('canvas'); t.width = sz; t.height = sz;
+  t.getContext('2d').drawImage(src,0,0,sz,sz);
+  const a = document.createElement('a');
+  a.download = name; a.href = t.toDataURL('image/png'); a.click();
+}
+</script>
+</body>
+</html>

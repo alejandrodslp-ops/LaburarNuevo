@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+
+  <!-- Fondo negro -->
+  <rect width="1024" height="1024" fill="#0D1117"/>
+
+  <!-- Nexu - coral, bold, centrado -->
+  <text
+    x="512"
+    y="596"
+    text-anchor="middle"
+    font-family="-apple-system, 'Helvetica Neue', Arial Black, Arial, sans-serif"
+    font-weight="900"
+    font-size="272"
+    letter-spacing="-14"
+    fill="#E8785A"
+  >Nexu</text>
+
+  <!-- APP - teal, 40% de la altura de x/u (~108px cap height → 43px), bottom-right solapado -->
+  <text
+    x="842"
+    y="652"
+    text-anchor="end"
+    font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif"
+    font-weight="700"
+    font-size="76"
+    letter-spacing="5"
+    fill="#2DD4BF"
+  >APP</text>
+
+</svg>

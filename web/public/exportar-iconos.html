@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Exportar íconos Nexu</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant:wght@700&family=Inter:wght@700&display=swap" rel="stylesheet">
+<style>
+  body { background:#0D1117; color:white; font-family:Arial,sans-serif; text-align:center; padding:40px; }
+  h2 { color:#E8785A; }
+  p  { color:rgba(255,255,255,0.5); font-size:13px; }
+  canvas { border-radius:22%; margin:20px auto; display:block; box-shadow:0 0 0 4px #E8785A; }
+  .btn { padding:14px 28px; background:#E8785A; color:white; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; margin:8px; }
+  .btn.g { background:#2DD4BF; color:#0D1117; }
+  #status { color:#2DD4BF; margin-top:16px; font-size:14px; }
+</style>
+</head>
+<body>
+<h2>Vista previa · Nexu</h2>
+<p>Esta es la versión exacta que se va a guardar en assets/</p>
+<canvas id="cv" width="1024" height="1024" style="width:220px;height:220px"></canvas>
+<br>
+<button class="btn" onclick="save('icon.png')">⬇ icon.png</button>
+<button class="btn" onclick="save('adaptive-icon.png')">⬇ adaptive-icon.png</button>
+<button class="btn g" onclick="saveSmall(64,'favicon.png')">⬇ favicon.png</button>
+<button class="btn" onclick="saveSplash()">⬇ splash.png</button>
+<p id="status"></p>
+<canvas id="sp" width="1284" height="2778" style="display:none"></canvas>
+
+<script>
+function draw(ctx, W, H) {
+  // Fondo negro
+  ctx.fillStyle = '#0D1117';
+  ctx.fillRect(0, 0, W, H);
+
+  // Borde coral — dos rects
+  const bw = Math.round(W * 0.022); // ~22px en 1024
+  const rx = Math.round(W * 0.19);  // radio esquinas
+
+  function roundRect(x,y,w,h,r,color) {
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.lineTo(x+w-r, y);
+    ctx.arcTo(x+w, y, x+w, y+r, r);
+    ctx.lineTo(x+w, y+h-r);
+    ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
+    ctx.lineTo(x+r, y+h);
+    ctx.arcTo(x, y+h, x, y+h-r, r);
+    ctx.lineTo(x, y+r);
+    ctx.arcTo(x, y, x+r, y, r);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  // Marco exterior coral
+  roundRect(0, 0, W, H, rx, '#E8785A');
+  // Fondo interior negro
+  roundRect(bw, bw, W-bw*2, H-bw*2, rx-bw, '#0D1117');
+
+  // NEXU
+  const fs = Math.round(W * 0.268);
+  ctx.fillStyle = '#E8785A';
+  ctx.font = `700 ${fs}px 'Cormorant', Georgia, serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  const baseY = H * 0.578;
+  ctx.fillText('Nexu', W/2, baseY);
+
+  // Emoji puzzle — mismo lugar donde estaba APP
+  const as = Math.round(fs * 0.34);
+  ctx.font = `${as}px "Apple Color Emoji", "Segoe UI Emoji", Arial`;
+  ctx.textAlign = 'right';
+  ctx.fillText('🧩', W * 0.83, baseY - fs * 0.01);
+}
+
+let ready = false;
+document.fonts.ready.then(() => {
+  draw(document.getElementById('cv').getContext('2d'), 1024, 1024);
+  draw(document.getElementById('sp').getContext('2d'), 1284, 2778);
+  ready = true;
+  document.getElementById('status').textContent = '✓ Listo para descargar';
+});
+setTimeout(() => {
+  if (!ready) {
+    draw(document.getElementById('cv').getContext('2d'), 1024, 1024);
+    draw(document.getElementById('sp').getContext('2d'), 1284, 2778);
+    document.getElementById('status').textContent = '✓ Listo (fuente de respaldo)';
+  }
+}, 3000);
+
+function save(name) {
+  const a = document.createElement('a');
+  a.download = name;
+  a.href = document.getElementById('cv').toDataURL('image/png');
+  a.click();
+}
+function saveSmall(sz, name) {
+  const t = document.createElement('canvas'); t.width=sz; t.height=sz;
+  t.getContext('2d').drawImage(document.getElementById('cv'),0,0,sz,sz);
+  const a = document.createElement('a'); a.download=name;
+  a.href=t.toDataURL('image/png'); a.click();
+}
+function saveSplash() {
+  const a = document.createElement('a'); a.download='splash.png';
+  a.href=document.getElementById('sp').toDataURL('image/png'); a.click();
+}
+</script>
+</body>
+</html>
