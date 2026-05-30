@@ -6,76 +6,141 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const MP_ACCESS_TOKEN = "TEST-2901423997839960-050115-8f38bbd0234f1c04e6fe0520760db9c0-207844753";
+const MP_ACCESS_TOKEN    = Deno.env.get("MP_ACCESS_TOKEN") ?? "";
+const MP_WEBHOOK_SECRET  = Deno.env.get("MP_WEBHOOK_SECRET") ?? "";
+
+const CORS = {
+  "Access-Control-Allow-Origin":  "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+// Verifica la firma HMAC-SHA256 que MercadoPago incluye en cada notificación.
+// Docs: https://www.mercadopago.com.ar/developers/es/docs/your-integrations/notifications/webhooks
+async function verificarFirmaMP(req: Request, dataId: string): Promise<boolean> {
+  if (!MP_WEBHOOK_SECRET) return true; // si no hay secret configurado, se acepta (modo desarrollo)
+
+  const signature  = req.headers.get("x-signature")   ?? "";
+  const requestId  = req.headers.get("x-request-id")  ?? "";
+
+  const parts = Object.fromEntries(signature.split(",").map(p => {
+    const [k, ...v] = p.split("=");
+    return [k.trim(), v.join("=").trim()];
+  }));
+  const ts = parts["ts"] ?? "";
+  const v1 = parts["v1"] ?? "";
+  if (!ts || !v1) return false;
+
+  const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", enc.encode(MP_WEBHOOK_SECRET),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const sig      = await crypto.subtle.sign("HMAC", key, enc.encode(manifest));
+  const expected = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
+
+  return v1 === expected;
+}
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      },
-    });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
     const body = await req.json();
     console.log("Webhook recibido:", JSON.stringify(body));
 
-    // MercadoPago envia notificacion de pago
     if (body.type === "payment" && body.data?.id) {
-      const paymentId = body.data.id;
+      const paymentId = String(body.data.id);
 
-      // Verificar el pago con MP
+      // 1. Verificar firma de MercadoPago
+      const firmaOk = await verificarFirmaMP(req, paymentId);
+      if (!firmaOk) {
+        console.error("Firma de webhook inválida — request rechazado");
+        return new Response("Unauthorized", { status: 401 });
+      }
+
+      // 2. Idempotencia: ignorar si este pago ya fue procesado
+      const { data: yaRegistrado } = await supabase
+        .from("pagos")
+        .select("id")
+        .eq("referencia_externa", paymentId)
+        .maybeSingle();
+
+      if (yaRegistrado) {
+        console.log("Pago ya procesado, ignorando reenvío:", paymentId);
+        return new Response(JSON.stringify({ ok: true, duplicado: true }), {
+          headers: { "Content-Type": "application/json", ...CORS },
+        });
+      }
+
+      // 3. Verificar el pago con la API de MP
       const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
+        signal: AbortSignal.timeout(10000),
       });
+      if (!res.ok) {
+        console.error("MP API error:", res.status);
+        return new Response(JSON.stringify({ ok: false, error: "MP API error" }), {
+          status: 502, headers: { "Content-Type": "application/json", ...CORS },
+        });
+      }
       const payment = await res.json();
-      console.log("Pago verificado:", JSON.stringify(payment));
+      console.log("Pago verificado:", payment.status, payment.id);
 
       if (payment.status === "approved") {
-        const userId = payment.external_reference;
-        const cantidadPerfiles = Number(payment.metadata?.cantidad_perfiles) || 3;
-        const tipo = payment.metadata?.tipo || "employer_visualizaciones";
+        const userId            = payment.external_reference;
+        const cantidadPerfiles  = Number(payment.metadata?.cantidad_perfiles) || 3;
+        const tipo              = payment.metadata?.tipo || "employer_visualizaciones";
 
+        // 4. Registrar el pago PRIMERO — así si falla lo siguiente, el webhook
+        //    puede reintentar sin riesgo de duplicado (la 2da vez lo detecta como yaRegistrado)
+        const { error: pagoErr } = await supabase.from("pagos").insert({
+          user_id:            userId,
+          monto:              payment.transaction_amount,
+          moneda:             payment.currency_id,
+          estado:             "aprobado",
+          metodo:             "mercadopago",
+          referencia_externa: paymentId,
+        });
+
+        if (pagoErr) {
+          // Si ya existe por race condition, tratar como duplicado
+          if (pagoErr.code === "23505") {
+            return new Response(JSON.stringify({ ok: true, duplicado: true }), {
+              headers: { "Content-Type": "application/json", ...CORS },
+            });
+          }
+          throw pagoErr;
+        }
+
+        // 5. Activar o acreditar según el tipo de pago
         if (tipo === "worker_activacion") {
-          // Activar perfil del trabajador por 30 días
           const hasta = new Date();
           hasta.setDate(hasta.getDate() + 60);
           await supabase.from("profiles").update({
-            perfil_activo: true,
+            perfil_activo:       true,
             perfil_activo_hasta: hasta.toISOString(),
           }).eq("id", userId);
         } else {
-          // Sumar visualizaciones al empleador según el paquete pagado
           await supabase.rpc("sumar_visualizaciones", {
             employer_id: userId,
-            cantidad: cantidadPerfiles,
+            cantidad:    cantidadPerfiles,
           });
         }
 
-        // Registrar pago en tabla pagos
-        await supabase.from("pagos").insert({
-          user_id: userId,
-          monto: payment.transaction_amount,
-          moneda: payment.currency_id,
-          estado: "aprobado",
-          metodo: "mercadopago",
-          referencia_externa: String(paymentId),
-        });
-
-        console.log("Pago procesado para usuario:", userId);
+        console.log("Pago procesado para usuario:", userId, "tipo:", tipo);
       }
     }
 
     return new Response(JSON.stringify({ ok: true }), {
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      headers: { "Content-Type": "application/json", ...CORS },
     });
+
   } catch (e) {
-    console.log("Error webhook:", e.message);
+    console.error("Error webhook:", e.message);
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      headers: { "Content-Type": "application/json", ...CORS },
     });
   }
 });
