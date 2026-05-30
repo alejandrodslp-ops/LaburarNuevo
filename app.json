@@ -8,14 +8,13 @@
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#E8785A"
+      "resizeMode": "cover",
+      "backgroundColor": "#0D1117"
     },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.nexu.app",
       "associatedDomains": [
-        "applinks:nexu.app",
         "applinks:nexu.app"
       ],
       "infoPlist": {
@@ -25,7 +24,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#E8785A"
+        "backgroundColor": "#0D1117"
       },
       "package": "com.nexu.app",
       "intentFilters": [
@@ -56,6 +55,11 @@
       "eas": {
         "projectId": "e9ef9ac8-fcd4-4534-b267-3cfd7b420ea3"
       }
+    },
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/e9ef9ac8-fcd4-4534-b267-3cfd7b420ea3",
+      "checkAutomatically": "ON_LOAD"
     }
   }
 }

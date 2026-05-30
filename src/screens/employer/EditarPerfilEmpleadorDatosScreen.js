@@ -4,9 +4,10 @@ import{KeyboardAwareScrollView}from 'react-native-keyboard-aware-scroll-view';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{LinearGradient}from 'expo-linear-gradient';
 import{supabase}from '../../services/supabase';
+import{useApp}from '../../services/AppContext';
 
-const PAISES=["Uruguay","Argentina","Brasil","Chile","Paraguay","Bolivia","Peru","Colombia","Mexico","Ecuador","Venezuela","Spain","United States","France","Germany","Italy","Portugal","Otro"];
-const CIUDADES_POR_PAIS={"Uruguay":["Montevideo","Salto","Paysandu","Las Piedras","Rivera","Maldonado","Tacuarembo","Melo","Mercedes","Rocha","Colonia"],"Argentina":["Buenos Aires","Cordoba","Rosario","Mendoza","Tucuman","La Plata","Mar del Plata","Salta","Santa Fe"],"Brasil":["Sao Paulo","Rio de Janeiro","Brasilia","Salvador","Fortaleza","Belo Horizonte","Curitiba","Recife","Porto Alegre"],"Chile":["Santiago","Valparaiso","Concepcion","La Serena","Antofagasta","Temuco","Rancagua"],"Paraguay":["Asuncion","Ciudad del Este","San Lorenzo","Luque","Encarnacion"],"Colombia":["Bogota","Medellin","Cali","Barranquilla","Cartagena"],"Mexico":["Ciudad de Mexico","Guadalajara","Monterrey","Puebla","Toluca"],"Peru":["Lima","Arequipa","Trujillo","Chiclayo","Piura"],"Bolivia":["La Paz","Santa Cruz","Cochabamba","Sucre","Oruro"],"Ecuador":["Guayaquil","Quito","Cuenca","Santo Domingo"]};
+const PAISES=["Uruguay","Argentina","Brasil","Chile","Paraguay","Bolivia","Peru","Colombia","Mexico","Ecuador","Venezuela","Cuba","Costa Rica","Panama","Guatemala","El Salvador","Honduras","Nicaragua","Republica Dominicana","Spain","Portugal","France","Italy","Germany","United Kingdom","United States","Canada","Australia","Sweden","Norway","Japan","India","Otro"];
+
 
 function Field({label,value,onChange,placeholder,keyboard,optional}){
   return(
@@ -40,6 +41,7 @@ function SearchField({label,value,onChange,placeholder,suggestions,onSelect,opti
 }
 
 export default function EditarPerfilEmpleadorDatosScreen({navigation}){
+  const{marcarEmpleadorDatosCompletos}=useApp();
   const[nombre,setNombre]=useState('');
   const[nombre2,setNombre2]=useState('');
   const[apellido1,setApellido1]=useState('');
@@ -72,7 +74,6 @@ export default function EditarPerfilEmpleadorDatosScreen({navigation}){
   useEffect(()=>{
     if(!ciudad||!pais)return;
     setBarriosDisp([]);
-    setBarrio('');
     const mapaBarrios={"Brasil":"Brazil","México":"Mexico","Perú":"Peru","Panamá":"Panama","Argentina":"Argentina","Uruguay":"Uruguay","Chile":"Chile","Colombia":"Colombia","Bolivia":"Bolivia","Paraguay":"Paraguay","Ecuador":"Ecuador","Venezuela":"Venezuela"};const paisNom=mapaBarrios[pais]||pais;
     fetch(`https://nominatim.openstreetmap.org/search?q=neighbourhood+${encodeURIComponent(ciudad)}+${encodeURIComponent(paisNom)}&format=json&limit=30&addressdetails=1`,{
       headers:{'Accept-Language':'es','User-Agent':'NexuApp/1.0'}
@@ -87,7 +88,7 @@ export default function EditarPerfilEmpleadorDatosScreen({navigation}){
       setBarriosDisp(nombres);
     })
     .catch(()=>setBarriosDisp([]));
-  },[ciudad]);
+  },[ciudad, pais]);
 
 
   useEffect(()=>{
@@ -99,7 +100,7 @@ export default function EditarPerfilEmpleadorDatosScreen({navigation}){
           if(data.country_name){
             const nombrePais=data.country_name;
             // Mapear nombre en ingles a nuestros nombres
-            const mapa={'Uruguay':'Uruguay','Argentina':'Argentina','Brazil':'Brasil','Chile':'Chile','Paraguay':'Paraguay','Bolivia':'Bolivia','Peru':'Peru','Colombia':'Colombia','Mexico':'Mexico','Ecuador':'Ecuador','Venezuela':'Venezuela'};
+            const mapa={'Uruguay':'Uruguay','Argentina':'Argentina','Brazil':'Brasil','Chile':'Chile','Paraguay':'Paraguay','Bolivia':'Bolivia','Peru':'Peru','Colombia':'Colombia','Mexico':'Mexico','Ecuador':'Ecuador','Venezuela':'Venezuela','Cuba':'Cuba','Costa Rica':'Costa Rica','Panama':'Panama','Guatemala':'Guatemala','El Salvador':'El Salvador','Honduras':'Honduras','Nicaragua':'Nicaragua','Dominican Republic':'Republica Dominicana','Spain':'Spain','Portugal':'Portugal','France':'France','Italy':'Italy','Germany':'Germany','United Kingdom':'United Kingdom','United States':'United States','Canada':'Canada','Australia':'Australia','Sweden':'Sweden','Norway':'Norway','Japan':'Japan','India':'India'};
             const paisMapeado=mapa[nombrePais]||nombrePais;
             if(PAISES.includes(paisMapeado))setPais(paisMapeado);
           }
@@ -150,6 +151,7 @@ export default function EditarPerfilEmpleadorDatosScreen({navigation}){
         updated_at:new Date().toISOString(),
       });
       if(error)throw error;
+      marcarEmpleadorDatosCompletos();
       Alert.alert('Perfil actualizado','Tus datos fueron guardados.',[{text:'OK',onPress:()=>navigation.goBack()}]);
     }catch(e){Alert.alert('Error',e.message||'No se pudo guardar');}
     finally{setSaving(false);}

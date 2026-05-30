@@ -9,6 +9,19 @@ import { COLORS, SIZES, SHADOWS } from '../constants/theme';
 
 const BANDERAS = { UY:'🇺🇾', AR:'🇦🇷', BR:'🇧🇷', CL:'🇨🇱', CO:'🇨🇴', PE:'🇵🇪', PY:'🇵🇾', BO:'🇧🇴', EC:'🇪🇨' };
 
+function stripHtml(html) {
+  if (!html) return null;
+  return html
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\s{2,}/g, ' ')
+    .trim() || null;
+}
+
 export default function ConcursaDetalleScreen({ route, navigation }) {
   const { match } = route.params || {};
   const c = match?.concursos || match;
@@ -25,7 +38,10 @@ export default function ConcursaDetalleScreen({ route, navigation }) {
   }
 
   const esPrivado = c.tipo_vinculo === 'privado';
+  const esNoticia = c.fuente?.includes('gnews') || c.fuente?.includes('news');
   const bandera = BANDERAS[c.pais] || '🌍';
+  const descripcionLimpia = stripHtml(c.descripcion);
+  const requisitosLimpios = stripHtml(c.requisitos);
 
   const diasRestantes = () => {
     if (!c.fecha_cierre) return null;
@@ -54,8 +70,8 @@ export default function ConcursaDetalleScreen({ route, navigation }) {
           <Text style={ss.backTxt}>← Volver</Text>
         </TouchableOpacity>
         <View style={ss.sectorBadge}>
-          <Text style={[ss.sectorTxt, { color: esPrivado ? '#E65100' : '#1565C0' }]}>
-            {esPrivado ? '💼 SECTOR PRIVADO' : '🏛️ SECTOR PÚBLICO'}
+          <Text style={[ss.sectorTxt, { color: esNoticia ? '#6B7280' : esPrivado ? '#E65100' : '#1565C0' }]}>
+            {esNoticia ? '📰 NOTICIA' : esPrivado ? '💼 SECTOR PRIVADO' : '🏛️ SECTOR PÚBLICO'}
           </Text>
         </View>
         <Text style={ss.cargo} numberOfLines={3}>{c.cargo || c.titulo}</Text>
@@ -103,44 +119,46 @@ export default function ConcursaDetalleScreen({ route, navigation }) {
         </View>
 
         {/* Descripción */}
-        {c.descripcion && (
+        {descripcionLimpia && (
           <View style={ss.section}>
-            <Text style={ss.sectionTitle}>Descripción</Text>
-            <Text style={ss.texto}>{c.descripcion}</Text>
+            <Text style={ss.sectionTitle}>{esNoticia ? 'Resumen' : 'Descripción'}</Text>
+            <Text style={ss.texto}>{descripcionLimpia}</Text>
           </View>
         )}
 
         {/* Requisitos */}
-        {c.requisitos && (
+        {requisitosLimpios && (
           <View style={ss.section}>
             <Text style={ss.sectionTitle}>Requisitos</Text>
-            <Text style={ss.texto}>{c.requisitos}</Text>
+            <Text style={ss.texto}>{requisitosLimpios}</Text>
           </View>
         )}
 
         {/* Sin descripción */}
-        {!c.descripcion && !c.requisitos && (
+        {!descripcionLimpia && !requisitosLimpios && (
           <View style={ss.section}>
             <Text style={{ color: COLORS.texto3, fontSize: SIZES.textSm, textAlign: 'center', paddingVertical: 16 }}>
-              Las bases completas están en el sitio oficial del organismo.
+              {esNoticia ? 'Abrí el artículo para leer el contenido completo.' : 'Las bases completas están en el sitio oficial del organismo.'}
             </Text>
           </View>
         )}
 
         {/* Botones */}
-        <View style={ss.btns}>
-          {c.url_detalle && (
-            <TouchableOpacity style={ss.btnSecundario} onPress={() => abrirLink(c.url_detalle)}>
-              <Text style={ss.btnSecundarioTxt}>📄 Ver bases completas</Text>
+        {(c.url_detalle || c.url_postulacion) && (
+          <View style={ss.btns}>
+            {!esNoticia && c.url_detalle && c.url_detalle !== c.url_postulacion && (
+              <TouchableOpacity style={ss.btnSecundario} onPress={() => abrirLink(c.url_detalle)}>
+                <Text style={ss.btnSecundarioTxt}>📄 Ver bases completas</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={ss.btnPrincipal}
+              onPress={() => abrirLink(c.url_postulacion || c.url_detalle)}
+            >
+              <Text style={ss.btnPrincipalTxt}>{esNoticia ? '📰 Leer artículo →' : (c.pais === 'UY' || c.url_postulacion?.includes('uruguayconcursa')) ? '📄 Ver bases completas →' : 'Postularme →'}</Text>
             </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={ss.btnPrincipal}
-            onPress={() => abrirLink(c.url_postulacion || c.url_detalle)}
-          >
-            <Text style={ss.btnPrincipalTxt}>Postularme →</Text>
-          </TouchableOpacity>
-        </View>
+          </View>
+        )}
 
         <View style={{ height: 32 }} />
       </ScrollView>

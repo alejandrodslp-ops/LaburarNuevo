@@ -33,3 +33,22 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# GitHub Actions runner
+actions-runner/
+
+# Next.js
+web/.next/
+web/out/
+
+# Supabase temp
+supabase/.temp/
+
+# Logs y archivos temporales
+*.log
+*.txt
+PYEOF
+
+# Archivos de análisis/estrategia (no van en el repo)
+ESCALADO.md
+ESTRATEGIA_POSICIONAMIENTO.md

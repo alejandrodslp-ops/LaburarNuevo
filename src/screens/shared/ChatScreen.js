@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useRef} from "react";
-import{View,Text,StyleSheet,TouchableOpacity,TextInput,FlatList,KeyboardAvoidingView,Platform,Alert}from "react-native";
+import{View,Text,StyleSheet,TouchableOpacity,TextInput,FlatList,KeyboardAvoidingView,Platform,Alert,Image}from "react-native";
 import{SafeAreaView}from "react-native-safe-area-context";
 import{supabase}from "../../services/supabase";
 import{useApp}from "../../services/AppContext";
@@ -34,7 +34,7 @@ function InfoRow({icon,label,val}){
 
 export default function ChatScreen({navigation,route}){
   const{recargarSinLeer}=useApp();
-  const{contactoId,nombre}=route.params||{};
+  const{contactoId,nombre,esNexu,avatarUrl}=route.params||{};
   const[msgs,setMsgs]=useState([]);
   const[txt,setTxt]=useState("");
   const[userId,setUserId]=useState(null);
@@ -190,13 +190,24 @@ export default function ChatScreen({navigation,route}){
 
   function Burbuja({m}){
     const mio=m.sender_id===userId;
+
+    function borrarMensaje(){
+      Alert.alert("Borrar mensaje","¿Eliminar este mensaje?",[
+        {text:"Cancelar",style:"cancel"},
+        {text:"Eliminar",style:"destructive",onPress:async()=>{
+          await supabase.from("mensajes").delete().eq("id",m.id);
+          setMsgs(prev=>prev.filter(x=>x.id!==m.id));
+        }},
+      ]);
+    }
+
     return(
-      <View style={[ss.bw,mio&&ss.bwm]}>
+      <TouchableOpacity style={[ss.bw,mio&&ss.bwm]} onLongPress={borrarMensaje} activeOpacity={0.85}>
         <View style={[ss.b,mio?ss.bm:ss.ba]}>
           <Text style={[ss.bt,mio&&ss.btm]}>{m.texto}</Text>
           <Text style={[ss.bh,mio&&ss.bhm]}>{formatHora(m.created_at)}</Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   }
 
@@ -207,10 +218,19 @@ export default function ChatScreen({navigation,route}){
           <Text style={ss.backTxt}>←</Text>
         </TouchableOpacity>
         <View style={ss.hi}>
-          <View style={ss.av}><Text style={{fontSize:20}}>💼</Text></View>
+          <View style={[ss.av,esNexu&&{backgroundColor:"#1A1020",borderWidth:1.5,borderColor:"#E8785A"}]}>
+            {esNexu
+              ?<Text style={{fontSize:18,fontWeight:"900",color:"#E8785A"}}>N</Text>
+              :avatarUrl
+                ?<Image source={{uri:avatarUrl}} style={ss.avImg}/>
+                :<Text style={{fontSize:20}}>💼</Text>
+            }
+          </View>
           <View>
             <Text style={ss.hn}>{nombre||"Contacto"}</Text>
-            <Text style={ss.he}>Oferta de trabajo</Text>
+            <Text style={[ss.he,esNexu&&{color:"#1A3A5C"}]}>
+              {esNexu?"Comunicación oficial de Nexu":"Oferta de trabajo"}
+            </Text>
           </View>
         </View>
       </View>
@@ -221,25 +241,31 @@ export default function ChatScreen({navigation,route}){
           data={msgs}
           keyExtractor={i=>i.id?.toString()||Math.random().toString()}
           renderItem={({item})=><Burbuja m={item}/>}
-          ListHeaderComponent={<OfertaCard/>}
+          ListHeaderComponent={esNexu?null:<OfertaCard/>}
           contentContainerStyle={ss.lista}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={()=>flatRef.current?.scrollToEnd({animated:false})}
         />
-        <View style={ss.iw}>
-          <TextInput
-            style={ss.input}
-            placeholder="Escribí un mensaje..."
-            placeholderTextColor={C.texto3}
-            value={txt}
-            onChangeText={setTxt}
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity style={[ss.sb,!txt.trim()&&ss.sbd]} onPress={enviar} disabled={!txt.trim()}>
-            <Text style={ss.si}>→</Text>
-          </TouchableOpacity>
-        </View>
+        {esNexu?(
+          <View style={ss.nexuNota}>
+            <Text style={ss.nexuNotaTxt}>🔒 Este es un canal oficial de Nexu. No es posible responder.</Text>
+          </View>
+        ):(
+          <View style={ss.iw}>
+            <TextInput
+              style={ss.input}
+              placeholder="Escribí un mensaje..."
+              placeholderTextColor={C.texto3}
+              value={txt}
+              onChangeText={setTxt}
+              multiline
+              maxLength={500}
+            />
+            <TouchableOpacity style={[ss.sb,!txt.trim()&&ss.sbd]} onPress={enviar} disabled={!txt.trim()}>
+              <Text style={ss.si}>→</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -250,7 +276,8 @@ const ss=StyleSheet.create({
   header:{flexDirection:"row",alignItems:"center",paddingHorizontal:16,paddingVertical:12,backgroundColor:C.blanco,borderBottomWidth:1,borderBottomColor:C.borde,gap:12},
   back:{padding:4},backTxt:{fontSize:22,color:C.indigo,fontWeight:"700"},
   hi:{flexDirection:"row",alignItems:"center",gap:10,flex:1},
-  av:{width:38,height:38,borderRadius:19,backgroundColor:C.cremaDark,alignItems:"center",justifyContent:"center"},
+  av:{width:38,height:38,borderRadius:19,backgroundColor:C.cremaDark,alignItems:"center",justifyContent:"center",overflow:"hidden"},
+  avImg:{width:38,height:38,borderRadius:19},
   hn:{fontSize:15,fontWeight:"800",color:C.texto1},
   he:{fontSize:11,color:C.coral,fontWeight:"600"},
   lista:{padding:16,paddingBottom:8},
@@ -286,4 +313,6 @@ const ss=StyleSheet.create({
   sb:{width:42,height:42,borderRadius:21,backgroundColor:C.coral,alignItems:"center",justifyContent:"center"},
   sbd:{backgroundColor:C.borde},
   si:{color:C.blanco,fontSize:18,fontWeight:"800"},
+  nexuNota:{paddingHorizontal:16,paddingVertical:12,backgroundColor:C.blanco,borderTopWidth:1,borderTopColor:C.borde,alignItems:"center"},
+  nexuNotaTxt:{fontSize:12,color:C.texto3,fontWeight:"600"},
 });

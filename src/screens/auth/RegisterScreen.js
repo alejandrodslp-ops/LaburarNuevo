@@ -5,9 +5,22 @@ import{KeyboardAwareScrollView}from "react-native-keyboard-aware-scroll-view";
 import{SafeAreaView}from "react-native-safe-area-context";
 import{LinearGradient}from "expo-linear-gradient";
 import{registrar,acreditarReferido}from "../../services/auth";
+import{supabase}from "../../services/supabase";
+import{useI18n}from "../../services/I18nContext";
 
 export default function RegisterScreen({navigation,route}){
 const rol=route?.params?.role||"worker";
+const{t}=useI18n();
+
+function mensajeError(msg=""){
+  const m=msg.toLowerCase();
+  if(m.includes("signup")&&m.includes("not allowed"))return t('err_signup_disabled');
+  if(m.includes("already registered")||m.includes("already exists")||m.includes("user already"))return t('err_already_reg');
+  if(m.includes("password")&&(m.includes("short")||m.includes("characters")||m.includes("least")))return t('err_pass_short');
+  if(m.includes("invalid")&&m.includes("email"))return t('err_email_invalid');
+  if(m.includes("rate limit")||m.includes("too many"))return t('err_rate_limit');
+  return msg||t('err_generic_reg');
+}
 const[nombre1,setNombre1]=useState("");
 const[nombre2,setNombre2]=useState("");
 const[apellido1,setApellido1]=useState("");
@@ -22,28 +35,53 @@ const ROLES={worker:"Trabajador",employer:"Empleador",company:"Empresa"};
 async function handleRegistrar(){
 if(nombre1.trim().length<2){Alert.alert("Error","Ingresa tu primer nombre");return;}
 if(apellido1.trim().length<2){Alert.alert("Error","Ingresa tu primer apellido");return;}
+if(apellido2.trim().length<2){Alert.alert("Error","Ingresa tu segundo apellido");return;}
 if(!email.includes("@")){Alert.alert("Error","Email no valido");return;}
 if(pass.length<8){Alert.alert("Error","La contrasena debe tener al menos 8 caracteres");return;}
 if(!terminos){Alert.alert("Error","Debes aceptar los terminos y condiciones");return;}
 setLoad(true);
+// Verificar si la waitlist está activa y si este email está habilitado
+try{
+  const{data:wl}=await supabase.functions.invoke('waitlist',{body:{accion:'consultar',email:email.trim().toLowerCase()}});
+  if(wl?.activo&&!wl?.habilitado){
+    setLoad(false);
+    navigation.navigate('Waitlist',{email:email.trim(),role:rol});
+    return;
+  }
+}catch{/* si falla el chequeo, dejamos registrar igual */}
 try{
 // Flag ANTES del signUp para evitar race condition con onAuthStateChange
 await AsyncStorage.setItem("coach_perfil_pendiente","true");
-const resultado=await registrar({email,password:pass,nombre:nombre1,apellido1,rol});
+await AsyncStorage.setItem("ir_a_editar_perfil","true");
+await AsyncStorage.setItem("verificar_email_pendiente","true");
+const resultado=await registrar({email,password:pass,nombre:nombre1,apellido1,apellido2,rol});
+// Marcar como registrado en la waitlist (silencioso)
+supabase.functions.invoke('waitlist',{body:{accion:'registrado',email:email.trim().toLowerCase()}}).catch(()=>{});
 const refCode=await AsyncStorage.getItem("referral_code");
 if(refCode){await acreditarReferido(refCode,resultado?.user?.id);await AsyncStorage.removeItem("referral_code");}
-// Si Supabase requiere confirmacion de email (sin session automatica)
-if(!resultado?.session){
-  Alert.alert(
-    "¡Cuenta creada!",
-    "Revisa tu email para confirmar tu cuenta y luego inicia sesion.",
-    [{text:"Iniciar sesion",onPress:()=>navigation.navigate("Login")}]
-  );
-}
-// Si hay session automatica, AppContext navega solo
+if(resultado?.user?.id){supabase.functions.invoke("mensaje-bienvenida",{body:{admin_secret:"nexu-admin-2026",user_id:resultado.user.id,rol}}).catch(()=>{});}
+// Si hay session automatica, AppContext detecta el flag y navega a VerificarEmail
 }catch(e){
 await AsyncStorage.removeItem("coach_perfil_pendiente");
-Alert.alert("Error al crear la cuenta",e.message||"Intentalo de nuevo");
+await AsyncStorage.removeItem("ir_a_editar_perfil");
+await AsyncStorage.removeItem("verificar_email_pendiente");
+const msg=e.message||"";
+const esEmailExistente=msg.toLowerCase().includes("already registered")||msg.toLowerCase().includes("already exists")||msg.toLowerCase().includes("user already");
+if(esEmailExistente){
+  // El email ya tiene cuenta — intentar iniciar sesión con ese rol
+  try{
+    const{data:loginData,error:loginErr}=await supabase.auth.signInWithPassword({email,password:pass});
+    if(loginErr)throw new Error("Ese correo ya tiene una cuenta registrada. Verificá tu contraseña e intentá iniciar sesión.");
+    // Guardar el rol seleccionado para esta sesión
+    await AsyncStorage.setItem('nexu_rol_pending',rol);
+    supabase.functions.invoke("mensaje-bienvenida",{body:{admin_secret:"nexu-admin-2026",user_id:loginData.user.id,rol}}).catch(()=>{});
+    // onAuthStateChange en AppContext se encarga del resto
+  }catch(loginErr){
+    Alert.alert("Correo ya registrado",loginErr.message||"Ese correo ya tiene una cuenta. Iniciá sesión desde la pantalla de login.");
+  }
+}else{
+  Alert.alert(t('error_registro'),mensajeError(msg));
+}
 }finally{setLoad(false);}}
 
 return(
@@ -62,7 +100,7 @@ return(
 
 <View style={{flexDirection:"row",gap:10}}>
 <View style={{flex:1}}><View style={ss.iw}><Text style={ss.lbl}>Primer apellido</Text><View style={ss.ib}><TextInput style={ss.input} placeholder="Apellido" placeholderTextColor="#D0C8DC" value={apellido1} onChangeText={setApellido1} autoCapitalize="words"/></View></View></View>
-<View style={{flex:1}}><View style={ss.iw}><View style={{flexDirection:"row",justifyContent:"space-between"}}><Text style={ss.lbl}>Segundo apellido</Text><Text style={ss.opt}>Opcional</Text></View><View style={ss.ib}><TextInput style={ss.input} placeholder="Apellido 2" placeholderTextColor="#D0C8DC" value={apellido2} onChangeText={setApellido2} autoCapitalize="words"/></View></View></View>
+<View style={{flex:1}}><View style={ss.iw}><Text style={ss.lbl}>Segundo apellido</Text><View style={ss.ib}><TextInput style={ss.input} placeholder="Apellido 2" placeholderTextColor="#D0C8DC" value={apellido2} onChangeText={setApellido2} autoCapitalize="words"/></View></View></View>
 </View>
 
 <View style={ss.iw}><Text style={ss.lbl}>Email</Text>

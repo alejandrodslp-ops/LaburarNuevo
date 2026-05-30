@@ -1,67 +1,88 @@
+import NexuWatermark from '../components/NexuWatermark';
 import React,{useState,useEffect} from 'react';
-import{View,Text,ScrollView,TouchableOpacity,TextInput,StyleSheet,Alert,ActivityIndicator,Keyboard}from 'react-native';
+import{View,Text,ScrollView,TouchableOpacity,TextInput,StyleSheet,ActivityIndicator,Keyboard}from'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{supabase}from '../services/supabase';
 import{usuarioEnPeriodoPrueba}from '../services/config';
+import{useI18n}from '../services/I18nContext';
+import{trItem,SERVICIOS_TR,PROFESIONES_TR,DISPS_TR}from '../data/oficios';
 
-const CATS=[
-  {id:'Niñera',emoji:'👶',label:'Niñera'},
-  {id:'Limpieza del hogar',emoji:'🧹',label:'Limpieza'},
-  {id:'Plomero/a',emoji:'🔧',label:'Plomero'},
-  {id:'Electricista',emoji:'⚡',label:'Electricista'},
-  {id:'Jardinero/a',emoji:'🌿',label:'Jardinero'},
-  {id:'Cocinero/a',emoji:'🍳',label:'Cocinero'},
-  {id:'Albañil',emoji:'🏗️',label:'Albañil'},
-  {id:'Pintor/a',emoji:'🖌️',label:'Pintor'},
-  {id:'Cuidado de animales',emoji:'🐾',label:'Animales'},
-  {id:'Chofer particular',emoji:'🚗',label:'Chofer'},
-  {id:'Mucama',emoji:'🏠',label:'Mucama'},
-  {id:'Carpintero/a',emoji:'🪵',label:'Carpintero'},
-  {id:'Mecanico/a',emoji:'🔩',label:'Mecanico'},
-  {id:'Medico/a',emoji:'🩺',label:'Medico'},
-  {id:'Abogado/a',emoji:'⚖️',label:'Abogado'},
+const CATS_DEF=[
+  {id:'Niñera',             emoji:'👶'},
+  {id:'Limpieza del hogar', emoji:'🧹'},
+  {id:'Plomero/a',          emoji:'🔧'},
+  {id:'Electricista',       emoji:'⚡'},
+  {id:'Jardinero/a',        emoji:'🌿'},
+  {id:'Cocinero/a',         emoji:'🍳'},
+  {id:'Albañil',            emoji:'🏗️'},
+  {id:'Pintor/a',           emoji:'🖌️'},
+  {id:'Cuidado de animales',emoji:'🐾'},
+  {id:'Chofer particular',  emoji:'🚗'},
+  {id:'Mucama',             emoji:'🏠'},
+  {id:'Carpintero/a',       emoji:'🪵'},
+  {id:'Mecanico/a',         emoji:'🔩'},
+  {id:'Medico/a',           emoji:'🩺'},
+  {id:'Abogado/a',          emoji:'⚖️'},
 ];
-const FILTROS=['Montevideo','Con referencias','Mejor rating','Disponible ya'];
+
+const FILTROS_DEF=[
+  {id:'Montevideo',      key:'filtro_montevideo'},
+  {id:'Con referencias', key:'filtro_referencias'},
+  {id:'Mejor rating',    key:'filtro_rating'},
+  {id:'Disponible ya',   key:'filtro_disponible'},
+];
+
 const SUGERENCIAS=['Niñera','Limpieza','Plomero','Electricista','Jardinero','Cocinero','Albañil','Pintor','Animales','Chofer','Mucama','Carpintero','Mecanico','Guardia','Sereno','Mozo','Repostero','Costurero','Peluquero','Esteticista','Mudanzas','Delivery','Medico','Abogado','Contador','Ingeniero','Arquitecto','Psicologo','Enfermero','Veterinario','Docente','Programador','Montevideo','Pocitos','Carrasco','Malvin','Buceo','Centro','Tres Cruces','Punta Carretas','Punta del Este','Las Piedras','Salto','Paysandu','Rivera','Colonia'];
 const ZONAS=['Montevideo','Pocitos','Carrasco','Malvin','Buceo','Centro','Tres Cruces','Punta Carretas','Punta del Este','Las Piedras','Salto','Paysandu','Rivera','Colonia'];
 
-function estrellas(r){const n=Math.round(r||0);return '★'.repeat(n)+'☆'.repeat(5-n);}
+function trCat(id,idioma){
+  return trItem(SERVICIOS_TR,id,idioma)||trItem(PROFESIONES_TR,id,idioma)||id;
+}
+
+function estrellas(r){const n=Math.round(r||0);return'★'.repeat(n)+'☆'.repeat(5-n);}
 
 function Card({item,onContactar}){
+  const{t,idioma}=useI18n();
   const nombre=item.nombre||'Trabajador';
   const oficio=(item.servicios&&item.servicios[0])||(item.profesiones&&item.profesiones[0])||'Profesional';
   const zona=[item.barrio,item.ciudad].filter(Boolean).join(', ')||'Uruguay';
   const tags=[...(item.servicios||[]).slice(0,2),...(item.especialidades||[]).slice(0,1)];
+  const dispTr=trItem(DISPS_TR,item.disponibilidad,idioma)||item.disponibilidad||t('a_convenir');
   return(
     <View style={ss.card}>
       <View style={ss.cardHeader}>
         <View style={ss.anonAv}><Text style={ss.anonIcon}>👤</Text></View>
         <View style={ss.cardInfo}>
           <Text style={ss.cardNombre}>{nombre}</Text>
-          <Text style={ss.cardOficio}>{oficio}</Text>
+          <Text style={ss.cardOficio}>{trCat(oficio,idioma)}</Text>
           <Text style={ss.cardZona}>📍 {zona}</Text>
         </View>
         {item.referencias&&<View style={ss.refBadge}><Text style={ss.refTxt}>✓ Ref</Text></View>}
       </View>
       <View style={ss.privaRow}>
         <Text style={ss.privaIcon}>🔒</Text>
-        <Text style={ss.privaTxt}>Apellido y contacto se revelan al hacer match</Text>
+        <Text style={ss.privaTxt}>{t('buscar_privacidad_match')}</Text>
       </View>
       <View style={ss.ratingRow}>
         <Text style={ss.stars}>{estrellas(item.rating)}</Text>
         <Text style={ss.ratingNum}>{item.rating||0}</Text>
-        <Text style={ss.ratingCount}>({item.total_valoraciones||0} valoraciones)</Text>
-        <Text style={ss.disponib}>● {item.disponibilidad||'A convenir'}</Text>
+        <Text style={ss.ratingCount}>({item.total_valoraciones||0} {t('valoraciones')})</Text>
+        <Text style={ss.disponib}>● {dispTr}</Text>
       </View>
-      {tags.length>0&&(<View style={ss.tagsRow}>{tags.map((t,i)=>(<View key={i} style={ss.tag}><Text style={ss.tagTxt}>{t}</Text></View>))}</View>)}
+      {tags.length>0&&(
+        <View style={ss.tagsRow}>
+          {tags.map((tag,i)=>(<View key={i} style={ss.tag}><Text style={ss.tagTxt}>{trCat(tag,idioma)}</Text></View>))}
+        </View>
+      )}
       <TouchableOpacity style={ss.btnContactar} onPress={()=>onContactar(item)}>
-        <Text style={ss.btnContactarTxt}>Ver perfil completo</Text>
+        <Text style={ss.btnContactarTxt}>{t('buscar_ver_perfil')}</Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 export default function BuscarScreen({navigation}){
+  const{t,idioma}=useI18n();
   const[catActiva,setCatActiva]=useState(null);
   const[enPrueba,setEnPrueba]=useState(true);
   const[filtrosActivos,setFiltrosActivos]=useState([]);
@@ -72,9 +93,11 @@ export default function BuscarScreen({navigation}){
   const[total,setTotal]=useState(0);
   const[visDisp,setVisDisp]=useState(0);
 
+  const CATS=CATS_DEF.map(c=>({...c,label:trCat(c.id,idioma)}));
+  const FILTROS=FILTROS_DEF.map(f=>({...f,label:t(f.key)}));
+
   useEffect(()=>{ejecutar('','',catActiva,filtrosActivos);},[catActiva,filtrosActivos]);
 
-  // Recargar visualizaciones disponibles cada vez que la pantalla toma foco
   useEffect(()=>{
     const unsub=navigation.addListener('focus',cargarVisDisp);
     cargarVisDisp();
@@ -88,7 +111,6 @@ export default function BuscarScreen({navigation}){
       const{data}=await supabase.from('profiles').select('visualizaciones_disponibles').eq('id',user.id).single();
       if(data){
         const dbVal=data.visualizaciones_disponibles??0;
-        // Nunca bajar el saldo por debajo de lo que tenemos localmente (protege contra DB desactualizada)
         setVisDisp(prev=>Math.max(dbVal,prev));
       }
     }catch(e){}
@@ -113,9 +135,7 @@ export default function BuscarScreen({navigation}){
   }
 
   function onSug(sug){
-    setSugs([]);
-    setBusqueda(sug);
-    Keyboard.dismiss();
+    setSugs([]);setBusqueda(sug);Keyboard.dismiss();
     if(ZONAS.includes(sug)){ejecutar(sug,'',catActiva,filtrosActivos);}
     else{ejecutar('',sug,catActiva,filtrosActivos);}
   }
@@ -127,16 +147,14 @@ export default function BuscarScreen({navigation}){
   async function ejecutar(zona,oficio,cat,filtros){
     setLoading(true);
     try{
-      // Obtener perfiles ya vistos
       const{data:{user}}=await supabase.auth.getUser();
       let yaVistos=[];
       if(user){
         const{data:vis}=await supabase.from('visualizaciones').select('worker_id').eq('employer_id',user.id);
         yaVistos=(vis||[]).map(v=>v.worker_id);
       }
-
       let q=supabase.from('profiles')
-        .select('id,nombre,apellido1,servicios,profesiones,especialidades,rating,total_valoraciones,ciudad,barrio,pais,disponibilidad,referencias,fecha_nac,idiomas,tipos_empleo,bio,anios_experiencia,sueldo_pretension_min,sueldo_pretension_max,sueldo_moneda,updated_at')
+        .select('id,nombre,apellido1,servicios,profesiones,especialidades,rating,total_valoraciones,ciudad,barrio,pais,disponibilidad,referencias,fecha_nac,idiomas,tipos_empleo,bio,anios_experiencia,sueldo_pretension_min,sueldo_pretension_max,sueldo_moneda,updated_at,perfil_visible')
         .eq('perfil_activo',true)
         .neq('id',user.id)
         .order('rating',{ascending:false});
@@ -156,17 +174,12 @@ export default function BuscarScreen({navigation}){
   }
 
   async function onContactar(item){
-    // Quitar de la lista inmediatamente — evita que se pueda abrir dos veces
     setResultados(prev=>prev.filter(r=>r.id!==item.id));
-
-    // Usar estado local como fuente primaria (ya cargado al enfocar la pantalla)
     if(visDisp>0){
       setVisDisp(v=>v-1);
       navigation.navigate('PerfilTrabajador',{perfil:item});
       return;
     }
-
-    // Solo si local dice 0 → confirmar con DB (podría haberse recargado el pago)
     try{
       const{data:{user}}=await supabase.auth.getUser();
       if(!user)return;
@@ -176,54 +189,80 @@ export default function BuscarScreen({navigation}){
         setVisDisp(saldoDB-1);
         navigation.navigate('PerfilTrabajador',{perfil:item});
       }else{
-        // Devolver el perfil a la lista si no puede verlo
         setResultados(prev=>[item,...prev]);
         navigation.navigate('Pago',{perfil:item,gratis:enPrueba});
       }
     }catch(e){
-      // Si la DB falla → beneficio de la duda, siempre dejamos entrar al usuario
       navigation.navigate('PerfilTrabajador',{perfil:item});
     }
   }
 
+  const catActivaLabel=catActiva?trCat(catActiva,idioma):null;
+
   return(
     <SafeAreaView style={ss.container} edges={['top']}>
+      <NexuWatermark/>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={ss.searchHeader}>
           <View style={ss.saldoRow}>
-            <Text style={ss.searchTitle}>Que necesitas?</Text>
+            <Text style={ss.searchTitle}>{t('buscar_que_necesitas')}</Text>
             {visDisp>0&&(
               <View style={ss.saldoBadge}>
-                <Text style={ss.saldoTxt}>👁 {visDisp} perfil{visDisp!==1?'es':''}</Text>
+                <Text style={ss.saldoTxt}>{visDisp===1?t('buscar_saldo_uno'):t('buscar_saldo_n',{n:visDisp})}</Text>
               </View>
             )}
           </View>
-          <Text style={ss.searchSub}>Encontra al profesional ideal cerca tuyo</Text>
+          <Text style={ss.searchSub}>{t('buscar_sub_empleador')}</Text>
           <View style={ss.searchBox}>
             <Text style={{fontSize:18,marginRight:8}}>🔍</Text>
-            <TextInput style={ss.searchInput} placeholder="Oficio, ciudad o barrio..." placeholderTextColor="#A898B8" value={busqueda} onChangeText={onTexto} onSubmitEditing={onSubmit} returnKeyType="search"/>
+            <TextInput style={ss.searchInput} placeholder={t('buscar_placeholder_oficio')} placeholderTextColor="#A898B8" value={busqueda} onChangeText={onTexto} onSubmitEditing={onSubmit} returnKeyType="search"/>
             {busqueda.length>0&&<TouchableOpacity onPress={onLimpiar}><Text style={{fontSize:16,color:'#A898B8',marginLeft:8}}>✕</Text></TouchableOpacity>}
           </View>
           {sugs.length>0&&(<View style={ss.suggBox}>{sugs.map((s,i)=>(<TouchableOpacity key={i} style={ss.suggItem} onPress={()=>onSug(s)}><Text style={ss.suggTxt}>🔍 {s}</Text></TouchableOpacity>))}</View>)}
           <View style={ss.privaBanner}>
             <Text>🔒</Text>
-            <Text style={ss.privaBannerTxt}>Tu identidad tambien es anonima hasta que decidas contactar</Text>
+            <Text style={ss.privaBannerTxt}>{t('buscar_anonimo_banner')}</Text>
           </View>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={ss.catsScroll} contentContainerStyle={{paddingHorizontal:16,gap:8}}>
           <TouchableOpacity style={[ss.catBtn,catActiva===null&&ss.catBtnA]} onPress={()=>setCatActiva(null)}>
             <Text style={ss.catEmoji}>🔍</Text>
-            <Text style={[ss.catLabel,catActiva===null&&ss.catLabelA]}>Todos</Text>
+            <Text style={[ss.catLabel,catActiva===null&&ss.catLabelA]}>{t('todos')}</Text>
           </TouchableOpacity>
-          {CATS.map(cat=>(<TouchableOpacity key={cat.id} style={[ss.catBtn,catActiva===cat.id&&ss.catBtnA]} onPress={()=>{setCatActiva(catActiva===cat.id?null:cat.id);Keyboard.dismiss();}}><Text style={ss.catEmoji}>{cat.emoji}</Text><Text style={[ss.catLabel,catActiva===cat.id&&ss.catLabelA]}>{cat.label}</Text></TouchableOpacity>))}
+          {CATS.map(cat=>(
+            <TouchableOpacity key={cat.id} style={[ss.catBtn,catActiva===cat.id&&ss.catBtnA]} onPress={()=>{setCatActiva(catActiva===cat.id?null:cat.id);Keyboard.dismiss();}}>
+              <Text style={ss.catEmoji}>{cat.emoji}</Text>
+              <Text style={[ss.catLabel,catActiva===cat.id&&ss.catLabelA]}>{cat.label}</Text>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={ss.chipsScroll} contentContainerStyle={{paddingHorizontal:16,gap:6}}>
-          {FILTROS.map(f=>(<TouchableOpacity key={f} style={[ss.chip,filtrosActivos.includes(f)&&ss.chipA]} onPress={()=>toggleFiltro(f)}><Text style={[ss.chipText,filtrosActivos.includes(f)&&ss.chipTextA]}>{f}</Text></TouchableOpacity>))}
+          {FILTROS.map(f=>(
+            <TouchableOpacity key={f.id} style={[ss.chip,filtrosActivos.includes(f.id)&&ss.chipA]} onPress={()=>toggleFiltro(f.id)}>
+              <Text style={[ss.chipText,filtrosActivos.includes(f.id)&&ss.chipTextA]}>{f.label}</Text>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
-        {loading?(<View style={{padding:40,alignItems:'center'}}><ActivityIndicator size="large" color="#2DD4BF"/><Text style={{color:'#A898B8',marginTop:8}}>Buscando...</Text></View>):(
+        {loading?(
+          <View style={{padding:40,alignItems:'center'}}>
+            <ActivityIndicator size="large" color="#2DD4BF"/>
+            <Text style={{color:'#A898B8',marginTop:8}}>{t('buscar_buscando')}</Text>
+          </View>
+        ):(
           <View style={{paddingHorizontal:16}}>
-            <Text style={ss.contador}>{total} {total===1?'profesional':'profesionales'} encontrados{catActiva?' · '+catActiva:''}</Text>
-            {resultados.length===0?(<View style={ss.empty}><Text style={{fontSize:48,marginBottom:12}}>🔍</Text><Text style={ss.emptyTit}>No hay resultados</Text><Text style={ss.emptySub}>Proba con otra categoria o zona</Text></View>):(resultados.map(r=>(<Card key={r.id} item={r} onContactar={onContactar}/>)))}
+            <Text style={ss.contador}>
+              {total===1?t('buscar_un_resultado'):t('buscar_n_resultados',{n:total})}
+              {catActivaLabel?' · '+catActivaLabel:''}
+            </Text>
+            {resultados.length===0?(
+              <View style={ss.empty}>
+                <Text style={{fontSize:48,marginBottom:12}}>🔍</Text>
+                <Text style={ss.emptyTit}>{t('buscar_sin_res_tit')}</Text>
+                <Text style={ss.emptySub}>{t('buscar_sin_res_sub')}</Text>
+              </View>
+            ):(
+              resultados.map(r=>(<Card key={r.id} item={r} onContactar={onContactar}/>))
+            )}
           </View>
         )}
       </ScrollView>

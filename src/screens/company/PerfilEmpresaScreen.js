@@ -4,6 +4,7 @@ import{SafeAreaView}from 'react-native-safe-area-context';
 import{LinearGradient}from 'expo-linear-gradient';
 import{supabase}from '../../services/supabase';
 import{useApp}from '../../services/AppContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function Fila({icono,titulo,subtitulo,onPress,peligro}){
   return(
@@ -59,7 +60,7 @@ export default function PerfilEmpresaScreen({navigation}){
   function cerrarSesion(){
     Alert.alert('Cerrar sesion','Estas seguro?',[
       {text:'Cancelar',style:'cancel'},
-      {text:'Cerrar sesion',style:'destructive',onPress:async()=>{await supabase.auth.signOut();}},
+      {text:'Cerrar sesion',style:'destructive',onPress:async()=>{await AsyncStorage.removeItem('welcome_visto');await supabase.auth.signOut();}},
     ]);
   }
 

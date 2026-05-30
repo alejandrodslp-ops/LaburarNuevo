@@ -66,6 +66,7 @@ export default function RegisterEmpresaScreen({navigation}){
         });
         if(errPerfil)throw errPerfil;
         await AsyncStorage.setItem("modo_"+data.user.id,"company");
+        supabase.functions.invoke("mensaje-bienvenida",{body:{admin_secret:"nexu-admin-2026",user_id:data.user.id,rol:"company"}}).catch(()=>{});
       }
       Alert.alert("Empresa registrada","Tu cuenta empresarial fue creada correctamente.",[{text:"Iniciar sesion",onPress:()=>navigation.navigate("Login")}]);
     }catch(e){

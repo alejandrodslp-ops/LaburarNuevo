@@ -1,8 +1,10 @@
 import React,{useState,useEffect} from "react";
-import{View,Text,StyleSheet,FlatList,TouchableOpacity,ActivityIndicator}from "react-native";
+import NexuWatermark from '../components/NexuWatermark';
+import{View,Text,StyleSheet,FlatList,TouchableOpacity,ActivityIndicator,Image,Alert}from "react-native";
 import{SafeAreaView}from "react-native-safe-area-context";
 import{supabase}from "../services/supabase";
 import{useApp}from "../services/AppContext";
+import{useI18n}from "../services/I18nContext";
 
 const C={coral:"#E8785A",indigo:"#2DD4BF",blanco:"#FFFFFF",crema:"#FBF8F4",cremaDark:"#F2EDE6",borde:"#EDE8E2",texto1:"#1A1020",texto2:"#5A4E6A",texto3:"#A898B8"};
 
@@ -16,11 +18,16 @@ function formatHora(iso){
   return d.toLocaleDateString("es-UY",{day:"2-digit",month:"2-digit"});
 }
 
-function Row({item,onPress}){
+function Row({item,onPress,onLongPress}){
   return(
-    <TouchableOpacity style={ss.row} onPress={onPress} activeOpacity={0.75}>
-      <View style={ss.av}>
-        <Text style={{fontSize:22}}>{item.emoji}</Text>
+    <TouchableOpacity style={ss.row} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.75}>
+      <View style={[ss.av,item.esNexu&&ss.avNexu]}>
+        {item.esNexu
+          ?<Text style={ss.avNexuTxt}>N</Text>
+          :item.avatarUrl
+            ?<Image source={{uri:item.avatarUrl}} style={ss.avImg}/>
+            :<Text style={{fontSize:22}}>{item.emoji}</Text>
+        }
         {item.noLeidos>0&&<View style={ss.dot}/>}
       </View>
       <View style={ss.cnt}>
@@ -36,6 +43,7 @@ function Row({item,onPress}){
 
 export default function MensajesScreen({navigation}){
   const{recargarSinLeer}=useApp();
+  const{t}=useI18n();
   const[items,setItems]=useState([]);
   const[loading,setLoading]=useState(true);
 
@@ -47,6 +55,8 @@ export default function MensajesScreen({navigation}){
       canal=supabase.channel("mensajes_screen_"+user.id)
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"propuestas",filter:`worker_id=eq.${user.id}`},()=>cargar())
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"mensajes",filter:`receiver_id=eq.${user.id}`},()=>cargar())
+        .on("postgres_changes",{event:"DELETE",schema:"public",table:"mensajes",filter:`sender_id=eq.${user.id}`},()=>cargar())
+        .on("postgres_changes",{event:"DELETE",schema:"public",table:"mensajes",filter:`receiver_id=eq.${user.id}`},()=>cargar())
         .subscribe();
     });
     return()=>{ if(canal) supabase.removeChannel(canal); };
@@ -75,7 +85,7 @@ export default function MensajesScreen({navigation}){
           propuesta:p,
           nombre:"Nexu",
           emoji:"🔔",
-          ultimo:"Hay una oferta que puede interesarte",
+          ultimo:t('hay_oferta'),
           hora:formatHora(p.created_at),
           noLeidos:1,
         });
@@ -97,17 +107,20 @@ export default function MensajesScreen({navigation}){
         }
         const pids=Object.keys(map);
         const{data:perfiles}=await supabase
-          .from("profiles").select("id,nombre,apellido1,rol").in("id",pids);
+          .from("profiles").select("id,nombre,apellido1,rol,avatar_url").in("id",pids);
         const pm={};
         (perfiles||[]).forEach(p=>{pm[p.id]=p;});
+        const NEXU_ID="43a7baf9-f88e-463b-8e4c-385bd3fb8151";
         for(const pid of pids){
           const p=pm[pid]||{};
           const c=map[pid];
-          const nombre=p.nombre
-            ?(p.apellido1?`${p.nombre} ${p.apellido1[0]}.`:p.nombre):"Contacto";
-          const emoji=p.rol==="employer"?"💼":p.rol==="company"?"🏢":"👤";
+          const esNexu=pid===NEXU_ID;
+          const nombre=esNexu?"Nexu":(p.nombre
+            ?(p.apellido1?`${p.nombre} ${p.apellido1[0]}.`:p.nombre):"Contacto");
+          const emoji=esNexu?"🔔":(p.rol==="employer"?"💼":p.rol==="company"?"🏢":"👤");
+          const avatarUrl=p.avatar_url||null;
           lista.push({
-            tipo:"chat",id:pid,nombre,emoji,
+            tipo:"chat",id:pid,nombre,emoji,avatarUrl,esNexu,
             ultimo:c.ultimo.texto,
             hora:formatHora(c.ultimo.created_at),
             noLeidos:c.noLeidos,
@@ -132,26 +145,48 @@ export default function MensajesScreen({navigation}){
     if(item.tipo==="propuesta"){
       navigation.navigate("Propuesta",{propuesta:item.propuesta});
     }else{
-      navigation.navigate("Chat",{contactoId:item.id,nombre:item.nombre});
+      navigation.navigate("Chat",{contactoId:item.id,nombre:item.nombre,esNexu:item.esNexu||false,avatarUrl:item.avatarUrl||null});
     }
+  }
+
+  function onLongPressItem(item){
+    if(item.tipo==="propuesta")return;
+    Alert.alert(
+      "Eliminar conversación",
+      `¿Eliminar todos los mensajes con ${item.nombre}?`,
+      [
+        {text:"Cancelar",style:"cancel"},
+        {text:"Eliminar",style:"destructive",onPress:async()=>{
+          try{
+            const{data:{user}}=await supabase.auth.getUser();
+            if(!user)return;
+            await supabase.from("mensajes")
+              .delete()
+              .or(`and(sender_id.eq.${user.id},receiver_id.eq.${item.id}),and(sender_id.eq.${item.id},receiver_id.eq.${user.id})`);
+            cargar();
+          }catch(e){}
+        }},
+      ]
+    );
   }
 
   return(
     <SafeAreaView style={ss.c} edges={["top"]}>
-      <View style={ss.hdr}><Text style={ss.tit}>Mensajes</Text></View>
+      <NexuWatermark/>
+      <View style={ss.hdr}><Text style={ss.tit}>{t('mensajes_titulo')}</Text></View>
       {loading?(
         <ActivityIndicator size="large" color={C.indigo} style={{marginTop:40}}/>
       ):items.length===0?(
         <View style={ss.empty}>
           <Text style={{fontSize:48,marginBottom:12}}>💬</Text>
-          <Text style={ss.emptyTit}>Sin mensajes aún</Text>
-          <Text style={ss.emptySub}>Cuando un empleador se interese en tu perfil, la conversación aparecerá aquí.</Text>
+          <Text style={ss.emptyTit}>{t('sin_mensajes_tit')}</Text>
+          <Text style={ss.emptySub}>{t('sin_mensajes_sub')}</Text>
         </View>
       ):(
         <FlatList
           data={items}
           keyExtractor={i=>i.id}
-          renderItem={({item})=><Row item={item} onPress={()=>onPresItem(item)}/>}
+          renderItem={({item})=><Row item={item} onPress={()=>onPresItem(item)} onLongPress={()=>onLongPressItem(item)}/>}
           ItemSeparatorComponent={()=><View style={ss.sep}/>}
           showsVerticalScrollIndicator={false}
         />
@@ -165,7 +200,10 @@ const ss=StyleSheet.create({
   hdr:{paddingHorizontal:16,paddingVertical:16,borderBottomWidth:1,borderBottomColor:C.borde,backgroundColor:C.blanco},
   tit:{fontSize:24,fontWeight:"800",color:C.texto1,letterSpacing:-0.5},
   row:{flexDirection:"row",alignItems:"center",gap:12,paddingHorizontal:16,paddingVertical:14,backgroundColor:C.blanco},
-  av:{width:48,height:48,borderRadius:24,backgroundColor:C.cremaDark,alignItems:"center",justifyContent:"center",borderWidth:1,borderColor:C.borde,position:"relative",flexShrink:0},
+  av:{width:48,height:48,borderRadius:24,backgroundColor:C.cremaDark,alignItems:"center",justifyContent:"center",borderWidth:1,borderColor:C.borde,position:"relative",flexShrink:0,overflow:"hidden"},
+  avImg:{width:48,height:48,borderRadius:24},
+  avNexu:{backgroundColor:"#1A1020",borderColor:"#E8785A"},
+  avNexuTxt:{fontSize:22,fontWeight:"900",color:"#E8785A"},
   dot:{position:"absolute",top:0,right:0,width:10,height:10,borderRadius:5,backgroundColor:C.coral,borderWidth:1.5,borderColor:C.blanco},
   cnt:{flex:1},
   top:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginBottom:3},

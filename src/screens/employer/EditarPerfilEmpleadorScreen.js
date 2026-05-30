@@ -1,11 +1,11 @@
 import React,{useState,useEffect} from 'react';
-import{View,Text,StyleSheet,TouchableOpacity,TextInput,ScrollView,Alert}from 'react-native';
+import{View,Text,StyleSheet,TouchableOpacity,TextInput,ScrollView,Alert,KeyboardAvoidingView,Platform}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{LinearGradient}from 'expo-linear-gradient';
 import{supabase}from '../../services/supabase';
 
-const PAISES=["Uruguay","Argentina","Brasil","Chile","Paraguay","Bolivia","Peru","Colombia","Mexico","Ecuador","Venezuela","Spain","United States","France","Germany","Italy","Portugal","Otro"];
-const CIUDADES_POR_PAIS={"Uruguay":["Montevideo","Salto","Paysandu","Las Piedras","Rivera","Maldonado","Tacuarembo","Melo","Mercedes","Rocha","Colonia"],"Argentina":["Buenos Aires","Cordoba","Rosario","Mendoza","Tucuman","La Plata","Mar del Plata","Salta","Santa Fe"],"Brasil":["Sao Paulo","Rio de Janeiro","Brasilia","Salvador","Fortaleza","Belo Horizonte","Curitiba","Recife","Porto Alegre"],"Chile":["Santiago","Valparaiso","Concepcion","La Serena","Antofagasta","Temuco","Rancagua"],"Paraguay":["Asuncion","Ciudad del Este","San Lorenzo","Luque","Encarnacion"]};
+const PAISES=["Uruguay","Argentina","Brasil","Chile","Paraguay","Bolivia","Peru","Colombia","Mexico","Ecuador","Venezuela","Cuba","Costa Rica","Panama","Guatemala","El Salvador","Honduras","Nicaragua","Republica Dominicana","Spain","Portugal","France","Italy","Germany","United Kingdom","United States","Canada","Australia","Sweden","Norway","Japan","India","Otro"];
+const CIUDADES_POR_PAIS={"Uruguay":["Montevideo","Salto","Paysandu","Las Piedras","Rivera","Maldonado","Tacuarembo","Melo","Mercedes","Rocha","Colonia"],"Argentina":["Buenos Aires","Cordoba","Rosario","Mendoza","Tucuman","La Plata","Mar del Plata","Salta","Santa Fe"],"Brasil":["Sao Paulo","Rio de Janeiro","Brasilia","Salvador","Fortaleza","Belo Horizonte","Curitiba","Recife","Porto Alegre"],"Chile":["Santiago","Valparaiso","Concepcion","La Serena","Antofagasta","Temuco","Rancagua"],"Paraguay":["Asuncion","Ciudad del Este","San Lorenzo","Luque","Encarnacion"],"Bolivia":["La Paz","Santa Cruz","Cochabamba","Sucre","Oruro"],"Peru":["Lima","Arequipa","Trujillo","Chiclayo","Piura"],"Colombia":["Bogota","Medellin","Cali","Barranquilla","Cartagena"],"Mexico":["Ciudad de Mexico","Guadalajara","Monterrey","Puebla","Toluca"],"Ecuador":["Guayaquil","Quito","Cuenca","Santo Domingo"],"Venezuela":["Caracas","Maracaibo","Valencia","Barquisimeto","Maracay"],"Cuba":["La Habana","Santiago de Cuba","Camaguey","Holguin"],"Costa Rica":["San Jose","Alajuela","Cartago","Heredia"],"Panama":["Ciudad de Panama","Colon","David","Santiago"],"Guatemala":["Ciudad de Guatemala","Quetzaltenango","Antigua"],"El Salvador":["San Salvador","Santa Ana","San Miguel"],"Honduras":["Tegucigalpa","San Pedro Sula","La Ceiba"],"Nicaragua":["Managua","Leon","Masaya","Granada"],"Republica Dominicana":["Santo Domingo","Santiago","La Romana"],"Spain":["Madrid","Barcelona","Valencia","Sevilla","Zaragoza","Malaga","Bilbao"],"Portugal":["Lisbon","Porto","Braga","Coimbra"],"France":["Paris","Lyon","Marseille","Toulouse","Nice","Bordeaux"],"Italy":["Rome","Milan","Naples","Turin","Palermo","Bologna"],"Germany":["Berlin","Hamburg","Munich","Cologne","Frankfurt","Stuttgart"],"United Kingdom":["London","Birmingham","Manchester","Glasgow","Liverpool","Edinburgh"],"United States":["New York","Los Angeles","Chicago","Houston","Phoenix","Philadelphia","Dallas","San Diego"],"Canada":["Toronto","Montreal","Vancouver","Calgary","Edmonton","Ottawa"],"Australia":["Sydney","Melbourne","Brisbane","Perth","Adelaide","Canberra"],"Sweden":["Stockholm","Gothenburg","Malmo","Uppsala","Vasteras"],"Norway":["Oslo","Bergen","Trondheim","Stavanger","Drammen"],"Japan":["Tokyo","Osaka","Kyoto","Nagoya","Sapporo","Fukuoka","Kobe"],"India":["Mumbai","Delhi","Bangalore","Hyderabad","Chennai","Kolkata","Pune","Ahmedabad"]};
 const ESCOLARIDAD=["Sin requisito","Primaria completa","Secundaria completa","Terciario/Universidad","Posgrado"];
 const IDIOMAS=["Espanol","Portugues","Ingles","Frances","Italiano","Aleman","Otro"];
 const CARGAS=["Tiempo completo","Medio tiempo","Por horas","Por tarea","A convenir"];
@@ -99,7 +99,7 @@ export default function EditarPerfilEmpleadorScreen({navigation}){
           const res=await fetch('https://ipapi.co/json/');
           const data=await res.json();
           if(data.country_name){
-            const mapa={'Uruguay':'Uruguay','Argentina':'Argentina','Brazil':'Brasil','Chile':'Chile','Paraguay':'Paraguay','Bolivia':'Bolivia','Peru':'Peru','Colombia':'Colombia','Mexico':'Mexico','Ecuador':'Ecuador','Venezuela':'Venezuela'};
+            const mapa={'Uruguay':'Uruguay','Argentina':'Argentina','Brazil':'Brasil','Chile':'Chile','Paraguay':'Paraguay','Bolivia':'Bolivia','Peru':'Peru','Colombia':'Colombia','Mexico':'Mexico','Ecuador':'Ecuador','Venezuela':'Venezuela','Cuba':'Cuba','Costa Rica':'Costa Rica','Panama':'Panama','Guatemala':'Guatemala','El Salvador':'El Salvador','Honduras':'Honduras','Nicaragua':'Nicaragua','Dominican Republic':'Republica Dominicana','Spain':'Spain','Portugal':'Portugal','France':'France','Italy':'Italy','Germany':'Germany','United Kingdom':'United Kingdom','United States':'United States','Canada':'Canada','Australia':'Australia','Sweden':'Sweden','Norway':'Norway','Japan':'Japan','India':'India'};
             const paisMapeado=mapa[data.country_name]||data.country_name;
             if(PAISES.includes(paisMapeado))setPais(paisMapeado);
           }
@@ -185,6 +185,7 @@ export default function EditarPerfilEmpleadorScreen({navigation}){
         <Text style={ss.htit}>Nueva busqueda de trabajador</Text>
         <View style={{width:50}}/>
       </View>
+      <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==="ios"?"padding":"height"}>
       <ScrollView contentContainerStyle={{paddingBottom:48}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
         <View style={ss.sec}>
@@ -248,6 +249,7 @@ export default function EditarPerfilEmpleadorScreen({navigation}){
         </TouchableOpacity>
 
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

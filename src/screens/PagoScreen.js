@@ -7,8 +7,7 @@ import * as SMS from "expo-sms";
 
 const PAISES_SA=["AR","BO","BR","CL","CO","EC","PY","PE","UY","VE","MX","GT","HN","SV","NI","CR","PA","CU","HT","DO","PR","BZ","GY","SR","TT","JM","BB","LC","VC","GD","AG","DM","KN"];
 const MONEDAS={"AR":{simbolo:"ARS",tasa:1200},"BO":{simbolo:"BOB",tasa:6.9},"BR":{simbolo:"BRL",tasa:5.1},"CL":{simbolo:"CLP",tasa:950},"CO":{simbolo:"COP",tasa:4100},"EC":{simbolo:"USD",tasa:1},"PY":{simbolo:"PYG",tasa:7400},"PE":{simbolo:"PEN",tasa:3.8},"UY":{simbolo:"UYU",tasa:41},"VE":{simbolo:"USD",tasa:1},"MX":{simbolo:"MXN",tasa:17},"GT":{simbolo:"GTQ",tasa:7.8},"HN":{simbolo:"HNL",tasa:24.8},"SV":{simbolo:"USD",tasa:1},"NI":{simbolo:"NIO",tasa:36.6},"CR":{simbolo:"CRC",tasa:520},"PA":{simbolo:"USD",tasa:1}};
-const STRIPE_LINK_3USD="https://buy.stripe.com/test_4gMbJ09yY17U9l8gtFfAc00";
-const STRIPE_LINK_10USD="https://buy.stripe.com/test_4gMbJ09yY17U9l8gtFfAc00"; // TODO: reemplazar con link Stripe real de $20
+// Stripe pendiente de configurar — por ahora solo MercadoPago para todos los países
 
 export default function PagoScreen({navigation,route}){
   const perfil=route?.params?.perfil||null;
@@ -18,21 +17,23 @@ export default function PagoScreen({navigation,route}){
   const[pais,setPais]=useState("UY");
   const[paquete,setPaquete]=useState('3');
   const[esperandoPago,setEsperandoPago]=useState(false);
-  const[mostrarBotonContinuar,setMostrarBotonContinuar]=useState(false);
+  const[mostrarAyuda,setMostrarAyuda]=useState(false);
   const intervaloRef=useRef(null);
   const timeoutRef=useRef(null);
   const appStateRef=useRef(AppState.currentState);
+  const prevVisualizacionesRef=useRef(0);
 
   async function verificarPago(){
     try{
       const{data:{user}}=await supabase.auth.getUser();
       if(!user)return false;
       const{data}=await supabase.from('profiles').select('visualizaciones_disponibles').eq('id',user.id).single();
-      if(data&&data.visualizaciones_disponibles>0){
+      // Solo confirmar si las visualizaciones aumentaron respecto al momento de iniciar el pago
+      if(data&&data.visualizaciones_disponibles>prevVisualizacionesRef.current){
         clearInterval(intervaloRef.current);
         clearTimeout(timeoutRef.current);
         setEsperandoPago(false);
-        setMostrarBotonContinuar(false);
+        setMostrarAyuda(false);
         if(perfil)navigation.replace('PerfilTrabajador',{perfil});
         return true;
       }
@@ -46,10 +47,9 @@ export default function PagoScreen({navigation,route}){
     // Polling cada 3 segundos
     intervaloRef.current=setInterval(verificarPago,3000);
 
-    // Si en 45 segundos no se confirma, mostrar botón manual
     timeoutRef.current=setTimeout(()=>{
-      setMostrarBotonContinuar(true);
-    },45000);
+      setMostrarAyuda(true);
+    },60000);
 
     // Verificar también cuando el usuario vuelve a la app desde el navegador
     const sub=AppState.addEventListener('change',async(nextState)=>{
@@ -87,7 +87,6 @@ export default function PagoScreen({navigation,route}){
   };
   const pkg=PAQUETES[paquete];
   const montoPago=esSudamerica?pkg.precioSA:pkg.precioWorld;
-  const porPerfil=esSudamerica?pkg.porPerfilSA:pkg.porPerfilWorld;
   const precioLocal=moneda&&moneda.simbolo!=="USD"?Math.round(montoPago*moneda.tasa):null;
 
   useEffect(()=>{
@@ -102,44 +101,34 @@ export default function PagoScreen({navigation,route}){
     }catch(e){setPais("UY");}
   }
 
-  async function handleMP(){
-    setLoadingMP(true);
+  async function iniciarPagoMP(metodo){
+    metodo==='mp'?setLoadingMP(true):setLoadingTarjeta(true);
     try{
       const{data:{user}}=await supabase.auth.getUser();
-      if(!user){Alert.alert("Error","Debes iniciar sesion");return;}
+      if(!user){Alert.alert("Error","Debés iniciar sesión");return;}
+      // Guardar baseline antes de abrir el pago
+      const{data:perfData}=await supabase.from('profiles').select('visualizaciones_disponibles').eq('id',user.id).single();
+      prevVisualizacionesRef.current=perfData?.visualizaciones_disponibles||0;
       const{data,error}=await supabase.functions.invoke("crear-pago",{
         body:{user_id:user.id,monto:montoPago,descripcion:"Nexu - "+pkg.cantidad+" perfiles",worker_id:perfil?.id||'',cantidad_perfiles:pkg.cantidad},
       });
       if(error)throw error;
-      await Linking.openURL(data.sandbox_init_point||data.init_point);
+      await Linking.openURL(data.init_point);
       setEsperandoPago(true);
     }catch(e){Alert.alert("Error","No se pudo conectar con MercadoPago.");}
-    finally{setLoadingMP(false);}
-  }
-
-  async function handleTarjeta(){
-    setLoadingTarjeta(true);
-    try{
-      const{data:{user}}=await supabase.auth.getUser();
-      if(!user){Alert.alert("Error","Debes iniciar sesion");return;}
-      if(esSudamerica){
-        const{data,error}=await supabase.functions.invoke("crear-pago",{
-          body:{user_id:user.id,monto:montoPago,descripcion:"Nexu - "+pkg.cantidad+" perfiles",cantidad_perfiles:pkg.cantidad},
-        });
-        if(error)throw error;
-        await Linking.openURL(data.sandbox_init_point||data.init_point);
-      }else{
-        await Linking.openURL(paquete==='10'?STRIPE_LINK_10USD:STRIPE_LINK_3USD);
-      }
-    }catch(e){Alert.alert("Error","No se pudo procesar el pago.");}
-    finally{setLoadingTarjeta(false);}
+    finally{metodo==='mp'?setLoadingMP(false):setLoadingTarjeta(false);}
   }
 
   async function handleSMS(){
     setLoadingSMS(true);
     try{
       const isAvailable=await SMS.isAvailableAsync();
-      if(!isAvailable){Alert.alert("SMS no disponible","Tu dispositivo no soporta envio de SMS.");return;}
+      if(!isAvailable){Alert.alert("SMS no disponible","Tu dispositivo no soporta envío de SMS.");return;}
+      const{data:{user}}=await supabase.auth.getUser();
+      if(user){
+        const{data:perfData}=await supabase.from('profiles').select('visualizaciones_disponibles').eq('id',user.id).single();
+        prevVisualizacionesRef.current=perfData?.visualizaciones_disponibles||0;
+      }
       const{result}=await SMS.sendSMSAsync(["1234"],"NEXU PAGO");
       if(result==="sent"||result==="unknown") setEsperandoPago(true);
     }catch(e){Alert.alert("Error","No se pudo enviar el SMS.");}
@@ -209,40 +198,23 @@ export default function PagoScreen({navigation,route}){
             <Text style={ss.esperandoTxt}>Verificando pago... volvé a la app cuando termines de pagar.</Text>
           </View>
         )}
-        {mostrarBotonContinuar&&(
-          <TouchableOpacity style={ss.yaPagueBtn} onPress={async()=>{
-            clearInterval(intervaloRef.current);
-            clearTimeout(timeoutRef.current);
-            setEsperandoPago(false);
-            setMostrarBotonContinuar(false);
-            // Si el webhook no procesó aún, agregar los perfiles manualmente
-            try{
-              const{data:{user}}=await supabase.auth.getUser();
-              if(user){
-                const{data}=await supabase.from('profiles').select('visualizaciones_disponibles').eq('id',user.id).single();
-                if(!data||data.visualizaciones_disponibles<=0){
-                  await supabase.from('profiles').update({visualizaciones_disponibles:pkg.cantidad}).eq('id',user.id);
-                }
-              }
-            }catch(e){}
-            if(perfil)navigation.replace('PerfilTrabajador',{perfil});
-          }}>
-            <Text style={ss.yaPagueTxt}>✓ Ya pagué — continuar</Text>
-          </TouchableOpacity>
+        {mostrarAyuda&&(
+          <View style={ss.ayudaWrap}>
+            <Text style={ss.ayudaTit}>¿Tuviste algún problema?</Text>
+            <Text style={ss.ayudaSub}>Si realizaste el pago y no se confirmó, contactá a nuestro soporte y lo resolvemos.</Text>
+          </View>
         )}
         <Text style={ss.metodosTit}>ELEGIR METODO DE PAGO</Text>
 
-        {esSudamerica&&(
-          <TouchableOpacity style={ss.btnWrap} onPress={handleMP} disabled={loadingMP}>
-            <LinearGradient colors={["#009EE3","#0077B6"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
-              {loadingMP?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 MercadoPago</Text>}
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity style={ss.btnWrap} onPress={()=>iniciarPagoMP('mp')} disabled={loadingMP||esperandoPago}>
+          <LinearGradient colors={["#009EE3","#0077B6"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
+            {loadingMP?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 MercadoPago</Text>}
+          </LinearGradient>
+        </TouchableOpacity>
 
-        <TouchableOpacity style={ss.btnWrap} onPress={handleTarjeta} disabled={loadingTarjeta}>
+        <TouchableOpacity style={ss.btnWrap} onPress={()=>iniciarPagoMP('tarjeta')} disabled={loadingTarjeta||esperandoPago}>
           <LinearGradient colors={["#2DD4BF","#14B8A6"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
-            {loadingTarjeta?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 Tarjeta de credito / debito</Text>}
+            {loadingTarjeta?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 Tarjeta de crédito / débito</Text>}
           </LinearGradient>
         </TouchableOpacity>
 
@@ -295,8 +267,9 @@ const ss=StyleSheet.create({
   // estado de pago
   esperandoWrap:{flexDirection:"row",alignItems:"center",gap:10,backgroundColor:"#F0FDFA",borderRadius:10,padding:12,marginBottom:12},
   esperandoTxt:{fontSize:13,color:"#2DD4BF",flex:1,lineHeight:18},
-  yaPagueBtn:{backgroundColor:"#E6FBF5",borderRadius:12,paddingVertical:14,alignItems:"center",marginBottom:12,borderWidth:1.5,borderColor:"#3DA882"},
-  yaPagueTxt:{fontSize:15,fontWeight:"700",color:"#2E9472"},
+  ayudaWrap:{backgroundColor:"#FFF7ED",borderRadius:12,padding:14,marginBottom:12,borderWidth:1,borderColor:"#FED7AA"},
+  ayudaTit:{fontSize:14,fontWeight:"700",color:"#C2410C",marginBottom:4},
+  ayudaSub:{fontSize:13,color:"#92400E",lineHeight:18},
   // botones de pago
   metodosTit:{fontSize:10,fontWeight:"700",color:"#A898B8",letterSpacing:1,marginBottom:12},
   btnWrap:{borderRadius:14,overflow:"hidden",marginBottom:10},
