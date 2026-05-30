@@ -57,6 +57,103 @@ function SearchField({label,value,onChange,placeholder,suggestions,onSelect}){
     </View>
   );
 }
+// ── Normalizador simple para matching de sugerencias ──────────────────────────
+function norm(s=''){
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9\s]/g,' ').trim();
+}
+
+// Diccionario de variantes fonéticas → término canónico (espejo del backend)
+const CORR={
+  "limpesa":"limpieza","limpiesa":"limpieza","limpiar":"limpieza","limpiadora":"limpieza",
+  "ninia":"niñera","ninhera":"niñera","niniera":"niñera","canguro":"niñera","babicitter":"niñera",
+  "ansiano":"anciano","anciano":"adulto mayor","viejo":"adulto mayor","vejito":"adulto mayor",
+  "plomeria":"plomería","plumeria":"plomería","gasfiter":"plomería","cañeria":"plomería",
+  "electricita":"electricista","electrisista":"electricista","electrisidad":"electricista",
+  "albanil":"albañil","albanileria":"albañilería","albanilería":"albañilería",
+  "jardineria":"jardinería","cesped":"jardinería","yarda":"jardinería","jardin":"jardinería","podar":"jardinería",
+  "cociñar":"cocina","cozinar":"cocina","cosinero":"cocinero","guisar":"cocina",
+  "manejar":"conductor","maneho":"conductor","choffer":"conductor",
+  "cuidar":"cuidador","enfermeria":"enfermería",
+  "mandao":"mandados","mandaos":"mandados","mensajero":"mandados","recado":"mandados",
+  "carpintero":"carpintería","carpin":"carpintería","madera":"carpintería",
+  "pintor":"pintura","pintar":"pintura",
+  "mecanico":"mecánico","mecanica":"mecánico",
+  "guardia":"seguridad","vigilante":"seguridad","sereno":"seguridad",
+  "peluquero":"peluquería","esteticista":"estética","manicura":"estética",
+  "chacra":"trabajo rural","campo":"trabajo rural","tractorista":"tractorista",
+  "mudanza":"mudanzas","flete":"mudanzas","fletes":"mudanzas",
+  "perro":"cuidado de animales","paseador":"paseador de perros","pasear perros":"paseador de perros",
+  "coser":"costura","costurera":"costura","modista":"costura",
+  "tortas":"repostería","pasteleria":"repostería","panadero":"panadería",
+};
+
+// Lista de oficios conocidos para sugerencias
+const OFICIOS_SUGERENCIAS=[
+  "Limpieza","Niñera","Cuidador/a de ancianos","Plomero/a","Electricista",
+  "Jardinero/a","Cocinero/a","Conductor","Mandados","Carpintero/a",
+  "Pintor/a","Mecánico/a","Seguridad","Peluquero/a","Costura",
+  "Repostería","Panadería","Mudanzas","Paseador de perros","Albañil",
+  "Trabajo rural","Tractorista","Estética","Enfermería","Mensajería",
+];
+
+function CampoConSugerencias({value,onChange}){
+  const[sugs,setSugs]=React.useState([]);
+
+  function calcularSugs(texto){
+    if(!texto||texto.trim().length<3){setSugs([]);return;}
+    // Obtener la última palabra o frase que el usuario está escribiendo
+    const palabras=texto.split(/[\s,]+/);
+    const ultima=norm(palabras[palabras.length-1]||'');
+    if(ultima.length<3){setSugs([]);return;}
+    // Aplicar correcciones y buscar en OFICIOS_SUGERENCIAS
+    const textoCorrecto=Object.entries(CORR).reduce((t,[k,v])=>t.replace(new RegExp('\\b'+k+'\\b','g'),v),ultima);
+    const matches=OFICIOS_SUGERENCIAS.filter(o=>{
+      const on=norm(o);
+      return on.includes(textoCorrecto)||textoCorrecto.includes(on.split(' ')[0])||on.split(' ').some(p=>p.startsWith(textoCorrecto));
+    }).slice(0,5);
+    setSugs(matches);
+  }
+
+  function aplicarSugerencia(sug){
+    // Reemplazar la última palabra con la sugerencia
+    const partes=value.split(/([,\s]+)/);
+    // Agregar sugerencia al final
+    const nuevo=(value.trimEnd()+(value.endsWith(',')?' ':value.length?', ':'')+sug).slice(0,500);
+    onChange(nuevo);
+    setSugs([]);
+  }
+
+  return(
+    <View style={ss.fw}>
+      <View style={{flexDirection:"row",justifyContent:"space-between"}}>
+        <Text style={ss.fl}>¿Qué podés ofrecer?</Text>
+        <Text style={ss.opt}>opcional</Text>
+      </View>
+      <TextInput
+        style={[ss.fi,{height:90,textAlignVertical:"top"}]}
+        value={value}
+        onChangeText={v=>{onChange(v.slice(0,500));calcularSugs(v);}}
+        placeholder="Ej: cuido personas mayores, cocino, hago mandados y limpieza"
+        placeholderTextColor="#A898B8"
+        multiline
+        maxLength={500}
+      />
+      {sugs.length>0&&(
+        <View style={{flexDirection:"row",flexWrap:"wrap",gap:6,marginTop:6}}>
+          <Text style={{fontSize:11,color:"#A898B8",width:"100%"}}>¿Quisiste decir?</Text>
+          {sugs.map(s=>(
+            <TouchableOpacity key={s} onPress={()=>aplicarSugerencia(s)}
+              style={{backgroundColor:"#F3E8FF",borderRadius:20,paddingHorizontal:12,paddingVertical:5,borderWidth:1,borderColor:"#7C3AED"}}>
+              <Text style={{fontSize:12,color:"#7C3AED",fontWeight:"700"}}>+ {s}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+      <Text style={{fontSize:11,color:"#C4BACC",marginTop:4,textAlign:"right"}}>{value.length}/500</Text>
+    </View>
+  );
+}
+
 function Chips({label,opts,displayOpts,sel,onToggle}){
   return(
     <View style={ss.fw}>
@@ -491,14 +588,9 @@ export default function EditarPerfilScreen({navigation,route}){
           <Text style={{fontSize:13,color:"#A898B8",marginBottom:12,lineHeight:19}}>
             Si no encontrás tu oficio en la lista de arriba, describí con tus palabras qué podés hacer. Nexu va a buscar oportunidades que coincidan en diarios y portales de tu zona.
           </Text>
-          <Field
-            label="¿Qué podés ofrecer?"
+          <CampoConSugerencias
             value={descripcionLibre}
             onChange={v=>setDescripcionLibre(v.slice(0,500))}
-            placeholder="Ej: cuido personas mayores, cocino, hago mandados y limpieza"
-            multi
-            optional
-            optLbl="opcional"
           />
           <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginTop:12,paddingVertical:12,paddingHorizontal:4,borderTopWidth:1,borderTopColor:"#EDE8E2"}}>
             <View style={{flex:1,marginRight:16}}>

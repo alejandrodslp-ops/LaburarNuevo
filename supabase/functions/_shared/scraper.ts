@@ -2,6 +2,92 @@
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+// ── Diccionario de normalizaciones ────────────────────────────────────────────
+// Mapea variantes con errores ortográficos (fonéticos, fonológicos, omisiones
+// de tilde, castellanizaciones) a la forma canónica que usan los concursos.
+// Clave: versión normalizada (sin tildes, minúsculas)
+// Valor: término canónico para la búsqueda
+const CORRECCIONES: Record<string, string> = {
+  // Limpieza
+  "limpesa":"limpieza","limpiesa":"limpieza","limpeisa":"limpieza",
+  "limpiar":"limpieza","limpadora":"limpieza","limpiadora":"limpieza",
+  // Niñera / cuidado infantil
+  "ninia":"niñera","ninhera":"niñera","niniera":"niñera","niera":"niñera",
+  "canguro":"niñera","babicitter":"niñera","babysiter":"niñera",
+  // Anciano / adulto mayor
+  "ansiano":"anciano","anciano":"anciano","abuela":"adulto mayor",
+  "viejo":"adulto mayor","vejito":"adulto mayor","abuelo":"adulto mayor",
+  // Plomería
+  "plomeria":"plomería","plomero":"plomería","plumeria":"plomería",
+  "caneria":"plomería","canñeria":"plomería","cañeria":"plomería",
+  "gasfiter":"plomería","gasfitera":"plomería",
+  // Electricidad
+  "electricita":"electricista","electrisista":"electricista",
+  "electrisidad":"electricista","electricidad":"electricista",
+  // Albañilería
+  "albanil":"albañil","albaniles":"albañil","albañileria":"albañilería",
+  "masoneria":"albañilería","pared":"albañilería","cemento":"albañilería",
+  // Jardinería
+  "jardineria":"jardinería","cortar pasto":"jardinería","yarda":"jardinería",
+  "cesped":"jardinería","jardin":"jardinería","podar":"jardinería",
+  // Cocina
+  "cociñar":"cocina","cozinar":"cocina","cosinero":"cocinero",
+  "cocinera":"cocinero","comida":"cocina","guisar":"cocina",
+  // Manejo / conducción
+  "manejar":"conductor","maneho":"conductor","chofer":"conductor",
+  "choffer":"conductor","taxista":"conductor","colectivero":"conductor",
+  // Cuidado de personas
+  "cuidar":"cuidador","cuidadora":"cuidador","enfermeria":"enfermería",
+  "enfermero":"enfermería","auxiliar enfermeria":"enfermería",
+  // Mandados / recados
+  "mandao":"mandados","mandaos":"mandados","recado":"mandados",
+  "mensajero":"mandados","mensajeria":"mandados","delivery":"mensajería",
+  // Carpintería
+  "carpintero":"carpintería","carpin":"carpintería","madera":"carpintería",
+  "ebanista":"carpintería","muebles":"carpintería",
+  // Pintura
+  "pintor":"pintura","pintora":"pintura","pintar":"pintura",
+  // Mecánica
+  "mecanico":"mecánico","mecanica":"mecánico","motor":"mecánico",
+  "automotor":"mecánico","taller":"mecánico",
+  // Seguridad
+  "guardia":"seguridad","vigilante":"seguridad","seguridad privada":"seguridad",
+  "sereno":"seguridad","vigilancia":"seguridad",
+  // Peluquería / estética
+  "peluquero":"peluquería","peluquera":"peluquería","peluca":"peluquería",
+  "esteticista":"estética","manicura":"estética","maquillaje":"estética",
+  // Trabajo rural
+  "chacra":"trabajo rural","campo":"trabajo rural","ordeñe":"trabajo rural",
+  "tambero":"trabajo rural","peón rural":"trabajo rural","tractor":"tractorista",
+  "tractorista":"tractorista","tropero":"trabajo rural",
+  // Mudanzas / carga
+  "mudanza":"mudanzas","flete":"mudanzas","carga":"mudanzas",
+  "fletes":"mudanzas","acarreo":"mudanzas",
+  // Mascotas
+  "perro":"cuidado de animales","gato":"cuidado de animales",
+  "pasear perros":"paseador de perros","paseador":"paseador de perros",
+  "veterinaria":"veterinario",
+  // Costura
+  "coser":"costura","costurera":"costura","arreglo ropa":"costura",
+  "modista":"costura","tela":"costura",
+  // Repostería / panadería
+  "tortas":"repostería","pastelería":"repostería","pan":"panadería",
+  "panadero":"panadería","panaderia":"panadería","reposteria":"repostería",
+};
+
+// Normaliza texto libre corrigiendo errores ortográficos frecuentes
+export function corregirTexto(texto: string): string {
+  let result = normalizar(texto);
+  // Aplicar correcciones por cada palabra/frase del diccionario
+  for (const [variante, canonica] of Object.entries(CORRECCIONES)) {
+    result = result.replace(new RegExp(`\\b${variante}\\b`, 'g'), canonica);
+  }
+  return result;
+}
+
+// Exportar diccionario para uso en el cliente (sugerencias)
+export const KEYWORDS_DICT = Object.keys(CORRECCIONES);
+
 export function normalizar(s = ''): string {
   return s.toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -10,6 +96,7 @@ export function normalizar(s = ''): string {
 }
 
 export function extraerKeywords(texto = ''): string[] {
+  texto = corregirTexto(texto);
   const stop = new Set([
     'de','del','la','el','las','los','en','un','una','y','o','a','con','por',
     'para','al','se','no','es','que','sus','esta','este','lo','como','mas',
