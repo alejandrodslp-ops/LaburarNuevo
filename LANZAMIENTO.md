@@ -16,10 +16,8 @@ Se va actualizando a medida que avanza el desarrollo.
   El archivo tiene el placeholder `PEGAR_CLAVE_NEXU_AQUI`. Reemplazar con la clave `nexu`
   del dashboard: https://supabase.com/dashboard/project/waevdcqdkovqaxkonlvj/settings/api-keys
 
-- [ ] **Supabase — aplicar SQL del schema en producción**
-  Ejecutar en el SQL Editor: `supabase/migrations/indexes_and_schema_fixes.sql`
-  + el bloque de RLS de `supabase/fix_cron_definitivo.sql` (tabla revoked_tokens incluida)
-  → https://supabase.com/dashboard/project/waevdcqdkovqaxkonlvj/sql/new
+- [x] **Supabase — SQL del schema aplicado en producción** ✅
+  14/14 statements OK — índices, columnas updated_at, triggers, fecha_cierre→TIMESTAMPTZ
 
 - [ ] **MercadoPago — credenciales de producción**
   Actualmente la app usa credenciales de prueba (`TEST-...`). Antes de lanzar:
