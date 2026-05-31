@@ -1756,49 +1756,71 @@ async function scrapeSuiza(): Promise<{ rows: ConcursoRow[]; errores: string[] }
     }
   }));
 
-  // 2. jobscout24.ch — mayor volumen, misma estructura HTML
-  const scoutPages = [1, 2, 3];
+  // 2. jobscout24.ch — 83.000 vacantes, estructura: data-job-detail-url + title="..."
+  const scoutPages = [1, 2, 3, 4, 5];
   await Promise.all(scoutPages.map(async (page) => {
-    const url = `https://www.jobscout24.ch/en/jobs?p=${page}&sort=date`;
+    const url = `https://www.jobscout24.ch/en/jobs/?p=${page}&sort=date`;
     const html = await fetchUrl(url, 15000, { "Accept-Language": "en-CH,en;q=0.9,de;q=0.8" });
     if (!html) { errores.push(`CH: jobscout24 página ${page} inaccesible`); return; }
-    const linkRe = /href="\/en\/job\/([a-zA-Z0-9_-]{8,60})\/"[^>]*>[\s\S]{0,400}?<h2[^>]*>([\s\S]*?)<\/h2>/gi;
+    // Patrón: data-job-detail-url="/en/job/{uuid}/" + title="Título del puesto"
+    const re = /data-job-detail-url="\/en\/job\/([a-f0-9-]{36})\/"[\s\S]{0,300}?title="([^"]{4,200})"/g;
     let m;
-    while ((m = linkRe.exec(html)) !== null) {
-      const slug   = m[1];
-      const titulo = stripHtml(m[2]).trim();
+    while ((m = re.exec(html)) !== null) {
+      const uuid   = m[1];
+      const titulo = m[2].trim();
       if (!titulo || titulo.length < 4) continue;
-      const fuente_id = `jobscout24_${slug}`;
+      const fuente_id = `jobscout24_${uuid}`;
       if (seen.has(fuente_id)) continue;
       seen.add(fuente_id);
+      // Extraer empresa y ciudad del bloque siguiente
+      const bloque = html.slice(m.index, m.index + 500);
+      const empresa = bloque.match(/<span>(.*?)<\/span>/)?.[1]?.trim() ?? null;
+      const ciudad  = bloque.match(/<span>(.*?)<\/span>[\s\S]*?<span>(.*?)<\/span>/)?.[2]?.trim() ?? "Suiza";
       rows.push({
         fuente_id, fuente: "suiza_jobscout24", pais: "CH",
         numero_llamado: null, titulo, cargo: titulo,
-        organismo: null, descripcion: null, requisitos: null,
+        organismo: empresa, descripcion: null, requisitos: null,
         tipo_tarea: null, tipo_vinculo: "privado",
-        lugar: "Suiza", fecha_inicio: null,
-        fecha_cierre: sumarDias(null, 30),
+        lugar: ciudad,
+        fecha_inicio: null, fecha_cierre: sumarDias(null, 30),
         puestos: 1,
-        url_detalle: `https://www.jobscout24.ch/en/job/${slug}/`,
-        url_postulacion: `https://www.jobscout24.ch/en/job/${slug}/`,
-        keywords: extraerKeywords(titulo), activo: true,
+        url_detalle: `https://www.jobscout24.ch/en/job/${uuid}/`,
+        url_postulacion: `https://www.jobscout24.ch/en/job/${uuid}/`,
+        keywords: extraerKeywords(`${titulo} ${empresa ?? ""}`), activo: true,
       });
     }
   }));
 
-  // 3. Google News en 3 idiomas (DE, FR, IT) — captura anuncios de empleo de todo el país
-  const [gnDE, gnFR, gnIT, gnEN] = await Promise.all([
-    scrapeGoogleNews("CH", "Stellenangebot Schweiz 2026 offene Stellen Kanton", "suiza_de", "CH", "de", 30),
-    scrapeGoogleNews("CH", "offre emploi suisse 2026 poste ouvert canton", "suiza_fr", "CH", "fr", 25),
-    scrapeGoogleNews("CH", "offerta lavoro svizzera 2026 posto vacante ticino", "suiza_it", "CH", "it", 20),
-    scrapeGoogleNews("CH", "Switzerland job vacancy hiring 2026 public private sector", "suiza_en", "CH", "en", 20),
-  ]);
-  for (const gn of [gnDE, gnFR, gnIT, gnEN]) {
-    for (const r of gn.rows) {
-      if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); }
+  // 3. jobup.ch — Suiza francófona (JobCloud, misma arquitectura que jobs.ch)
+  const jobupPages = [1, 2];
+  await Promise.all(jobupPages.map(async (page) => {
+    const url = `https://www.jobup.ch/en/jobs/?page=${page}&sort=-publication_date`;
+    const html = await fetchUrl(url, 15000, { "Accept-Language": "fr-CH,fr;q=0.9,de;q=0.8" });
+    if (!html) { errores.push(`CH: jobup.ch página ${page} inaccesible`); return; }
+    const uuids  = [...html.matchAll(/\/en\/jobs\/detail\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\//g)].map(m => m[1]);
+    const titles = [...html.matchAll(/"title":"((?:[^"\\]|\\.)*)"/g)].map(m => m[1].replace(/\\u([0-9a-f]{4})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))));
+    const count = Math.min(uuids.length, titles.length);
+    for (let j = 0; j < count; j++) {
+      const uuid   = uuids[j];
+      const titulo = titles[j].trim();
+      if (!titulo || titulo.length < 4) continue;
+      const fuente_id = `jobup_${uuid}`;
+      if (seen.has(fuente_id)) continue;
+      seen.add(fuente_id);
+      rows.push({
+        fuente_id, fuente: "suiza_jobup", pais: "CH",
+        numero_llamado: null, titulo, cargo: titulo,
+        organismo: null, descripcion: null, requisitos: null,
+        tipo_tarea: null, tipo_vinculo: "privado",
+        lugar: "Suisse", fecha_inicio: null,
+        fecha_cierre: sumarDias(null, 30),
+        puestos: 1,
+        url_detalle: `https://www.jobup.ch/en/jobs/detail/${uuid}/`,
+        url_postulacion: `https://www.jobup.ch/en/jobs/detail/${uuid}/`,
+        keywords: extraerKeywords(titulo), activo: true,
+      });
     }
-    errores.push(...gn.errores);
-  }
+  }));
 
   if (rows.length === 0) errores.push("CH: sin resultados en ninguna fuente");
   console.log(`CH: ${rows.length} empleos obtenidos`);
