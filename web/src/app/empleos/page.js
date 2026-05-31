@@ -6,9 +6,11 @@ import JobsRealtime from '../JobsRealtime'
 
 export const revalidate = 600
 
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.app'
+
 export async function generateMetadata({ searchParams }) {
   const pais = searchParams?.pais || ''
-  const q    = searchParams?.q    || ''
+  const q    = (searchParams?.q || '').slice(0, 60)
   const loc  = pais ? `en ${nombrePais(pais)}` : 'en LatAm'
   const titulo = q
     ? `Empleos de ${q} ${loc}`
@@ -16,6 +18,7 @@ export async function generateMetadata({ searchParams }) {
   return {
     title: titulo,
     description: `Concursos y llamados de trabajo ${loc}. Registrate gratis en Nexu y recibí alertas personalizadas.`,
+    alternates: { canonical: `${SITE}/empleos` },
   }
 }
 

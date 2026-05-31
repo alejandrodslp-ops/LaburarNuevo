@@ -38,6 +38,7 @@ export async function generateMetadata({ params }) {
   return {
     title: `${cargo}${org} — ${loc}`,
     description: `Concurso para ${cargo}${org}. ${loc}. ${c.fecha_cierre ? `Cierre: ${fmtFecha(c.fecha_cierre)}.` : ''} Registrate gratis en Nexu.`,
+    alternates: { canonical: `${SITE}/empleos/${params.slug}` },
     openGraph: {
       title: `${cargo} — ${loc}`,
       description: c.descripcion?.slice(0, 160) ?? `Concurso para ${cargo} en ${loc}.`,

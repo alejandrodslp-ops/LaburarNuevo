@@ -83,14 +83,15 @@ async function getConcursosPais(codigo) {
     .eq('pais', codigo)
     .order('created_at', { ascending: false })
     .limit(300)
-  return { concursos: data ?? [], total: (count ?? 0) * 3 }
+  return { concursos: data ?? [], total: count ?? 0 }
 }
 
 export default async function PaisPage({ params }) {
   const codigo = SLUG_A_CODIGO[params.pais]
   if (!codigo) notFound()
 
-  const lang   = codigo === 'BR' ? 'pt' : 'es'
+  const LANG_MAP = { BR:'pt', PT:'pt', DE:'de', FR:'fr', IT:'it', GB:'en', US:'en', CA:'en', AU:'en', SE:'sv', NO:'no', JP:'ja', IN:'en' }
+  const lang   = LANG_MAP[codigo] || 'es'
   const nombre  = PAIS[codigo]?.nombre ?? params.pais
   const bandera = bandPais(codigo)
   const { concursos, total } = await getConcursosPais(codigo)
@@ -119,7 +120,7 @@ export default async function PaisPage({ params }) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/<\/script>/gi, '<\\/script>') }}
       />
 
       <nav className="nav">
@@ -165,7 +166,7 @@ export default async function PaisPage({ params }) {
         {/* Links internos a otros países — muy importante para SEO */}
         <div style={{ marginTop: 56, marginBottom: 24 }}>
           <h2 style={{ fontSize: 17, fontWeight: 800, color: '#1A3A5C', marginBottom: 14 }}>
-            Empleos en otros países de LatAm
+            Empleos en otros países
           </h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {otrosPaises.map(([slug, cod]) => (

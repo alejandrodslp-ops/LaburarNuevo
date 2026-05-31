@@ -14,6 +14,8 @@ const PAISES_SLUGS = [
   'espana', 'portugal', 'italia', 'francia', 'alemania',
   // Anglosajones
   'reino-unido', 'estados-unidos', 'canada', 'australia',
+  // Resto del mundo
+  'suecia', 'noruega', 'japon', 'india',
 ]
 
 export default async function sitemap() {
@@ -34,7 +36,7 @@ export default async function sitemap() {
   const paisUrls = PAISES_SLUGS.map(pais => ({
     url: `${SITE}/empleos/pais/${pais}`,
     lastModified: new Date(),
-    changeFrequency: 'daily',
+    changeFrequency: 'hourly',
     priority: 0.85,
   }))
 
