@@ -7,7 +7,7 @@ import{useI18n}from '../../services/I18nContext';
 import{supabase}from '../../services/supabase';
 const{width}=Dimensions.get('window');
 const SLIDES_WORKER=[
-{emoji:'👋',color1:'#2DD4BF',color2:'#4E6098',titulo:'Bienvenido a Nexu',desc:'10 días gratis · Sin necesidad de tarjeta\n\n45 segundos es todo lo que necesitas.\nCompleta tu perfil y empieza a recibir trabajos pensados para ti, cerca de tu zona, acorde a tus habilidades y experiencia.\n\nComparte la app con amigos que también quieran recibir ofertas:\n5 días gratis más por cada uno.\nHasta 3 amigos → 25 días gratis.\n\nPromoción vigente solo por este mes.'},
+{emoji:'👋',color1:'#2DD4BF',color2:'#4E6098',titulo:'Bienvenido a Nexu',desc:'10 días gratis · Sin necesidad de tarjeta\n\n45 segundos es todo lo que necesitas.\nCompleta tu perfil y empieza a recibir trabajos pensados para ti, cerca de tu zona, acorde a tus habilidades y experiencia.\n\nComparte la app con amigos que también quieran recibir ofertas:\n5 días gratis más por cada uno.\nHasta 3 amigos → 25 días gratis.',promo:'🔥 Promoción solo por este mes'},
 {emoji:'🔒',color1:'#C17A5E',color2:'#A86448',titulo:'Tu privacidad primero',desc:'El empleador solo podrá ver tu nombre de pila, datos profesionales y valoraciones.\n\nTu perfil completo, únicamente si manifestás interés por una oferta y aceptás el contacto.\n\nIdeal si tenés trabajo y estás evaluando opciones para mejorar de forma discreta, o sos estudiante buscando trabajo de medio horario.\n\nTambién analizamos tu perfil y lo cruzamos con llamados públicos abiertos — te avisamos cuando cumplís los requisitos.'},
 ];
 
@@ -40,7 +40,7 @@ return(
     <Text style={ss.contadorNum}>{totalOportunidades.toLocaleString('es')}+</Text>
     <Text style={ss.contadorLbl}>oportunidades laborales activas hoy</Text>
   </View>}
-</>}{i<SLIDES.length-1&&(<TouchableOpacity style={ss.skip} onPress={saltar}><Text style={ss.skipTxt}>{t('saltar')}</Text></TouchableOpacity>)}<View style={ss.bubble}><Text style={ss.emoji}>{s.emoji}</Text></View><View style={ss.tw}><Text style={ss.titulo}>{s.titulo}</Text><Text style={ss.desc}>{s.desc}</Text></View></SafeAreaView></LinearGradient>))}
+</>}{i<SLIDES.length-1&&(<TouchableOpacity style={ss.skip} onPress={saltar}><Text style={ss.skipTxt}>{t('saltar')}</Text></TouchableOpacity>)}<View style={ss.bubble}><Text style={ss.emoji}>{s.emoji}</Text></View><View style={ss.tw}><Text style={ss.titulo}>{s.titulo}</Text><Text style={ss.desc}>{s.desc}</Text>{s.promo&&<Text style={ss.promo}>{s.promo}</Text>}</View></SafeAreaView></LinearGradient>))}
 </ScrollView>
 <View style={ss.footer}>
 <View style={ss.dots}>{SLIDES.map((_,i)=>(<View key={i} style={[ss.dot,i===actual&&ss.da]}/>))}</View>
@@ -56,6 +56,7 @@ bubble:{width:100,height:100,borderRadius:50,backgroundColor:'rgba(255,255,255,0
 emoji:{fontSize:46},tw:{alignItems:'center'},
 titulo:{fontSize:26,fontWeight:'900',color:'#FFFFFF',textAlign:'center',letterSpacing:-0.5,marginBottom:16,lineHeight:32},
 desc:{fontSize:15,color:'rgba(255,255,255,0.88)',textAlign:'center',lineHeight:24},
+promo:{fontSize:14,fontWeight:'800',color:'#FF5F40',textAlign:'center',marginTop:14,letterSpacing:0.3},
 footer:{position:'absolute',bottom:0,left:0,right:0,backgroundColor:'#FFFFFF',paddingHorizontal:24,paddingTop:20,paddingBottom:44,borderTopLeftRadius:28,borderTopRightRadius:28},
 dots:{flexDirection:'row',justifyContent:'center',gap:6,marginBottom:16},
 dot:{width:6,height:6,borderRadius:3,backgroundColor:'#EDE8E2'},
