@@ -1724,18 +1724,19 @@ async function scrapeSuiza(): Promise<{ rows: ConcursoRow[]; errores: string[] }
   const rows: ConcursoRow[] = [];
   const seen = new Set<string>();
 
-  // 1. jobs.ch — listado de nuevas vacantes (HTML, paginado)
+  // 1. jobs.ch — listado de nuevas vacantes (300 empleos por página)
+  // Los UUIDs y titles están en el mismo orden en el HTML
   const jobsChPages = [1, 2, 3];
   await Promise.all(jobsChPages.map(async (page) => {
     const url = `https://www.jobs.ch/en/new-vacancies/?page=${page}`;
     const html = await fetchUrl(url, 15000);
     if (!html) { errores.push(`CH: jobs.ch página ${page} inaccesible`); return; }
-    // Extraer títulos y links de las tarjetas de empleo
-    const cardRe = /href="\/en\/vacancies\/detail\/([a-f0-9-]{36})[^"]*"[^>]*>[\s\S]{0,600}?<[^>]*class="[^"]*job-title[^"]*"[^>]*>([\s\S]*?)<\/[^>]+>/gi;
-    let m;
-    while ((m = cardRe.exec(html)) !== null) {
-      const uuid   = m[1];
-      const titulo = stripHtml(m[2]).trim();
+    const uuids  = [...html.matchAll(/\/en\/vacancies\/detail\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\//g)].map(m => m[1]);
+    const titles = [...html.matchAll(/"title":"((?:[^"\\]|\\.)*)"/g)].map(m => m[1].replace(/\\u([0-9a-f]{4})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))));
+    const count  = Math.min(uuids.length, titles.length);
+    for (let j = 0; j < count; j++) {
+      const uuid   = uuids[j];
+      const titulo = titles[j].trim();
       if (!titulo || titulo.length < 4) continue;
       const fuente_id = `jobsch_${uuid}`;
       if (seen.has(fuente_id)) continue;
