@@ -39,10 +39,8 @@ Se va actualizando a medida que avanza el desarrollo.
   Generar valor real: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
   ⚠️ Una vez en producción con usuarios registrados, este valor NO puede cambiarse.
 
-- [ ] **Supabase — rotar `service_role` key**
-  La key anterior fue expuesta en una conversación. Regenerar en:
-  → Settings → API Keys → nexu → Regenerate
-  Luego actualizar `backend/.env` y las Edge Functions Secrets.
+- [x] **Supabase — key rotada** ✅
+  Key vieja revocada. Nueva key activa en .env.local, scraper-sa/.env.local y cron jobs.
 
 ---
 
