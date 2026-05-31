@@ -687,28 +687,43 @@ async function resolverReporte(db: ReturnType<typeof createClient>, params: any)
 async function idsSegmento(db: ReturnType<typeof createClient>, params: any) {
   const segmento  = (params?.segmento as string) ?? "todos";
   const paisFlt   = ((params?.pais   as string) ?? "").trim().toLowerCase();
+  const sexoFlt   = (params?.sexo   as string) ?? "";   // "Masculino" | "Femenino" | ""
   const nowIso    = new Date().toISOString();
+  const gratisCorte = new Date(Date.now()).toISOString();
 
   // Todas las campañas apuntan solo a workers
   let q = db.from("profiles").select("id").eq("rol", "worker");
 
+  // ── Filtro por estado ──────────────────────────────────────────
   if (segmento === "activos") {
+    // Pagaron y el plan está vigente
     q = q.eq("perfil_activo", true).gt("perfil_activo_hasta", nowIso);
   }
-
+  if (segmento === "en_prueba") {
+    // En período de prueba gratuita (periodo_gratis_hasta vigente, sin pago activo)
+    q = q.eq("perfil_activo", false).gt("periodo_gratis_hasta", gratisCorte);
+  }
+  if (segmento === "pagos") {
+    // Han pagado alguna vez (tienen perfil_activo_hasta, aunque vencido)
+    q = q.not("perfil_activo_hasta", "is", null);
+  }
   if (segmento === "inactivos") {
-    // Inactivo = perfil_activo false  O  plan vencido (perfil_activo_hasta < hoy o nulo)
+    // Inactivo = sin plan activo
     q = q.or(`perfil_activo.eq.false,perfil_activo_hasta.lt.${nowIso},perfil_activo_hasta.is.null`);
   }
-
   if (segmento === "inactivos_30d") {
     const corte = new Date(Date.now() - 30 * 86400000).toISOString();
-    // Sin actividad 30d Y que no tengan plan activo vigente
     q = q.lte("updated_at", corte).or(`perfil_activo.eq.false,perfil_activo_hasta.lt.${nowIso}`);
   }
-
   if (segmento === "pais" && paisFlt) {
     q = q.ilike("pais", `%${paisFlt}%`);
+  }
+
+  // ── Filtro por sexo (adicional a cualquier segmento) ──────────
+  if (sexoFlt === "Masculino") {
+    q = q.eq("sexo", "Masculino");
+  } else if (sexoFlt === "Femenino") {
+    q = q.eq("sexo", "Femenino");
   }
 
   const { data } = await q.limit(5000);

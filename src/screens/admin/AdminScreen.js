@@ -2019,6 +2019,8 @@ const FRASES_REACTIVACION = {
 const SEGMENTOS = [
   { id: 'todos',        label: '👥 Todos' },
   { id: 'activos',      label: '✅ Activos' },
+  { id: 'en_prueba',    label: '🆓 En prueba gratis' },
+  { id: 'pagos',        label: '💳 Pagaron alguna vez' },
   { id: 'inactivos',    label: '⭕ Inactivos' },
   { id: 'inactivos_30d',label: '💤 Sin actividad 30d' },
   { id: 'pais',         label: '🌍 Por país' },
@@ -2032,6 +2034,7 @@ function fraseRandom(idioma = 'es') {
 function TabCampanas() {
   const { idioma } = useI18n();
   const [segmento, setSegmento]   = useState('inactivos');
+  const [sexo, setSexo]           = useState('');        // '' | 'Masculino' | 'Femenino'
   const [pais, setPais]           = useState('');
   const [paisFocus, setPaisFocus] = useState(false);
   const [mensaje, setMensaje]     = useState('');
@@ -2053,12 +2056,12 @@ function TabCampanas() {
 
   useEffect(() => {
     setConteo(null); setIds([]);
-  }, [segmento, pais]);
+  }, [segmento, pais, sexo]);
 
   async function previsualizar() {
     setCargandoIds(true);
     try {
-      const res = await callAdmin('ids_segmento', { segmento, pais: segmento === 'pais' ? pais : '' });
+      const res = await callAdmin('ids_segmento', { segmento, pais: segmento === 'pais' ? pais : '', sexo });
       setIds(res.ids ?? []);
       setConteo(res.total ?? 0);
     } catch (e) { Alert.alert('Error', e.message); }
@@ -2105,6 +2108,20 @@ function TabCampanas() {
         {SEGMENTOS.map(s => (
           <TouchableOpacity key={s.id} style={[ss.segBtn, segmento === s.id && ss.segBtnA]} onPress={() => setSegmento(s.id)}>
             <Text style={[ss.segTxt, segmento === s.id && ss.segTxtA]}>{s.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Selector de género */}
+      <Text style={[ss.secTit, { marginTop: 14 }]}>GÉNERO</Text>
+      <View style={ss.statsGrid}>
+        {[
+          { id: '',          label: '👥 Todos' },
+          { id: 'Masculino', label: '♂ Hombres' },
+          { id: 'Femenino',  label: '♀ Mujeres' },
+        ].map(g => (
+          <TouchableOpacity key={g.id} style={[ss.segBtn, sexo === g.id && ss.segBtnA]} onPress={() => setSexo(g.id)}>
+            <Text style={[ss.segTxt, sexo === g.id && ss.segTxtA]}>{g.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
