@@ -15,7 +15,7 @@ const PAISES_SLUGS = [
   // Anglosajones
   'reino-unido', 'estados-unidos', 'canada', 'australia',
   // Resto del mundo
-  'suecia', 'noruega', 'japon', 'india',
+  'suecia', 'noruega', 'japon', 'india', 'suiza',
 ]
 
 export default async function sitemap() {

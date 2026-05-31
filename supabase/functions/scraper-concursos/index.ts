@@ -1715,6 +1715,96 @@ async function scrapeNorway(): Promise<{ rows: ConcursoRow[]; errores: string[] 
 }
 
 // ─────────────────────────────────────────────────────────────
+// SUIZA — jobs.ch + jobscout24.ch + Google News (DE/FR/IT)
+// ~86.000 vacantes activas. Principal mercado laboral europeo
+// con escasez estructural de trabajadores en múltiples sectores.
+// ─────────────────────────────────────────────────────────────
+async function scrapeSuiza(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
+
+  // 1. jobs.ch — listado de nuevas vacantes (HTML, paginado)
+  const jobsChPages = [1, 2, 3];
+  await Promise.all(jobsChPages.map(async (page) => {
+    const url = `https://www.jobs.ch/en/new-vacancies/?page=${page}`;
+    const html = await fetchUrl(url, 15000);
+    if (!html) { errores.push(`CH: jobs.ch página ${page} inaccesible`); return; }
+    // Extraer títulos y links de las tarjetas de empleo
+    const cardRe = /href="\/en\/vacancies\/detail\/([a-f0-9-]{36})[^"]*"[^>]*>[\s\S]{0,600}?<[^>]*class="[^"]*job-title[^"]*"[^>]*>([\s\S]*?)<\/[^>]+>/gi;
+    let m;
+    while ((m = cardRe.exec(html)) !== null) {
+      const uuid   = m[1];
+      const titulo = stripHtml(m[2]).trim();
+      if (!titulo || titulo.length < 4) continue;
+      const fuente_id = `jobsch_${uuid}`;
+      if (seen.has(fuente_id)) continue;
+      seen.add(fuente_id);
+      rows.push({
+        fuente_id, fuente: "suiza_jobsch", pais: "CH",
+        numero_llamado: null, titulo, cargo: titulo,
+        organismo: null, descripcion: null, requisitos: null,
+        tipo_tarea: null, tipo_vinculo: "privado",
+        lugar: "Suiza", fecha_inicio: null,
+        fecha_cierre: sumarDias(null, 30),
+        puestos: 1,
+        url_detalle: `https://www.jobs.ch/en/vacancies/detail/${uuid}/`,
+        url_postulacion: `https://www.jobs.ch/en/vacancies/detail/${uuid}/`,
+        keywords: extraerKeywords(titulo), activo: true,
+      });
+    }
+  }));
+
+  // 2. jobscout24.ch — mayor volumen, misma estructura HTML
+  const scoutPages = [1, 2, 3];
+  await Promise.all(scoutPages.map(async (page) => {
+    const url = `https://www.jobscout24.ch/en/jobs?p=${page}&sort=date`;
+    const html = await fetchUrl(url, 15000, { "Accept-Language": "en-CH,en;q=0.9,de;q=0.8" });
+    if (!html) { errores.push(`CH: jobscout24 página ${page} inaccesible`); return; }
+    const linkRe = /href="\/en\/job\/([a-zA-Z0-9_-]{8,60})\/"[^>]*>[\s\S]{0,400}?<h2[^>]*>([\s\S]*?)<\/h2>/gi;
+    let m;
+    while ((m = linkRe.exec(html)) !== null) {
+      const slug   = m[1];
+      const titulo = stripHtml(m[2]).trim();
+      if (!titulo || titulo.length < 4) continue;
+      const fuente_id = `jobscout24_${slug}`;
+      if (seen.has(fuente_id)) continue;
+      seen.add(fuente_id);
+      rows.push({
+        fuente_id, fuente: "suiza_jobscout24", pais: "CH",
+        numero_llamado: null, titulo, cargo: titulo,
+        organismo: null, descripcion: null, requisitos: null,
+        tipo_tarea: null, tipo_vinculo: "privado",
+        lugar: "Suiza", fecha_inicio: null,
+        fecha_cierre: sumarDias(null, 30),
+        puestos: 1,
+        url_detalle: `https://www.jobscout24.ch/en/job/${slug}/`,
+        url_postulacion: `https://www.jobscout24.ch/en/job/${slug}/`,
+        keywords: extraerKeywords(titulo), activo: true,
+      });
+    }
+  }));
+
+  // 3. Google News en 3 idiomas (DE, FR, IT) — captura anuncios de empleo de todo el país
+  const [gnDE, gnFR, gnIT, gnEN] = await Promise.all([
+    scrapeGoogleNews("CH", "Stellenangebot Schweiz 2026 offene Stellen Kanton", "suiza_de", "CH", "de", 30),
+    scrapeGoogleNews("CH", "offre emploi suisse 2026 poste ouvert canton", "suiza_fr", "CH", "fr", 25),
+    scrapeGoogleNews("CH", "offerta lavoro svizzera 2026 posto vacante ticino", "suiza_it", "CH", "it", 20),
+    scrapeGoogleNews("CH", "Switzerland job vacancy hiring 2026 public private sector", "suiza_en", "CH", "en", 20),
+  ]);
+  for (const gn of [gnDE, gnFR, gnIT, gnEN]) {
+    for (const r of gn.rows) {
+      if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); }
+    }
+    errores.push(...gn.errores);
+  }
+
+  if (rows.length === 0) errores.push("CH: sin resultados en ninguna fuente");
+  console.log(`CH: ${rows.length} empleos obtenidos`);
+  return { rows, errores };
+}
+
+// ─────────────────────────────────────────────────────────────
 // JAPÓN — NPA jinji.go.jp tabla HTML · ja
 // ~85 convocatorias oficiales (常勤/任期付/非常勤), tablas 2-4
 // ─────────────────────────────────────────────────────────────
@@ -1854,7 +1944,7 @@ const PAISES_NOMBRES: Record<string, string> = {
   VE:"Venezuela", CU:"Cuba", CR:"Costa Rica", GT:"Guatemala", SV:"El Salvador",
   HN:"Honduras", NI:"Nicaragua", PA:"Panama", DO:"Rep. Dominicana",
   ES:"Espana", PT:"Portugal", IT:"Italia", FR:"Francia", DE:"Alemania",
-  GB:"Reino Unido", SE:"Suecia", NO:"Noruega",
+  GB:"Reino Unido", SE:"Suecia", NO:"Noruega", CH:"Suiza",
   US:"Estados Unidos", CA:"Canada", AU:"Australia", JP:"Japon", IN:"India",
 };
 const TODOS_PAISES = Object.keys(PAISES_NOMBRES);
@@ -2089,6 +2179,7 @@ serve(async (req: Request) => {
       GB: scrapeReinoUnido,
       SE: scrapeSweden,
       NO: scrapeNorway,
+      CH: scrapeSuiza,
       // Anglosajones
       US: scrapeEstadosUnidos,
       CA: scrapeCanada,

@@ -48,6 +48,7 @@ const SLUG_A_CODIGO = {
   noruega:              'NO',
   japon:                'JP',
   india:                'IN',
+  suiza:                'CH',
 }
 
 export async function generateStaticParams() {
