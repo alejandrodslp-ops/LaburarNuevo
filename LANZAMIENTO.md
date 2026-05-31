@@ -113,3 +113,9 @@ Se va actualizando a medida que avanza el desarrollo.
 - [x] Índices críticos en pagos, profiles, reportes, concurso_matches
 - [x] `fecha_cierre` migrada de DATE a TIMESTAMPTZ en concursos
 - [x] Secretos de admin quitados del bundle del APK
+- [x] Vigilante scraper — auto-recuperación diaria sin intervención manual
+- [x] Scraper Brasil regex fix + nuevas fuentes → 8.056 llamados activos (32 países)
+- [x] Búsqueda diaria personalizada para trabajadores informales (campo libre + web)
+- [x] Sugerencias ortográficas + diccionario de 60+ variantes fonéticas
+- [x] Code review + security review completo del código mobile, web y Supabase
+- [x] `web/.env.local` — SUPABASE_SERVICE_KEY corregida (era anon key)
