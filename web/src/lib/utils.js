@@ -34,6 +34,7 @@ export const PAIS = {
   // Resto del mundo
   SE: { nombre: 'Suecia',               bandera: '🇸🇪' },
   NO: { nombre: 'Noruega',              bandera: '🇳🇴' },
+  CH: { nombre: 'Suiza',               bandera: '🇨🇭' },
   JP: { nombre: 'Japón',                bandera: '🇯🇵' },
   IN: { nombre: 'India',                bandera: '🇮🇳' },
 }
@@ -83,7 +84,7 @@ const CODIGO_A_SLUG = {
   ES: 'espana',     PT: 'portugal',   IT: 'italia',      FR: 'francia',
   DE: 'alemania',   GB: 'reino-unido', US: 'estados-unidos',
   CA: 'canada',     AU: 'australia',
-  SE: 'suecia',     NO: 'noruega',    JP: 'japon',       IN: 'india',
+  SE: 'suecia',     NO: 'noruega',    CH: 'suiza',       JP: 'japon',       IN: 'india',
 }
 export function paisSlug(codigo) {
   return CODIGO_A_SLUG[codigo] ?? codigo?.toLowerCase() ?? 'latam'
