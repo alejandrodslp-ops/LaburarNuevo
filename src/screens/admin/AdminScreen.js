@@ -22,7 +22,7 @@ const NOMBRES_PAISES = {
   CR:'Costa Rica', GT:'Guatemala', SV:'El Salvador', HN:'Honduras', NI:'Nicaragua',
   PA:'Panamá', DO:'Rep. Dominicana', ES:'España', PT:'Portugal', IT:'Italia',
   FR:'Francia', DE:'Alemania', GB:'Reino Unido', US:'EE. UU.', CA:'Canadá',
-  AU:'Australia', SE:'Suecia', NO:'Noruega', JP:'Japón', IN:'India',
+  AU:'Australia', SE:'Suecia', NO:'Noruega', CH:'Suiza', JP:'Japón', IN:'India',
 };
 
 function fmtFecha(iso) {
@@ -1530,6 +1530,7 @@ function TabConsultas({ onDetalleUsuario, navigation }) {
                     { id: 'AU', label: '🇦🇺 Australia' },
                     { id: 'SE', label: '🇸🇪 Suecia' },
                     { id: 'NO', label: '🇳🇴 Noruega' },
+                    { id: 'CH', label: '🇨🇭 Suiza' },
                     { id: 'JP', label: '🇯🇵 Japón' },
                     { id: 'IN', label: '🇮🇳 India' },
                   ].map(op => (
@@ -1592,6 +1593,7 @@ function TabConsultas({ onDetalleUsuario, navigation }) {
                     { id: 'AU', label: '🇦🇺 Australia' },
                     { id: 'SE', label: '🇸🇪 Suecia' },
                     { id: 'NO', label: '🇳🇴 Noruega' },
+                    { id: 'CH', label: '🇨🇭 Suiza' },
                     { id: 'JP', label: '🇯🇵 Japón' },
                     { id: 'IN', label: '🇮🇳 India' },
                   ].map(op => (
