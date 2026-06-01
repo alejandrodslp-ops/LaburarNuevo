@@ -31,7 +31,7 @@ const faqJsonLd = {
       name: '¿Qué es Nexu?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Nexu es una plataforma gratuita que reúne concursos públicos y llamados de trabajo de 32 países en todo el mundo: América, Europa, Asia y Oceanía. Podés buscar empleos por país, recibir alertas personalizadas y postularte directamente desde la app.',
+        text: 'Nexu es una plataforma gratuita que reúne concursos públicos y llamados de trabajo de 33 países en todo el mundo: América, Europa, Asia y Oceanía. Podés buscar empleos por país, recibir alertas personalizadas y postularte directamente desde la app.',
       },
     },
     {
@@ -110,7 +110,7 @@ export default async function HomePage() {
             <span style={{ fontSize: 28, lineHeight: 1 }}>🏛️</span>
             <div>
               <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', marginBottom: 5 }}>Sector público</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>Concursos y llamados oficiales de gobiernos, municipios y organismos de 32 países en todo el mundo.</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>Concursos y llamados oficiales de gobiernos, municipios y organismos de 33 países en todo el mundo.</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', padding: '20px 24px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--bg)' }}>
@@ -171,7 +171,7 @@ export default async function HomePage() {
       {/* EMPLOYER */}
       <div className="employer-strip">
         <h2>¿Sos empleador?</h2>
-        <p>Encontrá el perfil ideal entre miles de trabajadores en 32 países de todo el mundo.</p>
+        <p>Encontrá el perfil ideal entre miles de trabajadores en 33 países de todo el mundo.</p>
         <a href="/download" className="btn-primary" style={{ background: 'var(--dark)' }}>
           Buscar trabajadores gratis
         </a>
