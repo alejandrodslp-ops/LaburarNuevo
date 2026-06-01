@@ -44,6 +44,12 @@ const PAIS_LANG: Record<string, string> = {
   // Todo lo demás → "es" (LatAm, ES, JP, etc.)
 };
 
+// Países con múltiples idiomas oficiales — el matching expande a todos ellos
+const PAIS_LANGS_EXTRA: Record<string, string[]> = {
+  CH: ["fr", "it"],  // Suiza: alemán (principal) + francés + italiano
+  BE: ["de"],        // Bélgica: francés (principal) + alemán
+};
+
 // Traducciones de términos canónicos (guardados en español en DB)
 // a los demás idiomas soportados.
 const TR: Record<string, Record<string, string>> = {
@@ -216,11 +222,15 @@ const TR: Record<string, Record<string, string>> = {
 // en el idioma del país del concurso (para que el matching funcione
 // cuando el trabajo está publicado en otro idioma).
 // ─────────────────────────────────────────────────────────────
-function expandirKeyword(kw: string, lang: string): string[] {
-  if (!lang || lang === "es") return [kw];
-  const traduccion = TR[kw]?.[lang];
-  if (!traduccion) return [kw];
-  return [kw, traduccion];
+function expandirKeyword(kw: string, lang: string, pais = ""): string[] {
+  const result: string[] = [kw];
+  const langs = [lang, ...(PAIS_LANGS_EXTRA[pais.toUpperCase()] ?? [])];
+  for (const l of langs) {
+    if (!l || l === "es") continue;
+    const tr = (TR as Record<string, Record<string, string>>)[kw]?.[l];
+    if (tr && !result.includes(tr)) result.push(tr);
+  }
+  return result;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -272,6 +282,7 @@ function calcularScore(
 ): { score: number; keywords_match: string[]; cumple: boolean } {
   // Idioma del país del concurso para traducir keywords del perfil
   const lang = PAIS_LANG[concurso.pais.toUpperCase()] ?? "es";
+  const paisConcurso = concurso.pais.toUpperCase();
 
   // Keywords del perfil expandidos: cada término canónico se mapea también
   // a su traducción en el idioma del país del concurso.
@@ -287,7 +298,7 @@ function calcularScore(
   type KwEntry = { kw: string; canonico: string };
   const perfilKws: KwEntry[] = [];
   for (const raw of rawKws) {
-    const variantes = expandirKeyword(raw, lang);
+    const variantes = expandirKeyword(raw, lang, paisConcurso);
     for (const v of variantes) {
       perfilKws.push({ kw: normalizar(v), canonico: normalizar(raw) });
     }
