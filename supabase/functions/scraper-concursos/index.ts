@@ -9,6 +9,7 @@ const supabase = createClient(
 const USAJOBS_API_KEY  = Deno.env.get("USAJOBS_API_KEY")  ?? "";
 const CF_PROXY         = Deno.env.get("CF_PROXY_URL")     ?? "";
 const SCRAPER_API_KEY  = Deno.env.get("SCRAPER_API_KEY")  ?? "";
+// ADZUNA: leído dentro de la función para evitar problema de módulo-scope en Deno Deploy
 
 const HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -1090,13 +1091,21 @@ async function scrapeItalia(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     }
   }
 
-  if (rows.length > 0) return { rows, errores };
+  // Adzuna — empleos privados reales de Italia
+  const az = await scrapeAdzuna("IT", "it", 4);
+  const seenIT = new Set<string>(rows.map(r => r.fuente_id));
+  for (const r of az.rows) {
+    if (!seenIT.has(r.fuente_id)) { seenIT.add(r.fuente_id); rows.push(r); }
+  }
+  errores.push(...az.errores);
 
-  // Fallback: Google News IT
-  const gn = await scrapeGoogleNews("IT",
-    "concorso pubblico Italia assunzione bando amministrazione selezione",
-    "italia_googlenews", undefined, "it");
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  if (rows.length === 0) {
+    const gn = await scrapeGoogleNews("IT",
+      "concorso pubblico Italia assunzione bando amministrazione selezione",
+      "italia_googlenews", undefined, "it");
+    return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  }
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1119,7 +1128,7 @@ async function scrapeAlemania(): Promise<{ rows: ConcursoRow[]; errores: string[
 
   try {
     const res = await fetch(
-      "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?angebotsart=1&page=1&size=50",
+      "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?angebotsart=1&page=1&size=100",
       {
         headers: {
           "X-API-Key": "jobboerse-jobsuche",
@@ -1167,13 +1176,21 @@ async function scrapeAlemania(): Promise<{ rows: ConcursoRow[]; errores: string[
     errores.push(`DE: Bundesagentur API error — ${(e as Error).message}`);
   }
 
-  if (rows.length > 0) return { rows, errores };
+  // Adzuna — empleos privados reales de Alemania
+  const az = await scrapeAdzuna("DE", "de", 4);
+  const seen = new Set<string>(rows.map(r => r.fuente_id));
+  for (const r of az.rows) {
+    if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); }
+  }
+  errores.push(...az.errores);
 
-  // Fallback: Google News DE
-  const gn = await scrapeGoogleNews("DE",
-    "Stellenausschreibung öffentlicher Dienst Deutschland Stelle Bewerbung",
-    "alemania_googlenews", undefined, "de");
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  if (rows.length === 0) {
+    const gn = await scrapeGoogleNews("DE",
+      "Stellenausschreibung öffentlicher Dienst Deutschland Stelle Bewerbung",
+      "alemania_googlenews", undefined, "de");
+    return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  }
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1275,10 +1292,16 @@ async function scrapeReinoUnido(): Promise<{ rows: ConcursoRow[]; errores: strin
       });
     }
   }
-  if (rows.length > 0) return { rows, errores };
+  if (rows.length > 0) {
+    // Complementar con empleos privados de Adzuna
+    const az = await scrapeAdzuna("GB", "gb", 3);
+    const seen = new Set<string>(rows.map(r => r.fuente_id));
+    for (const r of az.rows) { if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); } }
+    return { rows, errores: [...errores, ...az.errores] };
+  }
   errores.push("GB: NHS Jobs inaccesible");
-
-  // 3. Google News último recurso
+  const az = await scrapeAdzuna("GB", "gb", 4);
+  if (az.rows.length > 0) return { rows: az.rows, errores: [...errores, ...az.errores] };
   const gn = await scrapeGoogleNews("GB",
     "UK civil service government jobs vacancy hiring 2026",
     "uk_googlenews", "GB", "en", 14);
@@ -1436,7 +1459,12 @@ async function scrapeCanada(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     if (rows.length > 0) return { rows, errores };
   }
 
-  // 3. Google News último recurso
+  // Adzuna CA — empleos privados reales de Canadá
+  const az = await scrapeAdzuna("CA", "ca", 3);
+  const seen = new Set<string>(rows.map(r => r.fuente_id));
+  for (const r of az.rows) { if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); } }
+  if (rows.length > 0) return { rows, errores: [...errores, ...az.errores] };
+
   const gn = await scrapeGoogleNews("US",
     "Canada federal government jobs GC Jobs public service hiring",
     "canada_googlenews", "CA", "en", 14);
@@ -1505,7 +1533,12 @@ async function scrapeAustralia(): Promise<{ rows: ConcursoRow[]; errores: string
     errores.push("AU: Victoria Careers sitemap inaccesible");
   }
 
-  // 2. Google News como último recurso
+  // Adzuna AU — empleos privados reales de Australia
+  const azAU = await scrapeAdzuna("AU", "au", 3);
+  const seenAU = new Set<string>(rows.map(r => r.fuente_id));
+  for (const r of azAU.rows) { if (!seenAU.has(r.fuente_id)) { seenAU.add(r.fuente_id); rows.push(r); } }
+  if (rows.length > 0) return { rows, errores: [...errores, ...azAU.errores] };
+
   const gn = await scrapeGoogleNews("US",
     "Australia government jobs APS hiring vacancy public service recruitment",
     "australia_googlenews", "AU", "en", 14);
@@ -1584,17 +1617,26 @@ async function scrapeFrancia(): Promise<{ rows: ConcursoRow[]; errores: string[]
         activo: true,
       });
     }
-    if (rows.length > 0) return { rows, errores };
-    errores.push("FR: EmploiPublic.fr accesible pero sin ítems parseables");
+    if (!rows.length) errores.push("FR: EmploiPublic.fr accesible pero sin ítems parseables");
   } else {
     errores.push("FR: EmploiPublic.fr sitemap inaccesible");
   }
 
-  // 2. Google News como último recurso
-  const gn = await scrapeGoogleNews("FR",
-    "concours fonction publique France emploi recrutement poste administration",
-    "francia_googlenews", undefined, "fr");
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  // 2. Adzuna — empleos privados reales de Francia (siempre se ejecuta)
+  const az = await scrapeAdzuna("FR", "fr", 4);
+  const seen = new Set<string>(rows.map(r => r.fuente_id));
+  for (const r of az.rows) {
+    if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); }
+  }
+  errores.push(...az.errores);
+
+  if (rows.length === 0) {
+    const gn = await scrapeGoogleNews("FR",
+      "concours fonction publique France emploi recrutement poste administration",
+      "francia_googlenews", undefined, "fr");
+    return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  }
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1711,6 +1753,88 @@ async function scrapeNorway(): Promise<{ rows: ConcursoRow[]; errores: string[] 
   errores.push(...gn1.errores, ...gn2.errores);
 
   if (rows.length === 0) errores.push("NO: NAV sin resultados parseables");
+  return { rows, errores };
+}
+
+// ─────────────────────────────────────────────────────────────
+// ADZUNA — API agregadora con empleos privados reales
+// Cubre: GB, US, AU, CA, DE, FR, IT, IN, BR, MX, AT, NL, NZ, PL, SG, ZA
+// Credenciales gratuitas en developer.adzuna.com (ya configuradas)
+// ─────────────────────────────────────────────────────────────
+async function scrapeAdzuna(
+  pais: string,
+  adzunaCountry: string,
+  paginas = 3
+): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+
+  // Leer dentro de la función — las variables de entorno no están disponibles en module-scope en Deno Deploy
+  const ADZUNA_APP_ID  = Deno.env.get("ADZUNA_APP_ID")  ?? "";
+  const ADZUNA_APP_KEY = Deno.env.get("ADZUNA_APP_KEY") ?? "";
+
+  if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) {
+    return { rows, errores: [`${pais}: ADZUNA_APP_ID/KEY no configuradas`] };
+  }
+  console.log(`Adzuna ${pais}: app_id=${ADZUNA_APP_ID.slice(0,6)}... iniciando`);
+
+  for (let page = 1; page <= paginas; page++) {
+    const url = `https://api.adzuna.com/v1/api/jobs/${adzunaCountry}/search/${page}`
+      + `?app_id=${ADZUNA_APP_ID}&app_key=${ADZUNA_APP_KEY}`
+      + `&results_per_page=50&sort_by=date&content-type=application/json`;
+
+    let json: string | null = null;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      if (!res.ok) { errores.push(`${pais}: Adzuna HTTP ${res.status}`); break; }
+      json = await res.text();
+    } catch (e) { errores.push(`${pais}: Adzuna error ${(e as Error).message}`); break; }
+    if (!json) break;
+
+    let data: { results?: Record<string, unknown>[] };
+    try { data = JSON.parse(json); } catch(e) {
+      errores.push(`${pais}: Adzuna JSON parse error ${(e as Error).message.slice(0,60)}`);
+      break;
+    }
+    console.log(`Adzuna ${pais} pág ${page}: ${data.results?.length ?? 0} resultados`);
+
+    const results = data.results ?? [];
+    if (!results.length) break;
+
+    for (const j of results) {
+      const id    = String(j.id ?? "");
+      const titulo = String(j.title ?? "").trim();
+      const empresa = (j.company as Record<string, string>)?.display_name ?? null;
+      const lugar   = (j.location as Record<string, string>)?.display_name ?? null;
+      const desc    = String(j.description ?? "").replace(/<[^>]+>/g, " ").trim().slice(0, 600);
+      const url_job = String(j.redirect_url ?? "");
+      if (!titulo || titulo.length < 3 || !id) continue;
+
+      rows.push({
+        fuente_id:      `adzuna_${adzunaCountry}_${id}`,
+        fuente:         `adzuna_${adzunaCountry}`,
+        pais,
+        numero_llamado: null,
+        titulo, cargo: titulo,
+        organismo:      empresa,
+        descripcion:    desc || null,
+        requisitos:     null,
+        tipo_tarea:     null,
+        tipo_vinculo:   "privado",
+        lugar:          lugar,
+        fecha_inicio:   null,
+        fecha_cierre:   sumarDias(null, 30),
+        puestos:        1,
+        url_detalle:    url_job,
+        url_postulacion: url_job,
+        keywords:       extraerKeywords(`${titulo} ${empresa ?? ""} ${desc}`),
+        activo:         true,
+      });
+    }
+    if (results.length < 50) break;
+    await new Promise(r => setTimeout(r, 400));
+  }
+
   return { rows, errores };
 }
 
@@ -1936,6 +2060,11 @@ async function scrapeIndia(): Promise<{ rows: ConcursoRow[]; errores: string[] }
   addRows(gn1.rows); errores.push(...gn1.errores);
   addRows(gn2.rows); errores.push(...gn2.errores);
   addRows(gn3.rows); errores.push(...gn3.errores);
+
+  // Adzuna IN — empleos privados reales de India
+  const azIN = await scrapeAdzuna("IN", "in", 3);
+  for (const r of azIN.rows) { if (!rows.find(x => x.fuente_id === r.fuente_id)) rows.push(r); }
+  errores.push(...azIN.errores);
 
   if (rows.length === 0) errores.push("IN: sin resultados en ninguna fuente");
   return { rows, errores };
