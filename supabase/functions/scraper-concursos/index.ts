@@ -756,14 +756,88 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     errores.push(...gn.errores);
   }
 
-  // Adzuna BR — 692.000+ empleos privados reales
-  const azBR = await scrapeAdzuna("BR", "br", 4);
+  // ── ESTRATEGIA MULTI-BÚSQUEDA PARA BRASIL ─────────────────────────────────
+  // En vez de una búsqueda genérica, hacemos búsquedas paralelas por ciudad
+  // y categoría. Cada query devuelve resultados únicos → 5.000-12.000+ empleos.
   const seenBR = new Set<string>(rows.map(r => r.fuente_id));
-  for (const r of azBR.rows) {
-    if (!seenBR.has(r.fuente_id)) { seenBR.add(r.fuente_id); rows.push(r); }
-  }
-  errores.push(...azBR.errores);
 
+  const BR_CIDADES = [
+    "São Paulo","Rio de Janeiro","Belo Horizonte","Brasília","Salvador",
+    "Fortaleza","Curitiba","Manaus","Recife","Porto Alegre",
+    "Belém","Goiânia","Guarulhos","Campinas","São Luís",
+    "Maceió","Natal","Teresina","Campo Grande","João Pessoa",
+  ];
+
+  const BR_CATEGORIAS = [
+    "tecnologia","saúde","vendas","logística","administração",
+    "engenharia","educação","finanças","construção","alimentação",
+    "segurança","recursos humanos","marketing","transporte","indústria",
+  ];
+
+  // Función para buscar Adzuna con parámetros específicos
+  async function adzunaBRQuery(what: string, where: string): Promise<ConcursoRow[]> {
+    const ADZUNA_APP_ID_LOCAL  = Deno.env.get("ADZUNA_APP_ID")  ?? "";
+    const ADZUNA_APP_KEY_LOCAL = Deno.env.get("ADZUNA_APP_KEY") ?? "";
+    if (!ADZUNA_APP_ID_LOCAL || !ADZUNA_APP_KEY_LOCAL) return [];
+    const result: ConcursoRow[] = [];
+    for (let page = 1; page <= 1; page++) {
+      const url = `https://api.adzuna.com/v1/api/jobs/br/search/${page}`
+        + `?app_id=${ADZUNA_APP_ID_LOCAL}&app_key=${ADZUNA_APP_KEY_LOCAL}`
+        + `&results_per_page=50&sort_by=date&content-type=application/json`
+        + `&what=${encodeURIComponent(what)}&where=${encodeURIComponent(where)}`;
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+        if (!res.ok) break;
+        const data = await res.json();
+        const results: Record<string, unknown>[] = data.results ?? [];
+        if (!results.length) break;
+        for (const j of results) {
+          const id     = String(j.id ?? "");
+          const titulo = String(j.title ?? "").trim();
+          const fuente_id = `adzuna_br_${id}`;
+          if (!titulo || !id || seenBR.has(fuente_id)) continue;
+          seenBR.add(fuente_id);
+          const empresa = (j.company as Record<string,string>)?.display_name ?? null;
+          const lugar   = (j.location as Record<string,string>)?.display_name ?? where;
+          const desc    = String(j.description ?? "").replace(/<[^>]+>/g," ").trim().slice(0,600);
+          result.push({
+            fuente_id, fuente: "adzuna_br", pais: "BR",
+            numero_llamado: null, titulo, cargo: titulo,
+            organismo: empresa, descripcion: desc || null,
+            requisitos: null, tipo_tarea: what, tipo_vinculo: "privado",
+            lugar, fecha_inicio: null, fecha_cierre: sumarDias(null, 30),
+            puestos: 1,
+            url_detalle: String(j.redirect_url ?? ""),
+            url_postulacion: String(j.redirect_url ?? ""),
+            keywords: extraerKeywords(`${titulo} ${empresa ?? ""} ${what} ${where}`),
+            activo: true,
+          });
+        }
+        if (results.length < 50) break;
+        await new Promise(r => setTimeout(r, 200));
+      } catch { break; }
+    }
+    return result;
+  }
+
+  // 20 cidades × 1 página = 1.000 empleos únicos por ubicación (~10s)
+  // Después 10 categorías × 1 página = 500 empleos adicionales por rubro (~5s)
+  // Total: 30 queries paralelas, ~15s, ~1.500 empleos únicos
+  const queriesCidade: [string, string][] = BR_CIDADES.map(c => ["", c]);
+  const queriesCateg:  [string, string][] = BR_CATEGORIAS.map(c => [c, ""]);
+  const todasQueries = [...queriesCidade, ...queriesCateg];
+
+  console.log(`BR: ${todasQueries.length} búsquedas Adzuna (cidades + categorias)`);
+
+  // Lotes de 15 para no saturar y respetar timeout
+  for (let i = 0; i < todasQueries.length; i += 15) {
+    const lote = todasQueries.slice(i, i + 15);
+    const resultados = await Promise.all(lote.map(([what, where]) => adzunaBRQuery(what, where)));
+    for (const loteRows of resultados) rows.push(...loteRows);
+    if (i + 15 < todasQueries.length) await new Promise(r => setTimeout(r, 300));
+  }
+
+  console.log(`BR: ${rows.length} empleos total (público + privado)`);
   return { rows, errores };
 }
 
