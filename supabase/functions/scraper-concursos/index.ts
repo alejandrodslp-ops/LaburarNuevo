@@ -1072,6 +1072,104 @@ async function scrapeRepDominicana(): Promise<{ rows: ConcursoRow[]; errores: st
 // PARSER: España — BOE datos abiertos JSON API (sección Oposiciones y concursos)
 // El RSS del BOE devuelve body vacío desde cloud; la API JSON sí funciona.
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// ADZUNA MULTI-BÚSQUEDA GENÉRICA — reutilizable para cualquier país
+// Estrategia: N ciudades × M categorías = N×M queries paralelas
+// UA rotation + jitter + exponential backoff
+// ─────────────────────────────────────────────────────────────
+const UA_POOL_MULTI = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+];
+
+async function adzunaMultiSearch(
+  pais: string,
+  adzunaCountry: string,
+  cidades: string[],
+  categorias: string[],
+  acceptLang: string,
+  seen: Set<string>
+): Promise<ConcursoRow[]> {
+  const APP_ID  = Deno.env.get("ADZUNA_APP_ID")  ?? "";
+  const APP_KEY = Deno.env.get("ADZUNA_APP_KEY") ?? "";
+  if (!APP_ID || !APP_KEY) return [];
+
+  const jitter = () => Math.floor(Math.random() * 300 + 100);
+  const allRows: ConcursoRow[] = [];
+
+  // Combinar todas las ciudades × categorías
+  const queries: [string, string][] = [];
+  for (const cidade of cidades) {
+    for (const cat of categorias) {
+      queries.push([cat, cidade]);
+    }
+  }
+
+  // Ejecutar en lotes de 30 paralelas para no saturar
+  for (let i = 0; i < queries.length; i += 30) {
+    const lote = queries.slice(i, i + 30);
+    const resultados = await Promise.all(lote.map(async ([what, where]) => {
+      const ua  = UA_POOL_MULTI[Math.floor(Math.random() * UA_POOL_MULTI.length)];
+      const url = `https://api.adzuna.com/v1/api/jobs/${adzunaCountry}/search/1`
+        + `?app_id=${APP_ID}&app_key=${APP_KEY}`
+        + `&results_per_page=50&sort_by=date&content-type=application/json`
+        + `&what=${encodeURIComponent(what)}&where=${encodeURIComponent(where)}`;
+
+      let intentos = 0;
+      while (intentos < 2) {
+        try {
+          const res = await fetch(url, {
+            headers: { "User-Agent": ua, "Accept": "application/json", "Accept-Language": acceptLang },
+            signal: AbortSignal.timeout(12000),
+          });
+          if (res.status === 429) {
+            const ra = parseInt(res.headers.get("Retry-After") ?? "3");
+            await new Promise(r => setTimeout(r, ra * 1000 + jitter()));
+            intentos++; continue;
+          }
+          if (!res.ok) break;
+          const data = await res.json();
+          const results: Record<string, unknown>[] = data.results ?? [];
+          const rows: ConcursoRow[] = [];
+          for (const j of results) {
+            const id  = String(j.id ?? "");
+            const titulo = String(j.title ?? "").trim();
+            const fid = `adzuna_${adzunaCountry}_${id}`;
+            if (!titulo || !id || seen.has(fid)) continue;
+            seen.add(fid);
+            const empresa = (j.company as Record<string,string>)?.display_name ?? null;
+            const lugar   = (j.location as Record<string,string>)?.display_name ?? where;
+            const desc    = String(j.description ?? "").replace(/<[^>]+>/g," ").trim().slice(0,600);
+            const fechaPub = String(j.created ?? "").slice(0,10) || null;
+            rows.push({
+              fuente_id: fid, fuente: `adzuna_${adzunaCountry}`, pais,
+              numero_llamado: null, titulo, cargo: titulo,
+              organismo: empresa, descripcion: desc || null,
+              requisitos: null, tipo_tarea: what, tipo_vinculo: "privado",
+              lugar, fecha_inicio: fechaPub,
+              fecha_cierre: fechaPub ? sumarDias(fechaPub, 30) : sumarDias(null, 30),
+              puestos: 1,
+              url_detalle: String(j.redirect_url ?? ""),
+              url_postulacion: String(j.redirect_url ?? ""),
+              keywords: extraerKeywords(`${titulo} ${empresa ?? ""} ${what} ${where}`),
+              activo: true,
+            });
+          }
+          return rows;
+        } catch { intentos++; await new Promise(r => setTimeout(r, jitter())); }
+      }
+      return [];
+    }));
+    for (const loteRows of resultados) allRows.push(...loteRows);
+    if (i + 30 < queries.length) await new Promise(r => setTimeout(r, 200));
+  }
+  console.log(`Adzuna ${pais}: ${allRows.length} empleos (${queries.length} queries)`);
+  return allRows;
+}
+
 async function scrapeEspana(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const errores: string[] = [];
   const rows: ConcursoRow[] = [];
@@ -1216,13 +1314,12 @@ async function scrapeItalia(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     }
   }
 
-  // Adzuna — empleos privados reales de Italia
-  const az = await scrapeAdzuna("IT", "it", 4);
+  // Adzuna multi-búsqueda Italia — 10 ciudades × 8 categorías = 80 queries
+  const IT_CIDADES = ["Roma","Milano","Napoli","Torino","Palermo","Genova","Bologna","Firenze","Bari","Catania"];
+  const IT_CATS    = ["tecnologia","salute","vendite","logistica","ingegneria","finanza","costruzione","marketing"];
   const seenIT = new Set<string>(rows.map(r => r.fuente_id));
-  for (const r of az.rows) {
-    if (!seenIT.has(r.fuente_id)) { seenIT.add(r.fuente_id); rows.push(r); }
-  }
-  errores.push(...az.errores);
+  const azIT = await adzunaMultiSearch("IT","it", IT_CIDADES, IT_CATS, "it-IT,it;q=0.9,en;q=0.8", seenIT);
+  rows.push(...azIT);
 
   if (rows.length === 0) {
     const gn = await scrapeGoogleNews("IT",
@@ -1301,13 +1398,12 @@ async function scrapeAlemania(): Promise<{ rows: ConcursoRow[]; errores: string[
     errores.push(`DE: Bundesagentur API error — ${(e as Error).message}`);
   }
 
-  // Adzuna — empleos privados reales de Alemania
-  const az = await scrapeAdzuna("DE", "de", 4);
-  const seen = new Set<string>(rows.map(r => r.fuente_id));
-  for (const r of az.rows) {
-    if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); }
-  }
-  errores.push(...az.errores);
+  // Adzuna multi-búsqueda Alemania — 12 ciudades × 8 categorías = 96 queries
+  const DE_CIDADES = ["Berlin","Hamburg","München","Köln","Frankfurt","Stuttgart","Düsseldorf","Leipzig","Dortmund","Essen","Bremen","Dresden"];
+  const DE_CATS    = ["Technologie","Gesundheit","Vertrieb","Logistik","Ingenieur","Finanzen","Bau","Marketing"];
+  const seenDE = new Set<string>(rows.map(r => r.fuente_id));
+  const azDE = await adzunaMultiSearch("DE","de", DE_CIDADES, DE_CATS, "de-DE,de;q=0.9,en;q=0.8", seenDE);
+  rows.push(...azDE);
 
   if (rows.length === 0) {
     const gn = await scrapeGoogleNews("DE",
@@ -1417,20 +1513,20 @@ async function scrapeReinoUnido(): Promise<{ rows: ConcursoRow[]; errores: strin
       });
     }
   }
-  if (rows.length > 0) {
-    // Complementar con empleos privados de Adzuna
-    const az = await scrapeAdzuna("GB", "gb", 3);
-    const seen = new Set<string>(rows.map(r => r.fuente_id));
-    for (const r of az.rows) { if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); } }
-    return { rows, errores: [...errores, ...az.errores] };
+  // Adzuna multi-búsqueda UK — 12 ciudades × 8 categorías = 96 queries
+  const GB_CIDADES = ["London","Birmingham","Manchester","Glasgow","Liverpool","Leeds","Sheffield","Edinburgh","Bristol","Leicester","Coventry","Bradford"];
+  const GB_CATS    = ["technology","healthcare","sales","logistics","engineering","finance","construction","marketing"];
+  const seenGB = new Set<string>(rows.map(r => r.fuente_id));
+  const azGB = await adzunaMultiSearch("GB","gb", GB_CIDADES, GB_CATS, "en-GB,en;q=0.9", seenGB);
+  rows.push(...azGB);
+
+  if (rows.length === 0) {
+    const gn = await scrapeGoogleNews("GB",
+      "UK civil service government jobs vacancy hiring 2026",
+      "uk_googlenews", "GB", "en", 14);
+    return { rows: gn.rows, errores: [...errores, ...gn.errores] };
   }
-  errores.push("GB: NHS Jobs inaccesible");
-  const az = await scrapeAdzuna("GB", "gb", 4);
-  if (az.rows.length > 0) return { rows: az.rows, errores: [...errores, ...az.errores] };
-  const gn = await scrapeGoogleNews("GB",
-    "UK civil service government jobs vacancy hiring 2026",
-    "uk_googlenews", "GB", "en", 14);
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1747,13 +1843,12 @@ async function scrapeFrancia(): Promise<{ rows: ConcursoRow[]; errores: string[]
     errores.push("FR: EmploiPublic.fr sitemap inaccesible");
   }
 
-  // 2. Adzuna — empleos privados reales de Francia (siempre se ejecuta)
-  const az = await scrapeAdzuna("FR", "fr", 4);
-  const seen = new Set<string>(rows.map(r => r.fuente_id));
-  for (const r of az.rows) {
-    if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); }
-  }
-  errores.push(...az.errores);
+  // 2. Adzuna multi-búsqueda — 15 ciudades × 8 categorías = 120 queries
+  const FR_CIDADES = ["Paris","Lyon","Marseille","Toulouse","Nice","Nantes","Strasbourg","Bordeaux","Lille","Rennes","Reims","Montpellier","Grenoble","Dijon","Clermont-Ferrand"];
+  const FR_CATS    = ["technologie","santé","vente","logistique","ingénierie","finance","construction","marketing"];
+  const seenFR = new Set<string>(rows.map(r => r.fuente_id));
+  const azFR = await adzunaMultiSearch("FR","fr", FR_CIDADES, FR_CATS, "fr-FR,fr;q=0.9,en;q=0.8", seenFR);
+  rows.push(...azFR);
 
   if (rows.length === 0) {
     const gn = await scrapeGoogleNews("FR",
