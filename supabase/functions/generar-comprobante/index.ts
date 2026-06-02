@@ -1,14 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Variables leídas dentro del handler (no en module scope en Deno Deploy)
+// Variables le&iacute;das dentro del handler (no en module scope en Deno Deploy)
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Genera el número correlativo del comprobante: NEXU-2026-000001
+// Genera el n&uacute;mero correlativo del comprobante: NEXU-2026-000001
 async function generarNumero(sb: ReturnType<typeof createClient>): Promise<string> {
   const { count } = await sb
     .from("comprobantes")
@@ -17,7 +17,7 @@ async function generarNumero(sb: ReturnType<typeof createClient>): Promise<strin
   return `NEXU-${new Date().getFullYear()}-${n}`;
 }
 
-// HTML del comprobante &mdash; diseño profesional imprimible
+// HTML del comprobante &mdash; dise&ntilde;o profesional imprimible
 function generarHTML(data: {
   numero: string;
   fecha: string;
@@ -158,7 +158,7 @@ serve(async (req) => {
   const RESEND_KEY   = Deno.env.get("RESEND_API_KEY") ?? "";
   const supabase     = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  // Función interna &mdash; validación de employer_id contra la DB
+  // Funci&oacute;n interna &mdash; validaci&oacute;n de employer_id contra la DB
 
   const {
     employer_id,
@@ -231,7 +231,7 @@ serve(async (req) => {
       body: JSON.stringify({
         from:    "Nexu <onboarding@resend.dev>",
         to:      [email],
-        subject: `🧾 Comprobante de pago ${numero} &mdash; Nexu`,
+        subject: ` Comprobante de pago ${numero} &mdash; Nexu`,
         html:    html,
       }),
       signal: AbortSignal.timeout(10000),
