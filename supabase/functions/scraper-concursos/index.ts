@@ -2475,10 +2475,54 @@ async function enviarResumenDiario(): Promise<void> {
 // ─────────────────────────────────────────────────────────────
 // SCRAPER PRINCIPAL — upsert a Supabase
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// ESTÁNDARES DE CALIDAD — criterios mínimos para que una oferta
+// sea considerada legítima y agregada a la base de datos.
+// Se aplica a TODAS las fuentes: Adzuna, pciconcursos, Google News, etc.
+// ─────────────────────────────────────────────────────────────
+function esOfertaLegitima(r: ConcursoRow): boolean {
+  // 1. Título real — mínimo 4 caracteres, no solo números o símbolos
+  if (!r.titulo || r.titulo.trim().length < 4) return false;
+  if (/^[\d\s\-_\.]+$/.test(r.titulo.trim())) return false;
+
+  // 2. Link de acceso funcional — debe ser una URL real
+  const link = r.url_detalle ?? r.url_postulacion ?? "";
+  if (!link.startsWith("http")) return false;
+
+  // 3. País identificado
+  if (!r.pais || r.pais.length < 2) return false;
+
+  // 4. No es noticia — fuentes de Google News se permiten pero deben tener keywords reales
+  const esGoogleNews = r.fuente?.includes("googlenews") || r.fuente?.includes("gnews");
+  if (esGoogleNews && (!r.keywords || r.keywords.length < 2)) return false;
+
+  // 5. Keywords suficientes para el matching (mínimo 2)
+  if (!r.keywords || r.keywords.length < 2) return false;
+
+  // 6. No vencida — no aceptar empleos ya expirados
+  if (r.fecha_cierre) {
+    const hoy = new Date().toISOString().slice(0, 10);
+    if (r.fecha_cierre.slice(0, 10) < hoy) return false;
+  }
+
+  // 7. Empresa o descripción — al menos uno debe existir para poder hacer matching
+  const tieneContexto = !!(r.organismo || r.descripcion || r.tipo_tarea);
+  if (!tieneContexto) return false;
+
+  return true;
+}
+
 async function upsertRows(rows: ConcursoRow[]): Promise<number> {
   if (rows.length === 0) return 0;
+
+  // Aplicar estándares de calidad antes de guardar
+  const legitimas = rows.filter(esOfertaLegitima);
+  const rechazadas = rows.length - legitimas.length;
+  if (rechazadas > 0) console.log(`  ⚠ ${rechazadas} ofertas rechazadas por no cumplir estándares de calidad`);
+
+  if (legitimas.length === 0) return 0;
   const manana = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-  const validas = rows.filter(r => !r.fecha_cierre || r.fecha_cierre >= manana);
+  const validas = legitimas.filter(r => !r.fecha_cierre || r.fecha_cierre >= manana);
   if (validas.length === 0) return 0;
   const { error } = await supabase
     .from("concursos")
