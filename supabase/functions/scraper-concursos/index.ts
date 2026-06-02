@@ -762,16 +762,20 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
   const seenBR = new Set<string>(rows.map(r => r.fuente_id));
 
   const BR_CIDADES = [
+    // Capitais e grandes centros
     "São Paulo","Rio de Janeiro","Belo Horizonte","Brasília","Salvador",
     "Fortaleza","Curitiba","Manaus","Recife","Porto Alegre",
     "Belém","Goiânia","Guarulhos","Campinas","São Luís",
     "Maceió","Natal","Teresina","Campo Grande","João Pessoa",
+    // Cidades médias com mercado forte
+    "São Bernardo do Campo","Santo André","Osasco","São José dos Campos",
+    "Ribeirão Preto","Uberlândia","Contagem","Sorocaba","Aracaju","Cuiabá",
+    "Macapá","Porto Velho","Boa Vista","Palmas","Rio Branco",
   ];
 
   const BR_CATEGORIAS = [
     "tecnologia","saúde","vendas","logística","administração",
     "engenharia","educação","finanças","construção","alimentação",
-    "segurança","recursos humanos","marketing","transporte","indústria",
   ];
 
   // Función para buscar Adzuna con parámetros específicos
@@ -826,21 +830,22 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     return result;
   }
 
-  // 20 cidades × 1 página = 1.000 empleos únicos por ubicación (~10s)
-  // Después 10 categorías × 1 página = 500 empleos adicionales por rubro (~5s)
-  // Total: 30 queries paralelas, ~15s, ~1.500 empleos únicos
-  const queriesCidade: [string, string][] = BR_CIDADES.map(c => ["", c]);
-  const queriesCateg:  [string, string][] = BR_CATEGORIAS.map(c => [c, ""]);
-  const todasQueries = [...queriesCidade, ...queriesCateg];
+  // 35 cidades × 10 categorias = 350 queries → hasta 17.500 empleos únicos/run
+  // Ejecutadas en lotes de 50 paralelas → ~7 batches × ~2s = ~14s total
+  const todasQueries: [string, string][] = [];
+  for (const cidade of BR_CIDADES) {
+    for (const cat of BR_CATEGORIAS) {
+      todasQueries.push([cat, cidade]);
+    }
+  }
 
-  console.log(`BR: ${todasQueries.length} búsquedas Adzuna (cidades + categorias)`);
+  console.log(`BR: ${todasQueries.length} queries Adzuna (${BR_CIDADES.length} cidades × ${BR_CATEGORIAS.length} categorias)`);
 
-  // Lotes de 15 para no saturar y respetar timeout
-  for (let i = 0; i < todasQueries.length; i += 15) {
-    const lote = todasQueries.slice(i, i + 15);
+  for (let i = 0; i < todasQueries.length; i += 50) {
+    const lote = todasQueries.slice(i, i + 50);
     const resultados = await Promise.all(lote.map(([what, where]) => adzunaBRQuery(what, where)));
     for (const loteRows of resultados) rows.push(...loteRows);
-    if (i + 15 < todasQueries.length) await new Promise(r => setTimeout(r, 300));
+    if (i + 50 < todasQueries.length) await new Promise(r => setTimeout(r, 200));
   }
 
   console.log(`BR: ${rows.length} empleos total (público + privado)`);
