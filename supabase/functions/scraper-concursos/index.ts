@@ -756,6 +756,14 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     errores.push(...gn.errores);
   }
 
+  // Adzuna BR — 692.000+ empleos privados reales
+  const azBR = await scrapeAdzuna("BR", "br", 4);
+  const seenBR = new Set<string>(rows.map(r => r.fuente_id));
+  for (const r of azBR.rows) {
+    if (!seenBR.has(r.fuente_id)) { seenBR.add(r.fuente_id); rows.push(r); }
+  }
+  errores.push(...azBR.errores);
+
   return { rows, errores };
 }
 
