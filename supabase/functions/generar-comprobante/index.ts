@@ -17,7 +17,7 @@ async function generarNumero(sb: ReturnType<typeof createClient>): Promise<strin
   return `NEXU-${new Date().getFullYear()}-${n}`;
 }
 
-// HTML del comprobante — diseño profesional imprimible
+// HTML del comprobante &mdash; diseño profesional imprimible
 function generarHTML(data: {
   numero: string;
   fecha: string;
@@ -37,7 +37,7 @@ function generarHTML(data: {
     style: "currency", currency: data.moneda === "USD" ? "USD" : data.moneda,
   }).format(data.monto);
   const metodoLabel: Record<string, string> = {
-    mercadopago: "MercadoPago", card: "Tarjeta de crédito/débito",
+    mercadopago: "MercadoPago", card: "Tarjeta de cr&eacute;dito/d&eacute;bito",
     abitab: "Abitab / RedPagos", cell: "Saldo celular", stripe: "Tarjeta",
   };
 
@@ -46,7 +46,7 @@ function generarHTML(data: {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Comprobante ${data.numero} — Nexu</title>
+<title>Comprobante ${data.numero} &mdash; Nexu</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { font-family: Arial, sans-serif; color: #1A1020; background: #fff; padding: 40px; }
@@ -76,7 +76,7 @@ function generarHTML(data: {
   <div class="header">
     <div>
       <div class="logo">Nexu</div>
-      <div class="logo-sub">nexu.app · Plataforma de empleo</div>
+      <div class="logo-sub">nexu.app &middot; Plataforma de empleo</div>
     </div>
     <div class="comp-num">
       <h2>Comprobante de pago</h2>
@@ -86,15 +86,15 @@ function generarHTML(data: {
   </div>
 
   <div class="section">
-    <div class="stamp">✓ PAGADO</div>
+    <div class="stamp">&#x2713; PAGADO</div>
     <div class="info-grid">
       <div class="info-item">
         <label>Emisor</label>
-        <p>Nexu — Plataforma de empleo</p>
+        <p>Nexu &mdash; Plataforma de empleo</p>
       </div>
       <div class="info-item">
         <label>Receptor</label>
-        <p>${data.razon_social || "—"}</p>
+        <p>${data.razon_social || "&mdash;"}</p>
       </div>
       ${data.rut_nit ? `<div class="info-item"><label>RUT / NIT / CUIT</label><p>${data.rut_nit}</p></div>` : ""}
       <div class="info-item">
@@ -129,20 +129,20 @@ function generarHTML(data: {
   <div class="section">
     <div class="info-grid">
       <div class="info-item">
-        <label>Método de pago</label>
+        <label>M&eacute;todo de pago</label>
         <p>${metodoLabel[data.metodo] ?? data.metodo}</p>
       </div>
       <div class="info-item">
-        <label>Referencia de transacción</label>
+        <label>Referencia de transacci&oacute;n</label>
         <p style="font-family:monospace; font-size:12px">${data.referencia}</p>
       </div>
     </div>
   </div>
 
   <div class="footer">
-    <p>Este documento es un comprobante de pago válido emitido por Nexu.</p>
-    <p>Para consultas: soporte@nexu.app · nexu.app</p>
-    <p style="margin-top:8px; color:#ccc">${data.numero} · Generado automáticamente el ${fecha}</p>
+    <p>Este documento es un comprobante de pago v&aacute;lido emitido por Nexu.</p>
+    <p>Para consultas: soporte@nexu.app &middot; nexu.app</p>
+    <p style="margin-top:8px; color:#ccc">${data.numero} &middot; Generado autom&aacute;ticamente el ${fecha}</p>
   </div>
 </body>
 </html>`;
@@ -151,14 +151,14 @@ function generarHTML(data: {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
-  // Inicializar dentro del handler — variables de entorno disponibles en runtime
+  // Inicializar dentro del handler &mdash; variables de entorno disponibles en runtime
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   // Usar NEXU_SERVICE_KEY (clave personalizada) o SUPABASE_SERVICE_ROLE_KEY como fallback
   const SERVICE_KEY  = Deno.env.get("NEXU_SERVICE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const RESEND_KEY   = Deno.env.get("RESEND_API_KEY") ?? "";
   const supabase     = createClient(SUPABASE_URL, SERVICE_KEY);
 
-  // Función interna — validación de employer_id contra la DB
+  // Función interna &mdash; validación de employer_id contra la DB
 
   const {
     employer_id,
@@ -166,7 +166,7 @@ serve(async (req) => {
     moneda = "USD",
     metodo,
     referencia_externa,
-    concepto = "Suscripción Nexu — Visualizaciones de perfiles",
+    concepto = "Suscripci&oacute;n Nexu &mdash; Visualizaciones de perfiles",
   } = await req.json();
 
   if (!employer_id || !monto || !metodo) {
@@ -193,14 +193,14 @@ serve(async (req) => {
     numero, fecha, razon_social, email,
     rut_nit: "",
     concepto, monto, moneda, metodo,
-    referencia: referencia_externa ?? "—",
+    referencia: referencia_externa ?? "&mdash;",
   });
 
   // Guardar HTML en Supabase Storage
   const fileName  = `${employer_id}/${numero}.html`;
   const { error: storageErr } = await supabase.storage
     .from("comprobantes")
-    .upload(fileName, new Blob([html], { type: "text/html" }), { upsert: true });
+    .upload(fileName, new Blob([new TextEncoder().encode(html)], { type: "text/html; charset=utf-8" }), { upsert: true });
 
   let htmlUrl: string | null = null;
   if (!storageErr) {
@@ -231,7 +231,7 @@ serve(async (req) => {
       body: JSON.stringify({
         from:    "Nexu <onboarding@resend.dev>",
         to:      [email],
-        subject: `🧾 Comprobante de pago ${numero} — Nexu`,
+        subject: `🧾 Comprobante de pago ${numero} &mdash; Nexu`,
         html:    html,
       }),
       signal: AbortSignal.timeout(10000),
