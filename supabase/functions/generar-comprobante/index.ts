@@ -30,12 +30,13 @@ function generarHTML(data: {
   metodo: string;
   referencia: string;
 }): string {
-  const fecha = new Date(data.fecha).toLocaleDateString("es-UY", {
-    day: "2-digit", month: "long", year: "numeric", timeZone: "America/Montevideo",
-  });
-  const montoFmt = new Intl.NumberFormat("es-UY", {
-    style: "currency", currency: data.moneda === "USD" ? "USD" : data.moneda,
-  }).format(data.monto);
+  // Formateadores 100% ASCII para evitar caracteres no-ASCII en el HTML
+  const MESES = ["enero","febrero","marzo","abril","mayo","junio",
+                 "julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const d = new Date(data.fecha);
+  const fecha = `${String(d.getUTCDate()).padStart(2,"0")} de ${MESES[d.getUTCMonth()]} de ${d.getUTCFullYear()}`;
+  // Formato de monto sin Intl (evita non-breaking space U+00A0)
+  const montoFmt = `${data.moneda === "USD" ? "USD" : data.moneda} ${data.monto.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,",")}`;
   const metodoLabel: Record<string, string> = {
     mercadopago: "MercadoPago", card: "Tarjeta de cr&eacute;dito/d&eacute;bito",
     abitab: "Abitab / RedPagos", cell: "Saldo celular", stripe: "Tarjeta",
