@@ -1680,11 +1680,13 @@ async function scrapeCanada(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     if (rows.length > 0) return { rows, errores };
   }
 
-  // Adzuna CA — empleos privados reales de Canadá
-  const az = await scrapeAdzuna("CA", "ca", 3);
-  const seen = new Set<string>(rows.map(r => r.fuente_id));
-  for (const r of az.rows) { if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); } }
-  if (rows.length > 0) return { rows, errores: [...errores, ...az.errores] };
+  // Adzuna multi-búsqueda Canadá — 12 ciudades × 8 categorías = 96 queries
+  const CA_CIDADES = ["Toronto","Montreal","Vancouver","Calgary","Edmonton","Ottawa","Winnipeg","Quebec City","Hamilton","Kitchener","London","Halifax"];
+  const CA_CATS    = ["technology","healthcare","sales","logistics","engineering","finance","construction","marketing"];
+  const seenCA = new Set<string>(rows.map(r => r.fuente_id));
+  const azCA = await adzunaMultiSearch("CA","ca", CA_CIDADES, CA_CATS, "en-CA,en;q=0.9,fr-CA;q=0.8", seenCA);
+  rows.push(...azCA);
+  if (rows.length > 0) return { rows, errores };
 
   const gn = await scrapeGoogleNews("US",
     "Canada federal government jobs GC Jobs public service hiring",
@@ -1754,11 +1756,13 @@ async function scrapeAustralia(): Promise<{ rows: ConcursoRow[]; errores: string
     errores.push("AU: Victoria Careers sitemap inaccesible");
   }
 
-  // Adzuna AU — empleos privados reales de Australia
-  const azAU = await scrapeAdzuna("AU", "au", 3);
+  // Adzuna multi-búsqueda Australia — 10 ciudades × 8 categorías = 80 queries
+  const AU_CIDADES = ["Sydney","Melbourne","Brisbane","Perth","Adelaide","Canberra","Darwin","Hobart","Gold Coast","Newcastle"];
+  const AU_CATS    = ["technology","healthcare","sales","logistics","engineering","finance","construction","marketing"];
   const seenAU = new Set<string>(rows.map(r => r.fuente_id));
-  for (const r of azAU.rows) { if (!seenAU.has(r.fuente_id)) { seenAU.add(r.fuente_id); rows.push(r); } }
-  if (rows.length > 0) return { rows, errores: [...errores, ...azAU.errores] };
+  const azAU = await adzunaMultiSearch("AU","au", AU_CIDADES, AU_CATS, "en-AU,en;q=0.9", seenAU);
+  rows.push(...azAU);
+  if (rows.length > 0) return { rows, errores };
 
   const gn = await scrapeGoogleNews("US",
     "Australia government jobs APS hiring vacancy public service recruitment",
@@ -2281,10 +2285,12 @@ async function scrapeIndia(): Promise<{ rows: ConcursoRow[]; errores: string[] }
   addRows(gn2.rows); errores.push(...gn2.errores);
   addRows(gn3.rows); errores.push(...gn3.errores);
 
-  // Adzuna IN — empleos privados reales de India
-  const azIN = await scrapeAdzuna("IN", "in", 3);
-  for (const r of azIN.rows) { if (!rows.find(x => x.fuente_id === r.fuente_id)) rows.push(r); }
-  errores.push(...azIN.errores);
+  // Adzuna multi-búsqueda India — 12 ciudades × 8 categorías = 96 queries
+  const IN_CIDADES = ["Mumbai","Delhi","Bangalore","Hyderabad","Chennai","Kolkata","Pune","Ahmedabad","Surat","Jaipur","Lucknow","Kanpur"];
+  const IN_CATS    = ["technology","healthcare","sales","logistics","engineering","finance","education","marketing"];
+  const seenIN = new Set<string>(rows.map(r => r.fuente_id));
+  const azIN = await adzunaMultiSearch("IN","in", IN_CIDADES, IN_CATS, "en-IN,en;q=0.9", seenIN);
+  rows.push(...azIN);
 
   if (rows.length === 0) errores.push("IN: sin resultados en ninguna fuente");
   return { rows, errores };
