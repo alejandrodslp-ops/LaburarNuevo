@@ -778,23 +778,54 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     "engenharia","educação","finanças","construção","alimentação",
   ];
 
-  // Función para buscar Adzuna con parámetros específicos
+  // User-Agents reales de browsers para rotar — evita patrón de bot
+  const UA_POOL = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+  ];
+  const jitter = () => Math.floor(Math.random() * 300 + 100); // 100-400ms aleatorio
+
+  // Busca con exponential backoff y respeto de rate limits
   async function adzunaBRQuery(what: string, where: string): Promise<ConcursoRow[]> {
     const ADZUNA_APP_ID_LOCAL  = Deno.env.get("ADZUNA_APP_ID")  ?? "";
     const ADZUNA_APP_KEY_LOCAL = Deno.env.get("ADZUNA_APP_KEY") ?? "";
     if (!ADZUNA_APP_ID_LOCAL || !ADZUNA_APP_KEY_LOCAL) return [];
     const result: ConcursoRow[] = [];
-    for (let page = 1; page <= 1; page++) {
-      const url = `https://api.adzuna.com/v1/api/jobs/br/search/${page}`
-        + `?app_id=${ADZUNA_APP_ID_LOCAL}&app_key=${ADZUNA_APP_KEY_LOCAL}`
-        + `&results_per_page=50&sort_by=date&content-type=application/json`
-        + `&what=${encodeURIComponent(what)}&where=${encodeURIComponent(where)}`;
+    const ua = UA_POOL[Math.floor(Math.random() * UA_POOL.length)];
+    const url = `https://api.adzuna.com/v1/api/jobs/br/search/1`
+      + `?app_id=${ADZUNA_APP_ID_LOCAL}&app_key=${ADZUNA_APP_KEY_LOCAL}`
+      + `&results_per_page=50&sort_by=date&content-type=application/json`
+      + `&what=${encodeURIComponent(what)}&where=${encodeURIComponent(where)}`;
+
+    let intentos = 0;
+    while (intentos < 3) {
       try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+        const res = await fetch(url, {
+          headers: {
+            "User-Agent": ua,
+            "Accept": "application/json",
+            "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+          },
+          signal: AbortSignal.timeout(15000),
+        });
+
+        // Rate limit — respetar Retry-After si viene
+        if (res.status === 429) {
+          const retryAfter = parseInt(res.headers.get("Retry-After") ?? "5");
+          await new Promise(r => setTimeout(r, (retryAfter * 1000) + jitter()));
+          intentos++;
+          continue;
+        }
         if (!res.ok) break;
+
         const data = await res.json();
         const results: Record<string, unknown>[] = data.results ?? [];
-        if (!results.length) break;
         for (const j of results) {
           const id     = String(j.id ?? "");
           const titulo = String(j.title ?? "").trim();
@@ -804,7 +835,6 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
           const empresa = (j.company as Record<string,string>)?.display_name ?? null;
           const lugar   = (j.location as Record<string,string>)?.display_name ?? where;
           const desc    = String(j.description ?? "").replace(/<[^>]+>/g," ").trim().slice(0,600);
-          // Fecha real de publicación → cierre estimado en 30 días
           const fechaPublicacion = String(j.created ?? "").slice(0, 10) || null;
           const fechaCierreEstimada = fechaPublicacion
             ? sumarDias(fechaPublicacion, 30)
@@ -823,9 +853,11 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
             activo: true,
           });
         }
-        if (results.length < 50) break;
-        await new Promise(r => setTimeout(r, 200));
-      } catch { break; }
+        break; // éxito — salir del while
+      } catch {
+        intentos++;
+        await new Promise(r => setTimeout(r, jitter() * (intentos + 1)));
+      }
     }
     return result;
   }
