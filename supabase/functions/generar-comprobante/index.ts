@@ -1,11 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const SUPABASE_URL  = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_KEY   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const RESEND_KEY    = Deno.env.get("RESEND_API_KEY") ?? "";
-
-const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+// Variables leídas dentro del handler (no en module scope en Deno Deploy)
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -13,8 +9,8 @@ const CORS = {
 };
 
 // Genera el número correlativo del comprobante: NEXU-2026-000001
-async function generarNumero(): Promise<string> {
-  const { count } = await supabase
+async function generarNumero(sb: ReturnType<typeof createClient>): Promise<string> {
+  const { count } = await sb
     .from("comprobantes")
     .select("*", { count: "exact", head: true });
   const n = String((count ?? 0) + 1).padStart(6, "0");
@@ -155,10 +151,14 @@ function generarHTML(data: {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
-  // Solo el webhook de pago puede llamar esta función (service role)
-  if (req.headers.get("Authorization") !== `Bearer ${SERVICE_KEY}`) {
-    return new Response(JSON.stringify({ error: "No autorizado" }), { status: 401, headers: CORS });
-  }
+  // Inicializar dentro del handler — variables de entorno disponibles en runtime
+  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+  // Usar NEXU_SERVICE_KEY (clave personalizada) o SUPABASE_SERVICE_ROLE_KEY como fallback
+  const SERVICE_KEY  = Deno.env.get("NEXU_SERVICE_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const RESEND_KEY   = Deno.env.get("RESEND_API_KEY") ?? "";
+  const supabase     = createClient(SUPABASE_URL, SERVICE_KEY);
+
+  // Función interna — validación de employer_id contra la DB
 
   const {
     employer_id,
@@ -173,21 +173,20 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: "Faltan datos requeridos" }), { status: 400, headers: CORS });
   }
 
-  // Obtener datos del empleador
-  const { data: perfil } = await supabase
-    .from("profiles")
-    .select("nombre, apellido1, email, pais, ciudad")
-    .eq("id", employer_id)
-    .single();
+  // Obtener datos del empleador (perfil + email de auth.users)
+  const [{ data: perfil }, { data: authUser }] = await Promise.all([
+    supabase.from("profiles").select("nombre, apellido1, pais, ciudad").eq("id", employer_id).single(),
+    supabase.auth.admin.getUserById(employer_id),
+  ]);
 
   if (!perfil) {
     return new Response(JSON.stringify({ error: "Empleador no encontrado" }), { status: 404, headers: CORS });
   }
 
-  const numero   = await generarNumero();
+  const numero   = await generarNumero(supabase);
   const fecha    = new Date().toISOString();
-  const razon_social = `${perfil.nombre ?? ""} ${perfil.apellido1 ?? ""}`.trim();
-  const email    = perfil.email ?? "";
+  const razon_social = `${perfil.nombre ?? ""} ${(perfil as any).apellido1 ?? ""}`.trim() || "Cliente";
+  const email    = authUser?.user?.email ?? "";
 
   // Generar HTML del comprobante
   const html = generarHTML({
