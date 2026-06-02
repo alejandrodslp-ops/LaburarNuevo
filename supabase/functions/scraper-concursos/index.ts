@@ -800,12 +800,18 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
           const empresa = (j.company as Record<string,string>)?.display_name ?? null;
           const lugar   = (j.location as Record<string,string>)?.display_name ?? where;
           const desc    = String(j.description ?? "").replace(/<[^>]+>/g," ").trim().slice(0,600);
+          // Fecha real de publicación → cierre estimado en 30 días
+          const fechaPublicacion = String(j.created ?? "").slice(0, 10) || null;
+          const fechaCierreEstimada = fechaPublicacion
+            ? sumarDias(fechaPublicacion, 30)
+            : sumarDias(null, 30);
+
           result.push({
             fuente_id, fuente: "adzuna_br", pais: "BR",
             numero_llamado: null, titulo, cargo: titulo,
             organismo: empresa, descripcion: desc || null,
             requisitos: null, tipo_tarea: what, tipo_vinculo: "privado",
-            lugar, fecha_inicio: null, fecha_cierre: sumarDias(null, 30),
+            lugar, fecha_inicio: fechaPublicacion, fecha_cierre: fechaCierreEstimada,
             puestos: 1,
             url_detalle: String(j.redirect_url ?? ""),
             url_postulacion: String(j.redirect_url ?? ""),
