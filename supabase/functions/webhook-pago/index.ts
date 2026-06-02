@@ -129,6 +129,20 @@ serve(async (req) => {
         }
 
         console.log("Pago procesado para usuario:", userId, "tipo:", tipo);
+
+        // 6. Generar comprobante de pago (silencioso — no bloquea si falla)
+        supabase.functions.invoke("generar-comprobante", {
+          body: {
+            employer_id:         userId,
+            monto:               payment.transaction_amount,
+            moneda:              payment.currency_id ?? "USD",
+            metodo:              "mercadopago",
+            referencia_externa:  String(paymentId),
+            concepto:            tipo === "worker_activacion"
+              ? "Activación de perfil trabajador — Nexu (60 días)"
+              : `Visualizaciones de perfiles empleador — Nexu (${cantidadPerfiles} créditos)`,
+          },
+        }).catch(() => {});
       }
     }
 

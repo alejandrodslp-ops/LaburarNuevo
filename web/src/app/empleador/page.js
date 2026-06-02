@@ -6,6 +6,7 @@ export default function EmpleadorDashboard() {
   const [stats, setStats] = useState(null)
   const [perfil, setPerfil] = useState(null)
   const [ofertas, setOfertas] = useState([])
+  const [comprobantes, setComprobantes] = useState([])
 
   useEffect(() => {
     cargar()
@@ -15,10 +16,12 @@ export default function EmpleadorDashboard() {
     const { data: { user } } = await supabaseBrowser.auth.getUser()
     if (!user) return
 
-    const [{ data: p }, { data: o }] = await Promise.all([
+    const [{ data: p }, { data: o }, { data: comps }] = await Promise.all([
       supabaseBrowser.from('profiles').select('nombre, pais').eq('id', user.id).single(),
       supabaseBrowser.from('ofertas').select('id, activa, vistas, postulaciones').eq('employer_id', user.id),
+      supabaseBrowser.from('comprobantes').select('id, numero, fecha, monto, moneda, metodo, concepto, html_url').eq('employer_id', user.id).order('fecha', { ascending: false }).limit(20),
     ])
+    setComprobantes(comps || [])
 
     setPerfil(p)
     setOfertas(o || [])
@@ -76,6 +79,52 @@ export default function EmpleadorDashboard() {
           </a>
         </div>
       )}
+      <ComprobantesSection comprobantes={comprobantes} />
+    </div>
+  )
+}
+
+function ComprobantesSection({ comprobantes }) {
+  if (!comprobantes.length) return (
+    <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid var(--border)', marginTop: 24 }}>
+      <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 6 }}>🧾 Comprobantes de pago</h2>
+      <p style={{ fontSize: 13, color: 'var(--muted)' }}>No hay comprobantes aún. Se generan automáticamente cuando realizás un pago.</p>
+    </div>
+  )
+  return (
+    <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid var(--border)', marginTop: 24 }}>
+      <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 16 }}>🧾 Comprobantes de pago</h2>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <thead>
+          <tr style={{ borderBottom: '2px solid var(--border)' }}>
+            <th style={{ textAlign: 'left', padding: '8px 12px', color: 'var(--muted)', fontWeight: 700 }}>N°</th>
+            <th style={{ textAlign: 'left', padding: '8px 12px', color: 'var(--muted)', fontWeight: 700 }}>Fecha</th>
+            <th style={{ textAlign: 'left', padding: '8px 12px', color: 'var(--muted)', fontWeight: 700 }}>Concepto</th>
+            <th style={{ textAlign: 'right', padding: '8px 12px', color: 'var(--muted)', fontWeight: 700 }}>Importe</th>
+            <th style={{ padding: '8px 12px' }}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {comprobantes.map(c => (
+            <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
+              <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: 12, color: 'var(--muted)' }}>{c.numero}</td>
+              <td style={{ padding: '10px 12px' }}>{new Date(c.fecha).toLocaleDateString('es-UY')}</td>
+              <td style={{ padding: '10px 12px', maxWidth: 200 }}>{c.concepto}</td>
+              <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700 }}>
+                {new Intl.NumberFormat('es-UY', { style: 'currency', currency: c.moneda ?? 'USD' }).format(c.monto)}
+              </td>
+              <td style={{ padding: '10px 12px' }}>
+                {c.html_url && (
+                  <a href={c.html_url} target="_blank" rel="noreferrer"
+                    style={{ fontSize: 12, color: 'var(--coral)', fontWeight: 700, textDecoration: 'none' }}>
+                    ↓ Descargar
+                  </a>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
