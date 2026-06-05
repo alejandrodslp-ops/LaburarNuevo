@@ -2721,16 +2721,7 @@ serve(async (req: Request) => {
       ? [soloPais.toUpperCase()].filter(p => SCRAPERS[p])
       : Object.keys(SCRAPERS);
 
-    // Conteos actuales antes de scrapeary — para detectar caídas del 40%
     const cuentasAntes: Record<string, number> = {};
-    if (!modoTest) {
-      const { data: activos } = await supabase
-        .from("concursos").select("pais").eq("activo", true);
-      for (const row of (activos ?? [])) {
-        cuentasAntes[row.pais] = (cuentasAntes[row.pais] ?? 0) + 1;
-      }
-    }
-
     const resumen: Record<string, unknown> = {};
     let total_insertados = 0;
 
@@ -2749,25 +2740,7 @@ serve(async (req: Request) => {
       for (const r of resultados) {
         if (r.status === "rejected") continue;
         const { pais, errores } = r.value;
-        let rows = r.value.rows;
-
-        // Retry si cayó más del 40% respecto al conteo anterior (hasta 2 reintentos)
-        const antes = cuentasAntes[pais] ?? 0;
-        if (!modoTest && antes > 10 && rows.length > 0 && rows.length < antes * 0.6) {
-          console.log(`${pais}: caída detectada (${rows.length} vs ${antes} prev). Reintentando...`);
-          for (let intento = 1; intento <= 2; intento++) {
-            await new Promise(res => setTimeout(res, 4000 * intento));
-            try {
-              const { rows: r2 } = await SCRAPERS[pais]();
-              if (r2.length > rows.length) rows = r2;
-              if (rows.length >= antes * 0.6) break;
-            } catch (_) { /* retry silencioso */ }
-          }
-          // Si después de reintentos sigue por debajo del 60%, alertar
-          if (rows.length < antes * 0.6) {
-            await enviarAlertaAdmin(pais, antes, rows.length);
-          }
-        }
+        const rows = r.value.rows;
 
         if (modoTest) {
           resumen[pais] = { rows_sample: rows.slice(0, 3), total: rows.length, errores };
