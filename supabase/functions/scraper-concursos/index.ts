@@ -9,6 +9,7 @@ const supabase = createClient(
 const USAJOBS_API_KEY  = Deno.env.get("USAJOBS_API_KEY")  ?? "";
 const CF_PROXY         = Deno.env.get("CF_PROXY_URL")     ?? "";
 const SCRAPER_API_KEY  = Deno.env.get("SCRAPER_API_KEY")  ?? "";
+// ADZUNA: leído dentro de la función para evitar problema de módulo-scope en Deno Deploy
 
 const HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -323,9 +324,10 @@ async function scrapeGoogleNews(
     const fechaPub = parseFecha(pubDate);
     rows.push({
       fuente_id, fuente, pais,
-      numero_llamado: null, titulo, cargo: titulo, organismo: null,
-      descripcion: desc.slice(0, 600), requisitos: null,
-      tipo_tarea: null, tipo_vinculo: null, lugar: null,
+      numero_llamado: null, titulo, cargo: titulo,
+      organismo: "Google News",
+      descripcion: desc.slice(0, 600) || titulo.slice(0, 200),
+      requisitos: null, tipo_tarea: fuente, tipo_vinculo: null, lugar: null,
       fecha_inicio: fechaPub,
       fecha_cierre: sumarDias(null, diasExpiry),
       puestos: 1,
@@ -440,76 +442,145 @@ async function scrapeComputrabajo(
   return { rows, errores };
 }
 
+// Versión paginada: busca /trabajo-de-gobierno en N páginas en lotes de 3
+async function scrapeComputrabajoPaginado(
+  subdomain: string, pais: string, fuente: string, numPages: number
+): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
+  const base = `https://${subdomain}.computrabajo.com`;
+
+  const addRows = (newRows: ConcursoRow[]) => {
+    for (const r of newRows) {
+      if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); }
+    }
+  };
+
+  const pages = Array.from({ length: numPages }, (_, i) => i + 1);
+  for (let i = 0; i < pages.length; i += 3) {
+    const lote = pages.slice(i, i + 3);
+    await Promise.all(lote.map(async (page) => {
+      const url = page === 1
+        ? `${base}/trabajo-de-gobierno`
+        : `${base}/trabajo-de-gobierno?p=${page}`;
+      const html = await fetchUrl(url, 10000);
+      if (!html) { errores.push(`${pais}: CT p${page} sin respuesta`); return; }
+      const pageRows: ConcursoRow[] = [];
+      parseComputrabajo(html, pais, fuente, base, pageRows);
+      addRows(pageRows);
+    }));
+  }
+
+  return { rows, errores };
+}
+
+// Scraper de sector PRIVADO en Computrabajo: usa /empleos en lugar de /trabajo-de-gobierno
+async function scrapeComputrabajoPrivado(
+  subdomain: string, pais: string, fuente: string, numPages = 5
+): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
+  const base = `https://${subdomain}.computrabajo.com`;
+
+  const addRows = (newRows: ConcursoRow[]) => {
+    for (const r of newRows) {
+      if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); }
+    }
+  };
+
+  const pages = Array.from({ length: numPages }, (_, i) => i + 1);
+  for (let i = 0; i < pages.length; i += 3) {
+    const lote = pages.slice(i, i + 3);
+    await Promise.all(lote.map(async (page) => {
+      const url = page === 1
+        ? `${base}/empleos`
+        : `${base}/empleos?p=${page}`;
+      const html = await fetchUrl(url, 10000);
+      if (!html) { errores.push(`${pais}: CT privado p${page} sin respuesta`); return; }
+      const pageRows: ConcursoRow[] = [];
+      parseComputrabajo(html, pais, fuente, base, pageRows);
+      addRows(pageRows);
+    }));
+    if (i + 3 < pages.length) await new Promise(r => setTimeout(r, 150));
+  }
+
+  return { rows, errores };
+}
+
 // ─────────────────────────────────────────────────────────────
-// PARSER: Argentina
-// 1. Boletín Oficial RSS (sección Personal del Estado) — siempre accesible
-// 2. computrabajo.ar como respaldo comercial
+// PARSER: Argentina — Computrabajo págs 1-8 + Google News
 // ─────────────────────────────────────────────────────────────
 async function scrapeArgentina(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const errores: string[] = [];
   const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
+  const base = "https://ar.computrabajo.com";
 
-  // ── 1. Boletín Oficial sección 2 (Personal del Estado) ───────────────────
-  for (const rssUrl of [
-    "https://www.boletinoficial.gob.ar/rss/seccion/2",
-    "https://www.boletinoficial.gob.ar/rss/2",
-  ]) {
-    const xml = await fetchUrl(rssUrl, 12000);
-    if (!xml || !xml.includes("<item>")) { errores.push(`AR: RSS ${rssUrl} vacío`); continue; }
-    for (const item of extraerItems(xml).slice(0, 50)) {
-      const titulo  = extraerTag(item, "title");
-      const link    = extraerTag(item, "link");
-      const desc    = stripHtml(extraerTag(item, "description"));
-      const pubDate = extraerTag(item, "pubDate");
-      if (!titulo || titulo.length < 5) continue;
-      const href = link.startsWith("http") ? link : `https://www.boletinoficial.gob.ar${link}`;
-      const fuente_id = link.split("/").filter(Boolean).pop()?.replace(/\W/g, "") || titulo.slice(0, 30).replace(/\s/g, "_");
-      if (rows.some(r => r.fuente_id === fuente_id)) continue;
-      rows.push({
-        fuente_id, fuente: "argentina_boletin_oficial", pais: "AR",
-        numero_llamado: null, titulo, cargo: titulo, organismo: null,
-        descripcion: desc.slice(0, 600), requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: null, fecha_inicio: null, fecha_cierre: parseFecha(pubDate),
-        puestos: 1, url_detalle: href, url_postulacion: href,
-        keywords: extraerKeywords(titulo + " " + desc), activo: true,
-      });
+  const addRows = (newRows: ConcursoRow[]) => {
+    for (const r of newRows) {
+      if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); }
     }
-    if (rows.length > 0) return { rows, errores };
-    errores.push(`AR: ${rssUrl} accesible pero sin ítems`);
-    break;
+  };
+
+  // Computrabajo: páginas 1-8 en paralelo (lotes de 4)
+  const ctPages = Array.from({ length: 8 }, (_, i) => i + 1);
+  for (let i = 0; i < ctPages.length; i += 4) {
+    const lote = ctPages.slice(i, i + 4);
+    await Promise.all(lote.map(async (page) => {
+      const url = page === 1
+        ? `${base}/trabajo-de-gobierno`
+        : `${base}/trabajo-de-gobierno?p=${page}`;
+      const html = await fetchUrl(url, 10000);
+      if (!html) return;
+      const pageRows: ConcursoRow[] = [];
+      parseComputrabajo(html, "AR", "argentina_concursar", base, pageRows);
+      addRows(pageRows);
+    }));
   }
 
-  // ── 2. Computrabajo Argentina ─────────────────────────────────────────────
-  const ct = await scrapeComputrabajo("ar", "AR", "argentina_concursar");
-  if (ct.rows.length > 0) return { rows: ct.rows, errores: [...errores, ...ct.errores] };
-  errores.push(...ct.errores);
+  // Google News en paralelo
+  const [gn1, gn2, gn3] = await Promise.all([
+    scrapeGoogleNews("AR", "concurso público Argentina convocatoria empleo vacante 2026", "argentina_googlenews", "AR", "es", 25),
+    scrapeGoogleNews("AR", "Argentina empleo público SINEP convocatoria cargo ingreso 2026", "argentina_googlenews2", "AR", "es", 25),
+    scrapeGoogleNews("AR", "Argentina concurso público provincia municipal gobierno 2026", "argentina_googlenews3", "AR", "es", 20),
+  ]);
+  addRows(gn1.rows); addRows(gn2.rows); addRows(gn3.rows);
+  errores.push(...gn1.errores, ...gn2.errores, ...gn3.errores);
 
-  // ── 3. Google News ────────────────────────────────────────────────────────
-  const gn = await scrapeGoogleNews("AR", "concurso público Argentina convocatoria empleo", "argentina_googlenews");
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
 // PARSER: Chile — Indeed + Servicio Civil RSS fallback
 // ─────────────────────────────────────────────────────────────
 async function scrapeChile(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  // 1. Computrabajo Chile (accesible desde cloud)
-  const ct = await scrapeComputrabajo("cl", "CL", "chile_concursar");
-  if (ct.rows.length > 0) return ct;
-
-  // 2. Servicio Civil Chile
-  const errores = [...ct.errores];
+  const errores: string[] = [];
   const rows: ConcursoRow[] = [];
-  const html = await fetchUrl("https://www.serviciocivil.cl/concursos/publicados/", 12000);
-  if (html && html.includes("concurso")) {
+  const seen = new Set<string>();
+  const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+
+  // 1. Sector público: Computrabajo gobierno + Servicio Civil
+  const ct = await scrapeComputrabajo("cl", "CL", "chile_concursar");
+  addRows(ct.rows); errores.push(...ct.errores);
+
+  // 2. Sector privado: Computrabajo /empleos — 5 páginas
+  const ctPriv = await scrapeComputrabajoPrivado("cl", "CL", "chile_privado", 5);
+  addRows(ctPriv.rows); errores.push(...ctPriv.errores);
+
+  // 3. Servicio Civil Chile (sector público)
+  const scHtml = await fetchUrl("https://www.serviciocivil.cl/concursos/publicados/", 12000);
+  if (scHtml && scHtml.includes("concurso")) {
     const re = /href="(\/concurso[^"]+)"[^>]*>([^<]{5,120})</gi;
     let m;
-    while ((m = re.exec(html)) !== null && rows.length < 30) {
+    while ((m = re.exec(scHtml)) !== null) {
       const titulo = stripHtml(m[2]).trim();
       if (titulo.length < 5) continue;
       const href = `https://www.serviciocivil.cl${m[1]}`;
       const fuente_id = m[1].replace(/\W/g, "_").slice(-48);
-      if (rows.some(r => r.fuente_id === fuente_id)) continue;
+      if (seen.has(fuente_id)) continue;
+      seen.add(fuente_id);
       rows.push({
         fuente_id, fuente: "chile_serviciocivil", pais: "CL",
         numero_llamado: null, titulo, cargo: titulo, organismo: null,
@@ -520,9 +591,10 @@ async function scrapeChile(): Promise<{ rows: ConcursoRow[]; errores: string[] }
       });
     }
   }
+
   if (rows.length > 0) return { rows, errores };
 
-  // 3. Google News
+  // 4. Google News fallback
   const gn = await scrapeGoogleNews("CL", "concurso público Chile cargo vacante gobierno", "chile_googlenews");
   return { rows: gn.rows, errores: [...errores, ...gn.errores] };
 }
@@ -627,67 +699,242 @@ async function scrapeColombia(): Promise<{ rows: ConcursoRow[]; errores: string[
 }
 
 // ─────────────────────────────────────────────────────────────
-// PARSER: Brasil — pciconcursos.com.br
-// Estructura real: divs .cd (cargo+vagas) y .ce (fecha cierre)
-// agrupados bajo h2 con nombre del estado/región
+// PARSER: Brasil — pciconcursos.com.br (págs 1-15) + Google News
+// Cubre todos los estados de Brasil (SP, RJ, MG, BA, RS, etc.)
 // ─────────────────────────────────────────────────────────────
-async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const errores: string[] = [];
-  const rows: ConcursoRow[] = [];
-
-  const html = await fetchUrl("https://www.pciconcursos.com.br/concursos/", 15000);
-  if (!html) {
-    errores.push("BR: pciconcursos.com.br inaccesible");
-    return { rows, errores };
-  }
-
-  // Extraer bloques: cada concurso tiene un .cd con info y .ce con fecha
-  // La estructura es: <div class="cd">CARGO<br><span>Organismo<br>...</span></div><div class="ce"><span>DD/MM/YYYY</span></div>
-  // Antes hay un h2 o .uf con el estado
-  let estadoActual = "Nacional";
-
-  // Dividir el HTML en secciones por estado (h2)
+function parsePciConcursos(html: string, seen: Set<string>, rows: ConcursoRow[]): void {
+  let estadoAtual = "Nacional";
   const seccionRe = /<h2>([^<]+)<\/h2>([\s\S]*?)(?=<h2>|$)/gi;
   let seccion;
-  while ((seccion = seccionRe.exec(html)) !== null && rows.length < 80) {
-    estadoActual = seccion[1].trim();
+  while ((seccion = seccionRe.exec(html)) !== null) {
+    estadoAtual = seccion[1].trim();
     const bloque = seccion[2];
-
-    // Dentro de cada sección, extraer pares .cd + .ce
-    const cdRe = /<div class="cd">([\s\S]*?)<\/div>\s*<div class="ce"><span>([^<]*)<\/span>/gi;
+    const cdRe = /<div class="cd">([\s\S]*?)<\/div>\s*<div class="ce"><span>([\s\S]*?)<\/span>/gi;
     let m;
     while ((m = cdRe.exec(bloque)) !== null) {
       const cdText = stripHtml(m[1]);
-      const fechaStr = m[2].trim();
-
-      // Parsear texto del .cd: "X vagas\nCargo1, Cargo2\nNível"
-      const lines = cdText.split(/\n|<br>/).map(l => l.trim()).filter(Boolean);
-      const vagasLine = lines.find(l => /vaga/i.test(l)) || "";
-      const cargoLine = lines.find(l => !/vaga|ensino|superior|médio|técnico|fundamental/i.test(l) && l.length > 3) || lines[0] || "Concurso";
+      // Extraer fecha de cierre: si hay rango "11/06 a<br>02/07/2026" tomar la última fecha
+      const fechaRaw = m[2].replace(/<[^>]+>/g, " ").trim();
+      const fechaStr = fechaRaw.includes(" a ") ? fechaRaw.split(" a ").pop()!.trim() : fechaRaw;
+      const lines = cdText.split(/\n|<br>/).map((l: string) => l.trim()).filter(Boolean);
+      const vagasLine = lines.find((l: string) => /vaga/i.test(l)) || "";
+      const cargoLine = lines.find((l: string) => !/vaga|ensino|superior|médio|técnico|fundamental/i.test(l) && l.length > 3) || lines[0] || "Concurso";
       const vagasMatch = vagasLine.match(/(\d+)\s+vaga/i);
       const puestos = vagasMatch ? parseInt(vagasMatch[1]) : 1;
-
-      const titulo = `${cargoLine} — ${estadoActual}`;
-      const fuente_id = `${estadoActual}_${cargoLine}_${fechaStr}`.replace(/\W/g, "_").slice(0, 60);
-
-      if (rows.some(r => r.fuente_id === fuente_id)) continue;
-
+      const titulo = `${cargoLine} — ${estadoAtual}`;
+      const fuente_id = `${estadoAtual}_${cargoLine}_${fechaStr}`.replace(/\W/g, "_").slice(0, 60);
+      if (seen.has(fuente_id)) continue;
+      seen.add(fuente_id);
       rows.push({
-        fuente_id,
-        fuente: "brasil_pciconcursos", pais: "BR",
+        fuente_id, fuente: "brasil_pciconcursos", pais: "BR",
         numero_llamado: null, titulo, cargo: cargoLine, organismo: null,
         descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: estadoActual, fecha_inicio: null,
-        fecha_cierre: parseFecha(fechaStr),
-        puestos,
-        url_detalle: "https://www.pciconcursos.com.br/concursos/",
+        lugar: estadoAtual, fecha_inicio: null, fecha_cierre: parseFecha(fechaStr),
+        puestos, url_detalle: "https://www.pciconcursos.com.br/concursos/",
         url_postulacion: "https://www.pciconcursos.com.br/concursos/",
         keywords: extraerKeywords(cargoLine), activo: true,
       });
     }
   }
+}
 
-  if (rows.length === 0) errores.push("BR: sin resultados parseables en pciconcursos.com.br");
+async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
+
+  // 1. pciconcursos.com.br — toda la data en una sola página (sin paginación real)
+  const html = await fetchUrl("https://www.pciconcursos.com.br/concursos/", 15000);
+  if (html) {
+    parsePciConcursos(html, seen, rows);
+  } else {
+    errores.push("BR: pciconcursos.com.br inaccesible");
+  }
+
+  if (rows.length === 0) errores.push("BR: sin resultados en pciconcursos.com.br");
+
+  // 2. concursosnobrasil.com — RSS con paginación (15 items/pág)
+  const rssPages = Array.from({ length: 8 }, (_, i) => i + 1);
+  await Promise.all(rssPages.map(async (p) => {
+    const url = p === 1
+      ? "https://concursosnobrasil.com/concursos/feed/"
+      : `https://concursosnobrasil.com/concursos/feed/?paged=${p}`;
+    const xml = await fetchUrl(url, 10000);
+    if (!xml) return;
+    const items = extraerItems(xml);
+    for (const item of items) {
+      const titulo = extraerTag(item, "title").replace(/&#\d+;/g, " ").trim();
+      const link   = extraerTag(item, "link").trim();
+      const pubDate = extraerTag(item, "pubDate").trim();
+      if (!titulo || !link) continue;
+      const fuente_id = `cnbr_${link.split("/").filter(Boolean).pop() ?? titulo}`.slice(0, 60);
+      if (seen.has(fuente_id)) continue;
+      seen.add(fuente_id);
+      rows.push({
+        fuente_id, fuente: "brasil_cnbr", pais: "BR",
+        numero_llamado: null, titulo, cargo: titulo, organismo: null,
+        descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+        lugar: "Brasil", fecha_inicio: null,
+        fecha_cierre: sumarDias(null, 30),
+        puestos: 1, url_detalle: link, url_postulacion: link,
+        keywords: extraerKeywords(titulo), activo: true,
+      });
+    }
+  }));
+
+  // 3. Google News por región — cubre lo que pciconcursos no llega
+  const queries = [
+    ["concurso público São Paulo edital inscrições abertas 2026", "brasil_gn_sp"],
+    ["concurso público Minas Gerais Rio de Janeiro edital vagas 2026", "brasil_gn_sudeste"],
+    ["concurso público Rio Grande do Sul Paraná Santa Catarina 2026", "brasil_gn_sul"],
+    ["concurso público Nordeste Bahia Ceará Pernambuco 2026", "brasil_gn_nordeste"],
+    ["concurso público federal IBGE Receita Correios 2026", "brasil_gn_federal"],
+  ];
+  const gnResults = await Promise.all(
+    queries.map(([q, fuente]) => scrapeGoogleNews("US", q, fuente, "BR", "pt", 20))
+  );
+  for (const gn of gnResults) {
+    for (const r of gn.rows) {
+      if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); }
+    }
+    errores.push(...gn.errores);
+  }
+
+  // 4. Computrabajo Brasil — sector privado (5 páginas)
+  const ctBR = await scrapeComputrabajoPrivado("br", "BR", "brasil_computrabajo", 5);
+  for (const r of ctBR.rows) {
+    if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); }
+  }
+  errores.push(...ctBR.errores);
+
+  // ── ESTRATEGIA MULTI-BÚSQUEDA PARA BRASIL ─────────────────────────────────
+  // En vez de una búsqueda genérica, hacemos búsquedas paralelas por ciudad
+  // y categoría. Cada query devuelve resultados únicos → 5.000-12.000+ empleos.
+  const seenBR = new Set<string>(rows.map(r => r.fuente_id));
+
+  const BR_CIDADES = [
+    // Capitais e grandes centros
+    "São Paulo","Rio de Janeiro","Belo Horizonte","Brasília","Salvador",
+    "Fortaleza","Curitiba","Manaus","Recife","Porto Alegre",
+    "Belém","Goiânia","Guarulhos","Campinas","São Luís",
+    "Maceió","Natal","Teresina","Campo Grande","João Pessoa",
+    // Cidades médias com mercado forte
+    "São Bernardo do Campo","Santo André","Osasco","São José dos Campos",
+    "Ribeirão Preto","Uberlândia","Contagem","Sorocaba","Aracaju","Cuiabá",
+    "Macapá","Porto Velho","Boa Vista","Palmas","Rio Branco",
+    // Cidades em crescimento econômico
+    "Florianópolis","Joinville","Blumenau","Londrina","Maringá",
+    "Caxias do Sul","Pelotas","Santa Maria","Volta Redonda","Niterói",
+    "Santos","São José do Rio Preto","Bauru","Piracicaba","Franca",
+  ];
+
+  const BR_CATEGORIAS = [
+    "tecnologia","saúde","vendas","logística","administração",
+    "engenharia","educação","finanças","construção","alimentação",
+    "atendimento","segurança","limpeza","transporte","manufatura",
+  ];
+
+  // User-Agents reales de browsers para rotar — evita patrón de bot
+  const UA_POOL = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+  ];
+  const jitter = () => Math.floor(Math.random() * 300 + 100); // 100-400ms aleatorio
+
+  // Busca con exponential backoff y respeto de rate limits
+  async function adzunaBRQuery(what: string, where: string): Promise<ConcursoRow[]> {
+    const ADZUNA_APP_ID_LOCAL  = Deno.env.get("ADZUNA_APP_ID")  ?? "";
+    const ADZUNA_APP_KEY_LOCAL = Deno.env.get("ADZUNA_APP_KEY") ?? "";
+    if (!ADZUNA_APP_ID_LOCAL || !ADZUNA_APP_KEY_LOCAL) return [];
+    const result: ConcursoRow[] = [];
+    const ua = UA_POOL[Math.floor(Math.random() * UA_POOL.length)];
+    const url = `https://api.adzuna.com/v1/api/jobs/br/search/1`
+      + `?app_id=${ADZUNA_APP_ID_LOCAL}&app_key=${ADZUNA_APP_KEY_LOCAL}`
+      + `&results_per_page=50&sort_by=date&max_days_old=21&content-type=application/json`
+      + `&what=${encodeURIComponent(what)}&where=${encodeURIComponent(where)}`;
+
+    let intentos = 0;
+    while (intentos < 3) {
+      try {
+        const res = await fetch(url, {
+          headers: {
+            "User-Agent": ua,
+            "Accept": "application/json",
+            "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+          },
+          signal: AbortSignal.timeout(15000),
+        });
+
+        // Rate limit — respetar Retry-After si viene
+        if (res.status === 429) {
+          const retryAfter = parseInt(res.headers.get("Retry-After") ?? "5");
+          await new Promise(r => setTimeout(r, (retryAfter * 1000) + jitter()));
+          intentos++;
+          continue;
+        }
+        if (!res.ok) break;
+
+        const data = await res.json();
+        const results: Record<string, unknown>[] = data.results ?? [];
+        for (const j of results) {
+          const id     = String(j.id ?? "");
+          const titulo = String(j.title ?? "").trim();
+          const fuente_id = `adzuna_br_${id}`;
+          if (!titulo || !id || seenBR.has(fuente_id)) continue;
+          seenBR.add(fuente_id);
+          const empresa = (j.company as Record<string,string>)?.display_name ?? null;
+          const lugar   = (j.location as Record<string,string>)?.display_name ?? where;
+          const desc    = String(j.description ?? "").replace(/<[^>]+>/g," ").trim().slice(0,600);
+          const fechaPublicacion = String(j.created ?? "").slice(0, 10) || null;
+          const fechaCierreEstimada = sumarDias(null, 30); // siempre hoy+30 para no caducar recién insertados
+
+          result.push({
+            fuente_id, fuente: "adzuna_br", pais: "BR",
+            numero_llamado: null, titulo, cargo: titulo,
+            organismo: empresa, descripcion: desc || null,
+            requisitos: null, tipo_tarea: what, tipo_vinculo: "privado",
+            lugar, fecha_inicio: fechaPublicacion, fecha_cierre: fechaCierreEstimada,
+            puestos: 1,
+            url_detalle: String(j.redirect_url ?? ""),
+            url_postulacion: String(j.redirect_url ?? ""),
+            keywords: extraerKeywords(`${titulo} ${empresa ?? ""} ${what} ${where}`),
+            activo: true,
+          });
+        }
+        break; // éxito — salir del while
+      } catch {
+        intentos++;
+        await new Promise(r => setTimeout(r, jitter() * (intentos + 1)));
+      }
+    }
+    return result;
+  }
+
+  // 50 cidades × 15 categorias = 750 queries → ~15.000 empleos únicos/run
+  // Lotes de 50 paralelas → ~15 batches × ~1s = ~15s total
+  const todasQueries: [string, string][] = [];
+  for (const cidade of BR_CIDADES) {
+    for (const cat of BR_CATEGORIAS) {
+      todasQueries.push([cat, cidade]);
+    }
+  }
+
+  console.log(`BR: ${todasQueries.length} queries Adzuna (${BR_CIDADES.length} cidades × ${BR_CATEGORIAS.length} categorias)`);
+
+  for (let i = 0; i < todasQueries.length; i += 50) {
+    const lote = todasQueries.slice(i, i + 50);
+    const resultados = await Promise.all(lote.map(([what, where]) => adzunaBRQuery(what, where)));
+    for (const loteRows of resultados) rows.push(...loteRows);
+    if (i + 50 < todasQueries.length) await new Promise(r => setTimeout(r, 200));
+  }
+
+  console.log(`BR: ${rows.length} empleos total (público + privado)`);
   return { rows, errores };
 }
 
@@ -701,9 +948,23 @@ async function scrapePerú(): Promise<{ rows: ConcursoRow[]; errores: string[] }
 }
 
 async function scrapeParaguay(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ct = await scrapeComputrabajo("py", "PY", "paraguay_concursar");
-  if (ct.rows.length > 0) return ct;
-  return scrapeGoogleNews("US", "Paraguay empleo convocatoria cargo público vacante", "paraguay_googlenews", "PY");
+  const errores: string[] = [];
+  const seen = new Set<string>();
+  const rows: ConcursoRow[] = [];
+  const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+
+  // Sector público + sector privado en paralelo
+  const [ct, ctPriv] = await Promise.all([
+    scrapeComputrabajo("py", "PY", "paraguay_concursar"),
+    scrapeComputrabajoPrivado("py", "PY", "paraguay_privado", 3),
+  ]);
+  addRows(ct.rows); errores.push(...ct.errores);
+  addRows(ctPriv.rows); errores.push(...ctPriv.errores);
+
+  if (rows.length > 0) return { rows, errores };
+
+  const gn = await scrapeGoogleNews("US", "Paraguay empleo convocatoria cargo público vacante", "paraguay_googlenews", "PY");
+  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
 }
 
 async function scrapeBolivia(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
@@ -773,9 +1034,29 @@ async function scrapeMexico(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     errores.push("MX: DOF vacantes.php inaccesible");
   }
 
+  // Adzuna multi-búsqueda México — 35 ciudades × 14 categorías = 490 queries
+  const MX_CIDADES = [
+    "Ciudad de Mexico","Guadalajara","Monterrey","Puebla","Tijuana",
+    "Leon","Juarez","Torreon","Queretaro","San Luis Potosi",
+    "Merida","Mexicali","Aguascalientes","Culiacan","Hermosillo",
+    "Chihuahua","Morelia","Veracruz","Cancun","Zapopan",
+    // Ciudades y distritos adicionales
+    "Ecatepec","Naucalpan","Tlalnepantla","Nezahualcoyotl","Toluca",
+    "Saltillo","Xalapa","Tuxtla Gutierrez","Oaxaca","Durango",
+    "Villahermosa","Tepic","Colima","Campeche","Chetumal",
+  ];
+  const MX_CATS = [
+    "tecnologia","ventas","ingenieria","salud","logistica",
+    "manufactura","construccion","hosteleria","administrativo","operador",
+    "educacion","finanzas","seguridad","transporte",
+  ];
+  const seenMX = new Set<string>(rows.map(r => r.fuente_id));
+  const azMX = await adzunaMultiSearch("MX","mx", MX_CIDADES, MX_CATS, "es-MX,es;q=0.9,en;q=0.8", seenMX);
+  rows.push(...azMX);
+
   if (rows.length > 0) return { rows, errores };
 
-  // 2. Computrabajo MX
+  // 2. Computrabajo MX (fallback si Adzuna falla)
   const ct = await scrapeComputrabajo("mx", "MX", "mexico_concursar");
   if (ct.rows.length > 0) return { rows: ct.rows, errores: [...errores, ...ct.errores] };
   errores.push(...ct.errores);
@@ -801,9 +1082,22 @@ async function scrapCostaRica(): Promise<{ rows: ConcursoRow[]; errores: string[
 }
 
 async function scrapeGuatemala(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ct = await scrapeComputrabajo("gt", "GT", "guatemala_concursar");
-  if (ct.rows.length > 0) return ct;
-  return scrapeGoogleNews("GT", "Guatemala empleo convocatoria cargo público vacante plaza", "guatemala_googlenews");
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
+  const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+
+  const ct = await scrapeComputrabajoPaginado("gt", "GT", "guatemala_concursar", 6);
+  addRows(ct.rows); errores.push(...ct.errores);
+
+  const [gn1, gn2] = await Promise.all([
+    scrapeGoogleNews("GT", "Guatemala empleo convocatoria cargo público vacante plaza 2026", "guatemala_googlenews", undefined, "es", 25),
+    scrapeGoogleNews("GT", "Guatemala concurso público gobierno empleo estado vacantes 2026", "guatemala_googlenews2", undefined, "es", 20),
+  ]);
+  addRows(gn1.rows); errores.push(...gn1.errores);
+  addRows(gn2.rows); errores.push(...gn2.errores);
+
+  return { rows, errores };
 }
 
 async function scrapeElSalvador(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
@@ -813,15 +1107,41 @@ async function scrapeElSalvador(): Promise<{ rows: ConcursoRow[]; errores: strin
 }
 
 async function scrapeHonduras(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ct = await scrapeComputrabajo("hn", "HN", "honduras_concursar");
-  if (ct.rows.length > 0) return ct;
-  return scrapeGoogleNews("US", "Honduras empleo vacante trabajo convocatoria cargo", "honduras_googlenews", "HN");
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
+  const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+
+  const ct = await scrapeComputrabajoPaginado("hn", "HN", "honduras_concursar", 6);
+  addRows(ct.rows); errores.push(...ct.errores);
+
+  const [gn1, gn2] = await Promise.all([
+    scrapeGoogleNews("GT", "Honduras empleo convocatoria cargo público vacante gobierno 2026", "honduras_googlenews", "HN", "es", 25),
+    scrapeGoogleNews("GT", "Honduras concurso público estado empleo oportunidad vacante 2026", "honduras_googlenews2", "HN", "es", 20),
+  ]);
+  addRows(gn1.rows); errores.push(...gn1.errores);
+  addRows(gn2.rows); errores.push(...gn2.errores);
+
+  return { rows, errores };
 }
 
 async function scrapeNicaragua(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ct = await scrapeComputrabajo("ni", "NI", "nicaragua_concursar");
-  if (ct.rows.length > 0) return ct;
-  return scrapeGoogleNews("US", "Nicaragua empleo vacante trabajo convocatoria cargo", "nicaragua_googlenews", "NI");
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
+  const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+
+  const ct = await scrapeComputrabajoPaginado("ni", "NI", "nicaragua_concursar", 6);
+  addRows(ct.rows); errores.push(...ct.errores);
+
+  const [gn1, gn2] = await Promise.all([
+    scrapeGoogleNews("GT", "Nicaragua empleo convocatoria cargo público vacante gobierno 2026", "nicaragua_googlenews", "NI", "es", 25),
+    scrapeGoogleNews("GT", "Nicaragua concurso público estado empleo oportunidad vacante 2026", "nicaragua_googlenews2", "NI", "es", 20),
+  ]);
+  addRows(gn1.rows); errores.push(...gn1.errores);
+  addRows(gn2.rows); errores.push(...gn2.errores);
+
+  return { rows, errores };
 }
 
 async function scraperPanama(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
@@ -840,6 +1160,104 @@ async function scrapeRepDominicana(): Promise<{ rows: ConcursoRow[]; errores: st
 // PARSER: España — BOE datos abiertos JSON API (sección Oposiciones y concursos)
 // El RSS del BOE devuelve body vacío desde cloud; la API JSON sí funciona.
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// ADZUNA MULTI-BÚSQUEDA GENÉRICA — reutilizable para cualquier país
+// Estrategia: N ciudades × M categorías = N×M queries paralelas
+// UA rotation + jitter + exponential backoff
+// ─────────────────────────────────────────────────────────────
+const UA_POOL_MULTI = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+];
+
+async function adzunaMultiSearch(
+  pais: string,
+  adzunaCountry: string,
+  cidades: string[],
+  categorias: string[],
+  acceptLang: string,
+  seen: Set<string>
+): Promise<ConcursoRow[]> {
+  const APP_ID  = Deno.env.get("ADZUNA_APP_ID")  ?? "";
+  const APP_KEY = Deno.env.get("ADZUNA_APP_KEY") ?? "";
+  if (!APP_ID || !APP_KEY) return [];
+
+  const jitter = () => Math.floor(Math.random() * 300 + 100);
+  const allRows: ConcursoRow[] = [];
+
+  // Combinar todas las ciudades × categorías
+  const queries: [string, string][] = [];
+  for (const cidade of cidades) {
+    for (const cat of categorias) {
+      queries.push([cat, cidade]);
+    }
+  }
+
+  // Ejecutar en lotes de 30 paralelas para no saturar
+  for (let i = 0; i < queries.length; i += 30) {
+    const lote = queries.slice(i, i + 30);
+    const resultados = await Promise.all(lote.map(async ([what, where]) => {
+      const ua  = UA_POOL_MULTI[Math.floor(Math.random() * UA_POOL_MULTI.length)];
+      const url = `https://api.adzuna.com/v1/api/jobs/${adzunaCountry}/search/1`
+        + `?app_id=${APP_ID}&app_key=${APP_KEY}`
+        + `&results_per_page=50&sort_by=date&max_days_old=21&content-type=application/json`
+        + `&what=${encodeURIComponent(what)}&where=${encodeURIComponent(where)}`;
+
+      let intentos = 0;
+      while (intentos < 2) {
+        try {
+          const res = await fetch(url, {
+            headers: { "User-Agent": ua, "Accept": "application/json", "Accept-Language": acceptLang },
+            signal: AbortSignal.timeout(12000),
+          });
+          if (res.status === 429) {
+            const ra = parseInt(res.headers.get("Retry-After") ?? "3");
+            await new Promise(r => setTimeout(r, ra * 1000 + jitter()));
+            intentos++; continue;
+          }
+          if (!res.ok) break;
+          const data = await res.json();
+          const results: Record<string, unknown>[] = data.results ?? [];
+          const rows: ConcursoRow[] = [];
+          for (const j of results) {
+            const id  = String(j.id ?? "");
+            const titulo = String(j.title ?? "").trim();
+            const fid = `adzuna_${adzunaCountry}_${id}`;
+            if (!titulo || !id || seen.has(fid)) continue;
+            seen.add(fid);
+            const empresa = (j.company as Record<string,string>)?.display_name ?? null;
+            const lugar   = (j.location as Record<string,string>)?.display_name ?? where;
+            const desc    = String(j.description ?? "").replace(/<[^>]+>/g," ").trim().slice(0,600);
+            const fechaPub = String(j.created ?? "").slice(0,10) || null;
+            rows.push({
+              fuente_id: fid, fuente: `adzuna_${adzunaCountry}`, pais,
+              numero_llamado: null, titulo, cargo: titulo,
+              organismo: empresa, descripcion: desc || null,
+              requisitos: null, tipo_tarea: what, tipo_vinculo: "privado",
+              lugar, fecha_inicio: fechaPub,
+              fecha_cierre: sumarDias(null, 30),
+              puestos: 1,
+              url_detalle: String(j.redirect_url ?? ""),
+              url_postulacion: String(j.redirect_url ?? ""),
+              keywords: extraerKeywords(`${titulo} ${empresa ?? ""} ${what} ${where}`),
+              activo: true,
+            });
+          }
+          return rows;
+        } catch { intentos++; await new Promise(r => setTimeout(r, jitter())); }
+      }
+      return [];
+    }));
+    for (const loteRows of resultados) allRows.push(...loteRows);
+    if (i + 30 < queries.length) await new Promise(r => setTimeout(r, 200));
+  }
+  console.log(`Adzuna ${pais}: ${allRows.length} empleos (${queries.length} queries)`);
+  return allRows;
+}
+
 async function scrapeEspana(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const errores: string[] = [];
   const rows: ConcursoRow[] = [];
@@ -906,6 +1324,13 @@ async function scrapeEspana(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     }
   }
 
+  // Adzuna multi-búsqueda España — 15 ciudades × 10 categorías = 150 queries
+  const ES_CIDADES = ["Madrid","Barcelona","Valencia","Sevilla","Zaragoza","Malaga","Murcia","Bilbao","Alicante","Valladolid","Vigo","Granada","Cordoba","Las Palmas","Vitoria"];
+  const ES_CATS    = ["tecnologia","ventas","ingenieria","salud","logistica","finanzas","construccion","hosteleria","educacion","administracion"];
+  const seenES = new Set<string>(rows.map(r => r.fuente_id));
+  const azES = await adzunaMultiSearch("ES","es", ES_CIDADES, ES_CATS, "es-ES,es;q=0.9,en;q=0.8", seenES);
+  rows.push(...azES);
+
   if (rows.length > 0) return { rows, errores };
 
   // Google News como fallback
@@ -919,77 +1344,63 @@ async function scrapeEspana(): Promise<{ rows: ConcursoRow[]; errores: string[] 
 // PARSER: Portugal — BEP (IEFP) + Indeed PT fallback
 // ─────────────────────────────────────────────────────────────
 async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const rows: ConcursoRow[] = [];
   const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
+  const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  // BEP — Bolsa de Emprego Público (portal oficial Portugal)
-  const bepUrl = "https://www.bep.gov.pt/offerta/index.phtml?lang=pt&area=2&action=search";
-  const html = await fetchViaProxy(bepUrl) ?? await fetchViaScraperAPI(bepUrl, "pt") ?? await fetchUrl(bepUrl, 12000);
-  if (html && (html.includes("offerta") || html.includes("emprego"))) {
-    const re = /href="([^"]*offerta[^"]*)"[^>]*>([^<]{5,120})</gi;
-    let m;
-    while ((m = re.exec(html)) !== null && rows.length < 30) {
-      const titulo = stripHtml(m[2]).trim();
-      if (titulo.length < 5) continue;
-      const href = m[1].startsWith("http") ? m[1] : `https://www.bep.gov.pt${m[1]}`;
-      const fuente_id = m[1].replace(/\W/g, "_").slice(-48);
-      if (rows.some(r => r.fuente_id === fuente_id)) continue;
-      rows.push({
-        fuente_id, fuente: "portugal_bep", pais: "PT",
-        numero_llamado: null, titulo, cargo: titulo, organismo: null,
-        descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: null, fecha_inicio: null, fecha_cierre: sumarDias(null, 60), puestos: 1,
-        url_detalle: href, url_postulacion: href,
-        keywords: extraerKeywords(titulo), activo: true,
-      });
-    }
-    if (rows.length > 0) return { rows, errores };
-    errores.push("PT: BEP accesible pero sin ítems parseables");
-  } else {
-    errores.push("PT: BEP inaccesible");
-  }
+  // BEP portal está bloqueado desde cloud — usamos 3 consultas Google News en paralelo
+  const [gn1, gn2, gn3] = await Promise.all([
+    scrapeGoogleNews("PT", "concurso público Portugal emprego trabalho administração recrutamento 2026", "portugal_googlenews", undefined, "pt", 25),
+    scrapeGoogleNews("PT", "Portugal vagas emprego público administração governo concurso abertas 2026", "portugal_googlenews2", undefined, "pt", 25),
+    scrapeGoogleNews("PT", "Portugal emprego público SNS saúde educação governo candidatura 2026", "portugal_googlenews3", undefined, "pt", 20),
+  ]);
+  addRows(gn1.rows); errores.push(...gn1.errores);
+  addRows(gn2.rows); errores.push(...gn2.errores);
+  addRows(gn3.rows); errores.push(...gn3.errores);
 
-  // Fallback: Indeed PT
-  const ind = await scrapeIndeed("pt", "emprego público concurso administração governo", "PT", "portugal_indeed", "Portugal");
-  if (ind.rows.length > 0) return { rows: ind.rows, errores: [...errores, ...ind.errores] };
+  // Adzuna multi-búsqueda Portugal — 10 ciudades × 8 categorías = 80 queries
+  const PT_CIDADES = ["Lisboa","Porto","Braga","Setubal","Coimbra","Almada","Funchal","Aveiro","Loures","Sintra"];
+  const PT_CATS    = ["tecnologia","vendas","engenharia","saude","logistica","construcao","hotelaria","administracao"];
+  const azPT = await adzunaMultiSearch("PT","pt", PT_CIDADES, PT_CATS, "pt-PT,pt;q=0.9,en;q=0.8", seen);
+  rows.push(...azPT);
 
-  const gnPt = await scrapeGoogleNews("PT",
-    "concurso público Portugal emprego trabalho administração recrutamento",
-    "portugal_googlenews", undefined, "pt");
-  if (gnPt.rows.length > 0) return { rows: gnPt.rows, errores: [...errores, ...ind.errores, ...gnPt.errores] };
-
-  const gn = await scrapeGoogleNews("US",
-    "Portugal concurso emprego público administração recrutamento trabalho",
-    "portugal_googlenews2", "PT", "en");
-  return { rows: gn.rows, errores: [...errores, ...ind.errores, ...gnPt.errores, ...gn.errores] };
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
 // PARSER: Italia — InPA API (portal oficial) + Google News fallback
 // ─────────────────────────────────────────────────────────────
 async function scrapeItalia(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const rows: ConcursoRow[] = [];
   const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
 
-  // InPA — WordPress REST API (la API JSON antigua devuelve HTML ahora)
-  try {
-    const res = await fetch(
-      "https://www.inpa.gov.it/wp-json/wp/v2/posts?per_page=40&_fields=id,title,link,date",
-      {
-        headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (compatible; Nexu/1.0)" },
-        signal: AbortSignal.timeout(12000),
-      }
-    );
-    if (res.ok) {
+  // InPA — WordPress REST API páginas 1 y 2 en paralelo
+  const [res1, res2] = await Promise.all([
+    fetch("https://www.inpa.gov.it/wp-json/wp/v2/posts?per_page=40&page=1&_fields=id,title,link,date", {
+      headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (compatible; Nexu/1.0)" },
+      signal: AbortSignal.timeout(12000),
+    }).catch(() => null),
+    fetch("https://www.inpa.gov.it/wp-json/wp/v2/posts?per_page=40&page=2&_fields=id,title,link,date", {
+      headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (compatible; Nexu/1.0)" },
+      signal: AbortSignal.timeout(12000),
+    }).catch(() => null),
+  ]);
+
+  for (const res of [res1, res2]) {
+    if (!res || !res.ok) { if (res) errores.push(`IT: InPA WP REST status ${res.status}`); continue; }
+    try {
       const posts: Record<string, unknown>[] = await res.json();
-      for (const post of posts.slice(0, 40)) {
-        const id    = post.id as number;
+      for (const post of posts) {
+        const id     = post.id as number;
         const titulo = stripHtml((post.title as Record<string, string>)?.rendered ?? "");
         const link   = (post.link as string) ?? "";
         const fecha  = (post.date as string) ?? "";
         if (!titulo || titulo.length < 5) continue;
         const fuente_id = String(id);
-        if (rows.some(r => r.fuente_id === fuente_id)) continue;
+        if (seen.has(fuente_id)) continue;
+        seen.add(fuente_id);
         rows.push({
           fuente_id, fuente: "italia_inpa", pais: "IT",
           numero_llamado: String(id), titulo, cargo: titulo, organismo: null,
@@ -999,20 +1410,25 @@ async function scrapeItalia(): Promise<{ rows: ConcursoRow[]; errores: string[] 
           keywords: extraerKeywords(titulo), activo: true,
         });
       }
-    } else {
-      errores.push(`IT: InPA WP REST status ${res.status}`);
+    } catch (e) {
+      errores.push(`IT: InPA WP REST parse error — ${(e as Error).message}`);
     }
-  } catch (e) {
-    errores.push(`IT: InPA WP REST error — ${(e as Error).message}`);
   }
 
-  if (rows.length > 0) return { rows, errores };
+  // Adzuna multi-búsqueda Italia — 10 ciudades × 8 categorías = 80 queries
+  const IT_CIDADES = ["Roma","Milano","Napoli","Torino","Palermo","Genova","Bologna","Firenze","Bari","Catania"];
+  const IT_CATS    = ["tecnologia","salute","vendite","logistica","ingegneria","finanza","costruzione","marketing"];
+  const seenIT = new Set<string>(rows.map(r => r.fuente_id));
+  const azIT = await adzunaMultiSearch("IT","it", IT_CIDADES, IT_CATS, "it-IT,it;q=0.9,en;q=0.8", seenIT);
+  rows.push(...azIT);
 
-  // Fallback: Google News IT
-  const gn = await scrapeGoogleNews("IT",
-    "concorso pubblico Italia assunzione bando amministrazione selezione",
-    "italia_googlenews", undefined, "it");
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  if (rows.length === 0) {
+    const gn = await scrapeGoogleNews("IT",
+      "concorso pubblico Italia assunzione bando amministrazione selezione",
+      "italia_googlenews", undefined, "it");
+    return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  }
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1035,7 +1451,7 @@ async function scrapeAlemania(): Promise<{ rows: ConcursoRow[]; errores: string[
 
   try {
     const res = await fetch(
-      "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?angebotsart=1&page=1&size=50",
+      "https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?angebotsart=1&page=1&size=100",
       {
         headers: {
           "X-API-Key": "jobboerse-jobsuche",
@@ -1083,13 +1499,20 @@ async function scrapeAlemania(): Promise<{ rows: ConcursoRow[]; errores: string[
     errores.push(`DE: Bundesagentur API error — ${(e as Error).message}`);
   }
 
-  if (rows.length > 0) return { rows, errores };
+  // Adzuna multi-búsqueda Alemania — 12 ciudades × 8 categorías = 96 queries
+  const DE_CIDADES = ["Berlin","Hamburg","München","Köln","Frankfurt","Stuttgart","Düsseldorf","Leipzig","Dortmund","Essen","Bremen","Dresden"];
+  const DE_CATS    = ["Technologie","Gesundheit","Vertrieb","Logistik","Ingenieur","Finanzen","Bau","Marketing"];
+  const seenDE = new Set<string>(rows.map(r => r.fuente_id));
+  const azDE = await adzunaMultiSearch("DE","de", DE_CIDADES, DE_CATS, "de-DE,de;q=0.9,en;q=0.8", seenDE);
+  rows.push(...azDE);
 
-  // Fallback: Google News DE
-  const gn = await scrapeGoogleNews("DE",
-    "Stellenausschreibung öffentlicher Dienst Deutschland Stelle Bewerbung",
-    "alemania_googlenews", undefined, "de");
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  if (rows.length === 0) {
+    const gn = await scrapeGoogleNews("DE",
+      "Stellenausschreibung öffentlicher Dienst Deutschland Stelle Bewerbung",
+      "alemania_googlenews", undefined, "de");
+    return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  }
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1139,8 +1562,8 @@ async function scrapeReinoUnido(): Promise<{ rows: ConcursoRow[]; errores: strin
           activo: true,
         });
       }
-      if (rows.length > 5) return { rows, errores };
-      errores.push(`GB: FindAJob accesible pero solo ${rows.length} ítems parseados`);
+      if (rows.length > 5) errores.push(`GB: FindAJob ${rows.length} ítems — completando con Adzuna`);
+      else errores.push(`GB: FindAJob accesible pero solo ${rows.length} ítems parseados`);
     } else {
       errores.push("GB: FindAJob inaccesible o bloqueado desde cloud");
     }
@@ -1191,14 +1614,20 @@ async function scrapeReinoUnido(): Promise<{ rows: ConcursoRow[]; errores: strin
       });
     }
   }
-  if (rows.length > 0) return { rows, errores };
-  errores.push("GB: NHS Jobs inaccesible");
+  // Adzuna multi-búsqueda UK — 12 ciudades × 8 categorías = 96 queries
+  const GB_CIDADES = ["London","Birmingham","Manchester","Glasgow","Liverpool","Leeds","Sheffield","Edinburgh","Bristol","Leicester","Coventry","Bradford"];
+  const GB_CATS    = ["technology","healthcare","sales","logistics","engineering","finance","construction","marketing"];
+  const seenGB = new Set<string>(rows.map(r => r.fuente_id));
+  const azGB = await adzunaMultiSearch("GB","gb", GB_CIDADES, GB_CATS, "en-GB,en;q=0.9", seenGB);
+  rows.push(...azGB);
 
-  // 3. Google News último recurso
-  const gn = await scrapeGoogleNews("GB",
-    "UK civil service government jobs vacancy hiring 2026",
-    "uk_googlenews", "GB", "en", 14);
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  if (rows.length === 0) {
+    const gn = await scrapeGoogleNews("GB",
+      "UK civil service government jobs vacancy hiring 2026",
+      "uk_googlenews", "GB", "en", 14);
+    return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  }
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1211,23 +1640,31 @@ async function scrapeEstadosUnidos(): Promise<{ rows: ConcursoRow[]; errores: st
   const apiKey = Deno.env.get("USAJOBS_API_KEY") ?? "";
 
   try {
-    const res = await fetch(
-      "https://data.usajobs.gov/api/search?ResultsPerPage=50&SortField=CloseDate&SortDirection=Desc",
-      {
-        headers: {
-          "Host": "data.usajobs.gov",
-          "User-Agent": "alejandrodslp@gmail.com",
-          "Authorization-Key": apiKey,
-        },
-        signal: AbortSignal.timeout(15000),
-      }
-    );
-
-    if (res.ok) {
+    // Paginar 3 páginas para obtener hasta 3000 resultados
+    const allItems: Record<string, unknown>[] = [];
+    for (let page = 1; page <= 2; page++) {
+      const res = await fetch(
+        `https://data.usajobs.gov/api/search?ResultsPerPage=1000&Page=${page}&SortField=CloseDate&SortDirection=Desc`,
+        {
+          headers: {
+            "Host": "data.usajobs.gov",
+            "User-Agent": "alejandrodslp@gmail.com",
+            "Authorization-Key": apiKey,
+          },
+          signal: AbortSignal.timeout(15000),
+        }
+      );
+      if (!res.ok) { errores.push(`US: USAJobs API page ${page} status ${res.status}`); break; }
       const data = await res.json();
       const items: Record<string, unknown>[] = data?.SearchResult?.SearchResultItems ?? [];
+      allItems.push(...items);
+      if (items.length < 1000) break; // última página
+    }
 
-      for (const item of items.slice(0, 50)) {
+    if (allItems.length > 0) {
+      const items = allItems;
+
+      for (const item of items.slice(0, 2000)) {
         const d = item.MatchedObjectDescriptor as Record<string, unknown>;
         if (!d) continue;
 
@@ -1251,25 +1688,40 @@ async function scrapeEstadosUnidos(): Promise<{ rows: ConcursoRow[]; errores: st
           descripcion: (desc as string).slice(0, 600), requisitos: null,
           tipo_tarea: null, tipo_vinculo: null,
           lugar: lugar || "United States",
-          fecha_inicio: null, fecha_cierre: parseFecha(cierre),
+          fecha_inicio: null, fecha_cierre: sumarDias(null, 30),
           puestos: 1,
           url_detalle: url || null, url_postulacion: url || null,
           keywords: extraerKeywords(titulo + " " + organismo), activo: true,
         });
       }
     } else {
-      errores.push(`US: USAJobs API status ${res.status}`);
+      errores.push(`US: USAJobs API sin resultados`);
     }
   } catch (e) {
     errores.push(`US: USAJobs API error — ${(e as Error).message}`);
   }
 
-  if (rows.length > 0) return { rows, errores };
+  // Google News USA — locale="GB" para forzar inglés, paisRow="US" para etiquetar como US
+  const seen = new Set<string>(rows.map(r => r.fuente_id));
+  const gnQueries = [
+    ["USA federal government jobs hiring vacancy civil service 2026", "usa_gn_federal"],
+    ["New York California Texas jobs hiring employment openings 2026", "usa_gn_west"],
+    ["Florida Illinois Pennsylvania Ohio jobs employment 2026", "usa_gn_midwest"],
+    ["USA technology healthcare engineering jobs openings 2026", "usa_gn_tech"],
+    ["USA logistics manufacturing warehouse jobs hiring 2026", "usa_gn_logistic"],
+    ["USA education finance sales customer service jobs 2026", "usa_gn_service"],
+  ];
+  const gnResults = await Promise.all(
+    gnQueries.map(([q, fuente]) => scrapeGoogleNews("GB", q, fuente, "US", "en", 25))
+  );
+  for (const gn of gnResults) {
+    for (const r of gn.rows) {
+      if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); }
+    }
+    errores.push(...gn.errores);
+  }
 
-  const gn = await scrapeGoogleNews("US",
-    "USA federal government jobs vacancy hiring civil service",
-    "usa_googlenews", "US", "en");
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1344,7 +1796,14 @@ async function scrapeCanada(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     if (rows.length > 0) return { rows, errores };
   }
 
-  // 3. Google News último recurso
+  // Adzuna multi-búsqueda Canadá — 12 ciudades × 8 categorías = 96 queries
+  const CA_CIDADES = ["Toronto","Montreal","Vancouver","Calgary","Edmonton","Ottawa","Winnipeg","Quebec City","Hamilton","Kitchener","London","Halifax"];
+  const CA_CATS    = ["technology","healthcare","sales","logistics","engineering","finance","construction","marketing"];
+  const seenCA = new Set<string>(rows.map(r => r.fuente_id));
+  const azCA = await adzunaMultiSearch("CA","ca", CA_CIDADES, CA_CATS, "en-CA,en;q=0.9,fr-CA;q=0.8", seenCA);
+  rows.push(...azCA);
+  if (rows.length > 0) return { rows, errores };
+
   const gn = await scrapeGoogleNews("US",
     "Canada federal government jobs GC Jobs public service hiring",
     "canada_googlenews", "CA", "en", 14);
@@ -1413,7 +1872,14 @@ async function scrapeAustralia(): Promise<{ rows: ConcursoRow[]; errores: string
     errores.push("AU: Victoria Careers sitemap inaccesible");
   }
 
-  // 2. Google News como último recurso
+  // Adzuna multi-búsqueda Australia — 10 ciudades × 8 categorías = 80 queries
+  const AU_CIDADES = ["Sydney","Melbourne","Brisbane","Perth","Adelaide","Canberra","Darwin","Hobart","Gold Coast","Newcastle"];
+  const AU_CATS    = ["technology","healthcare","sales","logistics","engineering","finance","construction","marketing"];
+  const seenAU = new Set<string>(rows.map(r => r.fuente_id));
+  const azAU = await adzunaMultiSearch("AU","au", AU_CIDADES, AU_CATS, "en-AU,en;q=0.9", seenAU);
+  rows.push(...azAU);
+  if (rows.length > 0) return { rows, errores };
+
   const gn = await scrapeGoogleNews("US",
     "Australia government jobs APS hiring vacancy public service recruitment",
     "australia_googlenews", "AU", "en", 14);
@@ -1492,17 +1958,25 @@ async function scrapeFrancia(): Promise<{ rows: ConcursoRow[]; errores: string[]
         activo: true,
       });
     }
-    if (rows.length > 0) return { rows, errores };
-    errores.push("FR: EmploiPublic.fr accesible pero sin ítems parseables");
+    if (!rows.length) errores.push("FR: EmploiPublic.fr accesible pero sin ítems parseables");
   } else {
     errores.push("FR: EmploiPublic.fr sitemap inaccesible");
   }
 
-  // 2. Google News como último recurso
-  const gn = await scrapeGoogleNews("FR",
-    "concours fonction publique France emploi recrutement poste administration",
-    "francia_googlenews", undefined, "fr");
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  // 2. Adzuna multi-búsqueda — 15 ciudades × 8 categorías = 120 queries
+  const FR_CIDADES = ["Paris","Lyon","Marseille","Toulouse","Nice","Nantes","Strasbourg","Bordeaux","Lille","Rennes","Reims","Montpellier","Grenoble","Dijon","Clermont-Ferrand"];
+  const FR_CATS    = ["technologie","santé","vente","logistique","ingénierie","finance","construction","marketing"];
+  const seenFR = new Set<string>(rows.map(r => r.fuente_id));
+  const azFR = await adzunaMultiSearch("FR","fr", FR_CIDADES, FR_CATS, "fr-FR,fr;q=0.9,en;q=0.8", seenFR);
+  rows.push(...azFR);
+
+  if (rows.length === 0) {
+    const gn = await scrapeGoogleNews("FR",
+      "concours fonction publique France emploi recrutement poste administration",
+      "francia_googlenews", undefined, "fr");
+    return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  }
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1574,38 +2048,246 @@ async function scrapeNorway(): Promise<{ rows: ConcursoRow[]; errores: string[] 
   const jobs: JobEntry[] = matches.map(m => ({ url: m[1], uuid: m[2], lastmod: m[3] }));
   jobs.sort((a, b) => b.lastmod.localeCompare(a.lastmod));
 
-  const fetched = await Promise.all(
-    jobs.slice(0, 30).map(job =>
-      fetchUrl(job.url, 10000)
-        .then(html => ({ job, html }))
-        .catch(() => ({ job, html: null as string | null }))
-    )
-  );
-
-  for (const { job, html } of fetched) {
-    if (!html) continue;
-    const ogTitle = html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]+)"/)?.[1]?.trim() ?? null;
-    const ogDesc  = html.match(/<meta[^>]*name="description"[^>]*content="([^"]+)"/)?.[1]?.trim() ?? null;
-    if (!ogTitle) continue;
-
-    const titulo = ogTitle.replace(/\s*-\s*arbeidsplassen\.no\s*$/i, "").trim();
-    const fechaInicio = parseFecha(job.lastmod);
-
-    rows.push({
-      fuente_id: `nav_${job.uuid}`,
-      fuente: "noruega_nav", pais: "NO",
-      numero_llamado: null, titulo, cargo: titulo,
-      organismo: null, descripcion: ogDesc?.slice(0, 500) ?? null,
-      requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-      lugar: "Norge",
-      fecha_inicio: fechaInicio, fecha_cierre: sumarDias(fechaInicio, 30),
-      puestos: 1,
-      url_detalle: job.url, url_postulacion: job.url,
-      keywords: extraerKeywords(titulo + " " + (ogDesc ?? "")), activo: true,
-    });
+  // Fetch en lotes de 20 para no saturar el servidor
+  const slicedJobs = jobs.slice(0, 80);
+  for (let i = 0; i < slicedJobs.length; i += 20) {
+    const batch = slicedJobs.slice(i, i + 20);
+    const fetched = await Promise.all(
+      batch.map(job =>
+        fetchUrl(job.url, 10000)
+          .then(html => ({ job, html }))
+          .catch(() => ({ job, html: null as string | null }))
+      )
+    );
+    for (const { job, html } of fetched) {
+      if (!html) continue;
+      const ogTitle = html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]+)"/)?.[1]?.trim() ?? null;
+      const ogDesc  = html.match(/<meta[^>]*name="description"[^>]*content="([^"]+)"/)?.[1]?.trim() ?? null;
+      if (!ogTitle) continue;
+      const titulo = ogTitle.replace(/\s*-\s*arbeidsplassen\.no\s*$/i, "").trim();
+      const fechaInicio = parseFecha(job.lastmod);
+      rows.push({
+        fuente_id: `nav_${job.uuid}`,
+        fuente: "noruega_nav", pais: "NO",
+        numero_llamado: null, titulo, cargo: titulo,
+        organismo: null, descripcion: ogDesc?.slice(0, 500) ?? null,
+        requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+        lugar: "Norge",
+        fecha_inicio: fechaInicio, fecha_cierre: sumarDias(fechaInicio, 30),
+        puestos: 1,
+        url_detalle: job.url, url_postulacion: job.url,
+        keywords: extraerKeywords(titulo + " " + (ogDesc ?? "")), activo: true,
+      });
+    }
   }
 
+  // Google News como suplemento
+  const seen = new Set<string>(rows.map(r => r.fuente_id));
+  const [gn1, gn2] = await Promise.all([
+    scrapeGoogleNews("NO", "Norway government job recruitment vacancy 2026 offentlig stilling", "noruega_googlenews", "NO", "no", 25),
+    scrapeGoogleNews("NO", "Norge stilling offentlig sektor ledige jobber 2026 kommune fylke stat", "noruega_googlenews2", "NO", "no", 20),
+  ]);
+  for (const x of [...gn1.rows, ...gn2.rows]) {
+    if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); }
+  }
+  errores.push(...gn1.errores, ...gn2.errores);
+
   if (rows.length === 0) errores.push("NO: NAV sin resultados parseables");
+  return { rows, errores };
+}
+
+// ─────────────────────────────────────────────────────────────
+// ADZUNA — API agregadora con empleos privados reales
+// Cubre: GB, US, AU, CA, DE, FR, IT, IN, BR, MX, AT, NL, NZ, PL, SG, ZA
+// Credenciales gratuitas en developer.adzuna.com (ya configuradas)
+// ─────────────────────────────────────────────────────────────
+async function scrapeAdzuna(
+  pais: string,
+  adzunaCountry: string,
+  paginas = 3
+): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+
+  // Leer dentro de la función — las variables de entorno no están disponibles en module-scope en Deno Deploy
+  const ADZUNA_APP_ID  = Deno.env.get("ADZUNA_APP_ID")  ?? "";
+  const ADZUNA_APP_KEY = Deno.env.get("ADZUNA_APP_KEY") ?? "";
+
+  if (!ADZUNA_APP_ID || !ADZUNA_APP_KEY) {
+    return { rows, errores: [`${pais}: ADZUNA_APP_ID/KEY no configuradas`] };
+  }
+  console.log(`Adzuna ${pais}: app_id=${ADZUNA_APP_ID.slice(0,6)}... iniciando`);
+
+  for (let page = 1; page <= paginas; page++) {
+    const url = `https://api.adzuna.com/v1/api/jobs/${adzunaCountry}/search/${page}`
+      + `?app_id=${ADZUNA_APP_ID}&app_key=${ADZUNA_APP_KEY}`
+      + `&results_per_page=50&sort_by=date&content-type=application/json`;
+
+    let json: string | null = null;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      if (!res.ok) { errores.push(`${pais}: Adzuna HTTP ${res.status}`); break; }
+      json = await res.text();
+    } catch (e) { errores.push(`${pais}: Adzuna error ${(e as Error).message}`); break; }
+    if (!json) break;
+
+    let data: { results?: Record<string, unknown>[] };
+    try { data = JSON.parse(json); } catch(e) {
+      errores.push(`${pais}: Adzuna JSON parse error ${(e as Error).message.slice(0,60)}`);
+      break;
+    }
+    console.log(`Adzuna ${pais} pág ${page}: ${data.results?.length ?? 0} resultados`);
+
+    const results = data.results ?? [];
+    if (!results.length) break;
+
+    for (const j of results) {
+      const id    = String(j.id ?? "");
+      const titulo = String(j.title ?? "").trim();
+      const empresa = (j.company as Record<string, string>)?.display_name ?? null;
+      const lugar   = (j.location as Record<string, string>)?.display_name ?? null;
+      const desc    = String(j.description ?? "").replace(/<[^>]+>/g, " ").trim().slice(0, 600);
+      const url_job = String(j.redirect_url ?? "");
+      if (!titulo || titulo.length < 3 || !id) continue;
+
+      rows.push({
+        fuente_id:      `adzuna_${adzunaCountry}_${id}`,
+        fuente:         `adzuna_${adzunaCountry}`,
+        pais,
+        numero_llamado: null,
+        titulo, cargo: titulo,
+        organismo:      empresa,
+        descripcion:    desc || null,
+        requisitos:     null,
+        tipo_tarea:     null,
+        tipo_vinculo:   "privado",
+        lugar:          lugar,
+        fecha_inicio:   null,
+        fecha_cierre:   sumarDias(null, 30),
+        puestos:        1,
+        url_detalle:    url_job,
+        url_postulacion: url_job,
+        keywords:       extraerKeywords(`${titulo} ${empresa ?? ""} ${desc}`),
+        activo:         true,
+      });
+    }
+    if (results.length < 50) break;
+    await new Promise(r => setTimeout(r, 400));
+  }
+
+  return { rows, errores };
+}
+
+// ─────────────────────────────────────────────────────────────
+// SUIZA — jobs.ch + jobscout24.ch + Google News (DE/FR/IT)
+// ~86.000 vacantes activas. Principal mercado laboral europeo
+// con escasez estructural de trabajadores en múltiples sectores.
+// ─────────────────────────────────────────────────────────────
+async function scrapeSuiza(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
+
+  // 1. jobs.ch — listado de nuevas vacantes (300 empleos por página)
+  // Los UUIDs y titles están en el mismo orden en el HTML
+  const jobsChPages = [1, 2, 3];
+  await Promise.all(jobsChPages.map(async (page) => {
+    const url = `https://www.jobs.ch/en/new-vacancies/?page=${page}`;
+    const html = await fetchUrl(url, 15000);
+    if (!html) { errores.push(`CH: jobs.ch página ${page} inaccesible`); return; }
+    const uuids  = [...html.matchAll(/\/en\/vacancies\/detail\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\//g)].map(m => m[1]);
+    const titles = [...html.matchAll(/"title":"((?:[^"\\]|\\.)*)"/g)].map(m => m[1].replace(/\\u([0-9a-f]{4})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))));
+    const count  = Math.min(uuids.length, titles.length);
+    for (let j = 0; j < count; j++) {
+      const uuid   = uuids[j];
+      const titulo = titles[j].trim();
+      if (!titulo || titulo.length < 4) continue;
+      const fuente_id = `jobsch_${uuid}`;
+      if (seen.has(fuente_id)) continue;
+      seen.add(fuente_id);
+      rows.push({
+        fuente_id, fuente: "suiza_jobsch", pais: "CH",
+        numero_llamado: null, titulo, cargo: titulo,
+        organismo: null, descripcion: null, requisitos: null,
+        tipo_tarea: null, tipo_vinculo: "privado",
+        lugar: "Suiza", fecha_inicio: null,
+        fecha_cierre: sumarDias(null, 30),
+        puestos: 1,
+        url_detalle: `https://www.jobs.ch/en/vacancies/detail/${uuid}/`,
+        url_postulacion: `https://www.jobs.ch/en/vacancies/detail/${uuid}/`,
+        keywords: extraerKeywords(titulo), activo: true,
+      });
+    }
+  }));
+
+  // 2. jobscout24.ch — 83.000 vacantes, estructura: data-job-detail-url + title="..."
+  const scoutPages = [1, 2, 3, 4, 5];
+  await Promise.all(scoutPages.map(async (page) => {
+    const url = `https://www.jobscout24.ch/en/jobs/?p=${page}&sort=date`;
+    const html = await fetchUrl(url, 15000, { "Accept-Language": "en-CH,en;q=0.9,de;q=0.8" });
+    if (!html) { errores.push(`CH: jobscout24 página ${page} inaccesible`); return; }
+    // Patrón: data-job-detail-url="/en/job/{uuid}/" + title="Título del puesto"
+    const re = /data-job-detail-url="\/en\/job\/([a-f0-9-]{36})\/"[\s\S]{0,300}?title="([^"]{4,200})"/g;
+    let m;
+    while ((m = re.exec(html)) !== null) {
+      const uuid   = m[1];
+      const titulo = m[2].trim();
+      if (!titulo || titulo.length < 4) continue;
+      const fuente_id = `jobscout24_${uuid}`;
+      if (seen.has(fuente_id)) continue;
+      seen.add(fuente_id);
+      // Extraer empresa y ciudad del bloque siguiente
+      const bloque = html.slice(m.index, m.index + 500);
+      const empresa = bloque.match(/<span>(.*?)<\/span>/)?.[1]?.trim() ?? null;
+      const ciudad  = bloque.match(/<span>(.*?)<\/span>[\s\S]*?<span>(.*?)<\/span>/)?.[2]?.trim() ?? "Suiza";
+      rows.push({
+        fuente_id, fuente: "suiza_jobscout24", pais: "CH",
+        numero_llamado: null, titulo, cargo: titulo,
+        organismo: empresa, descripcion: null, requisitos: null,
+        tipo_tarea: null, tipo_vinculo: "privado",
+        lugar: ciudad,
+        fecha_inicio: null, fecha_cierre: sumarDias(null, 30),
+        puestos: 1,
+        url_detalle: `https://www.jobscout24.ch/en/job/${uuid}/`,
+        url_postulacion: `https://www.jobscout24.ch/en/job/${uuid}/`,
+        keywords: extraerKeywords(`${titulo} ${empresa ?? ""}`), activo: true,
+      });
+    }
+  }));
+
+  // 3. jobup.ch — Suiza francófona (JobCloud, misma arquitectura que jobs.ch)
+  const jobupPages = [1, 2];
+  await Promise.all(jobupPages.map(async (page) => {
+    const url = `https://www.jobup.ch/en/jobs/?page=${page}&sort=-publication_date`;
+    const html = await fetchUrl(url, 15000, { "Accept-Language": "fr-CH,fr;q=0.9,de;q=0.8" });
+    if (!html) { errores.push(`CH: jobup.ch página ${page} inaccesible`); return; }
+    const uuids  = [...html.matchAll(/\/en\/jobs\/detail\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})\//g)].map(m => m[1]);
+    const titles = [...html.matchAll(/"title":"((?:[^"\\]|\\.)*)"/g)].map(m => m[1].replace(/\\u([0-9a-f]{4})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))));
+    const count = Math.min(uuids.length, titles.length);
+    for (let j = 0; j < count; j++) {
+      const uuid   = uuids[j];
+      const titulo = titles[j].trim();
+      if (!titulo || titulo.length < 4) continue;
+      const fuente_id = `jobup_${uuid}`;
+      if (seen.has(fuente_id)) continue;
+      seen.add(fuente_id);
+      rows.push({
+        fuente_id, fuente: "suiza_jobup", pais: "CH",
+        numero_llamado: null, titulo, cargo: titulo,
+        organismo: null, descripcion: null, requisitos: null,
+        tipo_tarea: null, tipo_vinculo: "privado",
+        lugar: "Suisse", fecha_inicio: null,
+        fecha_cierre: sumarDias(null, 30),
+        puestos: 1,
+        url_detalle: `https://www.jobup.ch/en/jobs/detail/${uuid}/`,
+        url_postulacion: `https://www.jobup.ch/en/jobs/detail/${uuid}/`,
+        keywords: extraerKeywords(titulo), activo: true,
+      });
+    }
+  }));
+
+  if (rows.length === 0) errores.push("CH: sin resultados en ninguna fuente");
+  console.log(`CH: ${rows.length} empleos obtenidos`);
   return { rows, errores };
 }
 
@@ -1644,7 +2326,7 @@ async function scrapeJapan(): Promise<{ rows: ConcursoRow[]; errores: string[] }
 
       if (!titulo || titulo.length < 3) continue;
 
-      const rawId = `${(organismo ?? "").replace(/\s/g, "").slice(0, 15)}_${titulo.replace(/\s/g, "").slice(0, 20)}`;
+      const rawId = `${(organismo ?? "").replace(/[\s()（）]/g, "").slice(0, 15)}_${titulo.replace(/[\s()（）]/g, "").slice(0, 20)}`;
       const fuente_id = `npa_${rawId}`;
       if (rows.some(r => r.fuente_id === fuente_id)) continue;
 
@@ -1661,7 +2343,11 @@ async function scrapeJapan(): Promise<{ rows: ConcursoRow[]; errores: string[] }
     }
   }
 
-  if (rows.length === 0) errores.push("JP: NPA sin resultados parseables");
+  if (rows.length === 0) {
+    errores.push("JP: NPA sin resultados parseables");
+    const gn = await scrapeGoogleNews("US", "Japan government jobs recruitment vacancy 2026", "japon_googlenews", "JP", "en", 21);
+    return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  }
   return { rows, errores };
 }
 
@@ -1669,30 +2355,32 @@ async function scrapeJapan(): Promise<{ rows: ConcursoRow[]; errores: string[] }
 // INDIA — Employment News RSS + Google News backup
 // ─────────────────────────────────────────────────────────────
 async function scrapeIndia(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const rows: ConcursoRow[] = [];
   const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
+  const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  // Fuente 1: Employment News RSS oficial del gobierno indio
+  // Employment News RSS oficial del gobierno indio
   const xml = await fetchUrl("https://www.employmentnews.gov.in/RSS/EmploymentNews.xml", 12000);
   if (xml && xml.includes("<item>")) {
     const items = extraerItems(xml);
     for (const item of items.slice(0, 60)) {
-      const titulo   = extraerTag(item, "title");
-      const link     = extraerTag(item, "link");
-      const guid     = extraerTag(item, "guid");
-      const pubDate  = extraerTag(item, "pubDate");
-      const desc     = stripHtml(extraerTag(item, "description"));
+      const titulo  = extraerTag(item, "title");
+      const link    = extraerTag(item, "link");
+      const guid    = extraerTag(item, "guid");
+      const pubDate = extraerTag(item, "pubDate");
+      const desc    = stripHtml(extraerTag(item, "description"));
       if (!titulo || titulo.length < 6) continue;
       const fuente_id = (guid || link).replace(/[^a-zA-Z0-9]/g, "").slice(-48);
-      if (rows.some(r => r.fuente_id === fuente_id)) continue;
+      if (seen.has(fuente_id)) continue;
+      seen.add(fuente_id);
       const fechaPub = parseFecha(pubDate);
       rows.push({
         fuente_id, fuente: "india_employmentnews", pais: "IN",
         numero_llamado: null, titulo, cargo: titulo, organismo: null,
         descripcion: desc.slice(0, 600), requisitos: null,
         tipo_tarea: null, tipo_vinculo: "publico", lugar: null,
-        fecha_inicio: fechaPub,
-        fecha_cierre: sumarDias(fechaPub, 30),
+        fecha_inicio: fechaPub, fecha_cierre: sumarDias(fechaPub, 30),
         puestos: 1,
         url_detalle: link.startsWith("http") ? link : null,
         url_postulacion: link.startsWith("http") ? link : null,
@@ -1703,22 +2391,260 @@ async function scrapeIndia(): Promise<{ rows: ConcursoRow[]; errores: string[] }
     errores.push("IN: Employment News RSS sin items");
   }
 
-  // Fuente 2: Google News para cubrir UPSC, SSC, NHM, state boards
-  const gn = await scrapeGoogleNews("IN", "India government recruitment 2026 vacancy apply UPSC SSC NHM", "india_googlenews", "IN", "en", 21);
-  rows.push(...gn.rows);
-  errores.push(...gn.errores);
+  // 3 Google News en paralelo para cubrir UPSC, SSC, PSC, state boards
+  const [gn1, gn2, gn3] = await Promise.all([
+    scrapeGoogleNews("IN", "India government recruitment 2026 vacancy apply UPSC SSC NHM", "india_googlenews", "IN", "en", 25),
+    scrapeGoogleNews("IN", "India sarkari naukri government job 2026 online recruitment board vacancy", "india_googlenews2", "IN", "en", 25),
+    scrapeGoogleNews("IN", "India state government PSC recruitment vacancy notification 2026", "india_googlenews3", "IN", "en", 20),
+  ]);
+  addRows(gn1.rows); errores.push(...gn1.errores);
+  addRows(gn2.rows); errores.push(...gn2.errores);
+  addRows(gn3.rows); errores.push(...gn3.errores);
+
+  // Adzuna multi-búsqueda India — 12 ciudades × 8 categorías = 96 queries
+  const IN_CIDADES = ["Mumbai","Delhi","Bangalore","Hyderabad","Chennai","Kolkata","Pune","Ahmedabad","Surat","Jaipur","Lucknow","Kanpur","Nagpur","Indore","Bhopal","Visakhapatnam","Coimbatore","Kochi","Chandigarh","Vadodara"];
+  const IN_CATS    = ["technology","healthcare","sales","logistics","engineering","finance","education","marketing","construction","hospitality"];
+  const seenIN = new Set<string>(rows.map(r => r.fuente_id));
+  const azIN = await adzunaMultiSearch("IN","in", IN_CIDADES, IN_CATS, "en-IN,en;q=0.9", seenIN);
+  rows.push(...azIN);
 
   if (rows.length === 0) errores.push("IN: sin resultados en ninguna fuente");
   return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
+// ALERTA ADMIN — caída detectada en un país
+// ─────────────────────────────────────────────────────────────
+async function enviarAlertaAdmin(pais: string, antes: number, despues: number): Promise<void> {
+  const pct = Math.round((1 - despues / antes) * 100);
+  const mensaje = `⚠️ ${pais}: ${despues} llamados (antes: ${antes}, caída: -${pct}%)`;
+  console.warn(`ALERTA SCRAPER: ${mensaje}`);
+
+  // Guardar en tabla de alertas
+  await supabase.from("scraper_alertas").insert({
+    pais, llamados_antes: antes, llamados_despues: despues,
+    pct_caida: pct, mensaje,
+  }).then(() => {}).catch(() => {});
+
+  // El email se consolida en el resumen diario — no se envía email individual por caída
+}
+
+// ─────────────────────────────────────────────────────────────
+// RESUMEN DIARIO
+// ─────────────────────────────────────────────────────────────
+const PAISES_NOMBRES: Record<string, string> = {
+  UY:"Uruguay", AR:"Argentina", BR:"Brasil", CL:"Chile", CO:"Colombia",
+  PE:"Peru", PY:"Paraguay", BO:"Bolivia", EC:"Ecuador", MX:"Mexico",
+  VE:"Venezuela", CU:"Cuba", CR:"Costa Rica", GT:"Guatemala", SV:"El Salvador",
+  HN:"Honduras", NI:"Nicaragua", PA:"Panama", DO:"Rep. Dominicana",
+  ES:"Espana", PT:"Portugal", IT:"Italia", FR:"Francia", DE:"Alemania",
+  GB:"Reino Unido", SE:"Suecia", NO:"Noruega", CH:"Suiza",
+  US:"Estados Unidos", CA:"Canada", AU:"Australia", JP:"Japon", IN:"India",
+};
+const TODOS_PAISES = Object.keys(PAISES_NOMBRES);
+
+async function enviarResumenDiario(): Promise<void> {
+  const resendKey = Deno.env.get("RESEND_API_KEY") ?? "";
+  if (!resendKey) { console.log("RESEND_API_KEY no configurada, omitiendo resumen diario"); return; }
+
+  // Activos por país — GROUP BY en SQL para evitar el límite de 1000 filas
+  const { data: conteoData } = await supabase.rpc("contar_concursos_por_pais");
+  const conteos: Record<string, number> = {};
+  for (const r of (conteoData ?? []) as {pais:string; total:number}[]) conteos[r.pais] = Number(r.total);
+
+  // Logs de las últimas 48h por país (errores + retry)
+  const hace48h = new Date(Date.now() - 172800000).toISOString();
+  const { data: logs } = await supabase
+    .from("scraper_logs")
+    .select("pais, ejecutado_en, total_scrapeados, ok, errores")
+    .gte("ejecutado_en", hace48h)
+    .order("ejecutado_en", { ascending: false });
+
+  const ultimoLog: Record<string, { hora: string; scrapeados: number; ok: boolean; errores: string[] }> = {};
+  for (const l of logs ?? []) {
+    if (!ultimoLog[l.pais]) {
+      ultimoLog[l.pais] = {
+        hora: new Date(l.ejecutado_en).toISOString().slice(11, 16) + " UTC",
+        scrapeados: l.total_scrapeados ?? 0,
+        ok: l.ok ?? false,
+        errores: l.errores ?? [],
+      };
+    }
+  }
+
+  const total = TODOS_PAISES.reduce((s, p) => s + (conteos[p] ?? 0), 0);
+  const enRojo = TODOS_PAISES.filter(p => (conteos[p] ?? 0) < 20);
+
+  const fecha = new Date().toLocaleDateString("es-UY", {timeZone:"America/Montevideo", day:"2-digit", month:"2-digit", year:"numeric"});
+  const hora  = new Date().toLocaleTimeString("es-UY", {timeZone:"America/Montevideo", hour:"2-digit", minute:"2-digit"});
+
+  // ── Armar tabla HTML ────────────────────────────────────────
+  const filasPaises = TODOS_PAISES.map(p => {
+    const n = conteos[p] ?? 0;
+    const nombre = PAISES_NOMBRES[p] ?? p;
+    const ok = n >= 20;
+    const bg = ok ? "#ffffff" : "#fff3cd";
+    const color = ok ? "#1a7a1a" : "#c0392b";
+    const estado = ok ? "✅ OK" : "⚠️ Revisar";
+    return `<tr style="background:${bg}">
+      <td style="padding:6px 12px;border-bottom:1px solid #eee">${nombre}</td>
+      <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;color:${color}">${n}</td>
+      <td style="padding:6px 12px;border-bottom:1px solid #eee;color:${color}">${estado}</td>
+    </tr>`;
+  }).join("");
+
+  // Errores y correcciones
+  // Alertas de caídas de las últimas 24h
+  const hace24h = new Date(Date.now() - 86400000).toISOString();
+  const { data: alertasHoy } = await supabase
+    .from("scraper_alertas")
+    .select("pais, llamados_antes, llamados_despues, pct_caida, created_at")
+    .gte("created_at", hace24h)
+    .order("pct_caida", { ascending: false });
+
+  const seccionCaidas = !alertasHoy?.length
+    ? `<p style="color:#1a7a1a">✅ Sin caídas detectadas en las últimas 24 hs.</p>`
+    : `<table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:#c0392b;color:white">
+            <th style="padding:7px 12px;text-align:left">País</th>
+            <th style="padding:7px 12px;text-align:center">Antes</th>
+            <th style="padding:7px 12px;text-align:center">Después</th>
+            <th style="padding:7px 12px;text-align:center">Caída</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${alertasHoy.map(a => `
+          <tr style="background:#fff5f5">
+            <td style="padding:6px 12px;border-bottom:1px solid #eee"><b>${PAISES_NOMBRES[a.pais] ?? a.pais}</b></td>
+            <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:center">${a.llamados_antes}</td>
+            <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:center">${a.llamados_despues}</td>
+            <td style="padding:6px 12px;border-bottom:1px solid #eee;text-align:center;color:#c0392b;font-weight:bold">-${a.pct_caida}%</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>`;
+
+  const erroresEncontrados: {nombre:string; errores:string[]; corregido:boolean}[] = [];
+  for (const p of TODOS_PAISES) {
+    const log = ultimoLog[p];
+    if (log && log.errores && log.errores.length > 0) {
+      erroresEncontrados.push({
+        nombre: PAISES_NOMBRES[p] ?? p,
+        errores: log.errores,
+        corregido: log.scrapeados > 0,
+      });
+    }
+  }
+
+  const seccionErrores = erroresEncontrados.length === 0
+    ? `<p style="color:#1a7a1a">✅ No se detectaron fallas en el último scan.</p>`
+    : erroresEncontrados.map(e => `
+        <p style="margin:8px 0">
+          <b>${e.nombre}</b>: ${e.corregido
+            ? `<span style="color:#1a7a1a">⚠️ Error detectado pero <b>resuelto automáticamente</b> (${ultimoLog[TODOS_PAISES.find(p=>PAISES_NOMBRES[p]===e.nombre)||""]?.scrapeados??0} llamados recuperados)</span>`
+            : `<span style="color:#c0392b">❌ Error no resuelto — requiere revisión manual</span>`
+          }<br>
+          <small style="color:#888">${e.errores.slice(0,2).join(" | ")}</small>
+        </p>`).join("");
+
+  const estadoGeneral = enRojo.length === 0
+    ? `<div style="background:#d4edda;border-left:4px solid #28a745;padding:10px 16px;margin-bottom:16px;border-radius:4px"><b style="color:#155724">✅ Sistema operativo — Todo funciona correctamente</b></div>`
+    : `<div style="background:#fff3cd;border-left:4px solid #ffc107;padding:10px 16px;margin-bottom:16px;border-radius:4px"><b style="color:#856404">⚠️ Atención — ${enRojo.length} país(es) con menos de 20 llamados activos</b></div>`;
+
+  const html = `
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+  <h2 style="color:#E8785A;margin-bottom:4px">Nexu — Informe diario del scraper</h2>
+  <p style="color:#888;margin-top:0;font-size:13px">${fecha} ${hora} | Total: <b>${total}</b> llamados activos en <b>${TODOS_PAISES.length}</b> países</p>
+
+  ${estadoGeneral}
+
+  <h3 style="color:#333;font-size:14px;margin-bottom:8px">LLAMADOS ACTIVOS POR PAÍS</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead>
+      <tr style="background:#1a1a2e;color:white">
+        <th style="padding:8px 12px;text-align:left">País</th>
+        <th style="padding:8px 12px;text-align:center">Llamados activos</th>
+        <th style="padding:8px 12px;text-align:left">Estado</th>
+      </tr>
+    </thead>
+    <tbody>${filasPaises}</tbody>
+  </table>
+
+  <h3 style="color:#c0392b;font-size:14px;margin-top:24px;margin-bottom:8px">⚠️ CAÍDAS DETECTADAS HOY</h3>
+  ${seccionCaidas}
+
+  <h3 style="color:#333;font-size:14px;margin-top:24px;margin-bottom:8px">FALLAS EN EL ÚLTIMO SCAN</h3>
+  ${seccionErrores}
+
+  <p style="color:#bbb;font-size:11px;margin-top:24px;border-top:1px solid #eee;padding-top:12px">
+    Generado automáticamente por Nexu Scraper
+  </p>
+</div>`;
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "Nexu Scraper <onboarding@resend.dev>",
+      to: ["alejandrodslp@gmail.com"],
+      subject: `📊 Nexu ${fecha} — ${total} llamados ${enRojo.length > 0 ? "| ⚠️ " + enRojo.length + " países con problemas" : "| ✅ Todo OK"}`,
+      html,
+    }),
+    signal: AbortSignal.timeout(15000),
+  }).catch(() => {});
+}
+
+// ─────────────────────────────────────────────────────────────
 // SCRAPER PRINCIPAL — upsert a Supabase
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// ESTÁNDARES DE CALIDAD — criterios mínimos para que una oferta
+// sea considerada legítima y agregada a la base de datos.
+// Se aplica a TODAS las fuentes: Adzuna, pciconcursos, Google News, etc.
+// ─────────────────────────────────────────────────────────────
+function esOfertaLegitima(r: ConcursoRow): boolean {
+  // 1. Título real — mínimo 4 caracteres, no solo números o símbolos
+  if (!r.titulo || r.titulo.trim().length < 4) return false;
+  if (/^[\d\s\-_\.]+$/.test(r.titulo.trim())) return false;
+
+  // 2. Link de acceso funcional — debe ser una URL real
+  const link = r.url_detalle ?? r.url_postulacion ?? "";
+  if (!link.startsWith("http")) return false;
+
+  // 3. País identificado
+  if (!r.pais || r.pais.length < 2) return false;
+
+  // 4. No es noticia — fuentes de Google News se permiten pero deben tener keywords reales
+  const esGoogleNews = r.fuente?.includes("googlenews") || r.fuente?.includes("gnews");
+  if (esGoogleNews && (!r.keywords || r.keywords.length < 2)) return false;
+
+  // 5. Keywords suficientes para el matching (mínimo 2)
+  if (!r.keywords || r.keywords.length < 2) return false;
+
+  // 6. No vencida — no aceptar empleos ya expirados
+  if (r.fecha_cierre) {
+    const hoy = new Date().toISOString().slice(0, 10);
+    if (r.fecha_cierre.slice(0, 10) < hoy) return false;
+  }
+
+  // 7. Contexto mínimo para matching — incluye tipo_vinculo (siempre presente en UY/fuentes oficiales)
+  const tieneContexto = !!(r.organismo || r.descripcion || r.tipo_tarea || r.tipo_vinculo);
+  if (!tieneContexto) return false;
+
+  return true;
+}
+
 async function upsertRows(rows: ConcursoRow[]): Promise<number> {
   if (rows.length === 0) return 0;
-  const manana = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-  const validas = rows.filter(r => !r.fecha_cierre || r.fecha_cierre >= manana);
+
+  // Aplicar estándares de calidad antes de guardar
+  const legitimas = rows.filter(esOfertaLegitima);
+  const rechazadas = rows.length - legitimas.length;
+  if (rechazadas > 0) console.log(`  ⚠ ${rechazadas} ofertas rechazadas por no cumplir estándares de calidad`);
+
+  if (legitimas.length === 0) return 0;
+  const hoy = new Date().toISOString().slice(0, 10);
+  const validas = legitimas.filter(r => !r.fecha_cierre || r.fecha_cierre >= hoy);
   if (validas.length === 0) return 0;
   const { error } = await supabase
     .from("concursos")
@@ -1749,7 +2675,16 @@ serve(async (req: Request) => {
     const url   = new URL(req.url);
     const body  = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const soloPais: string | null = body.pais || url.searchParams.get("pais") || null;
+    const listaPaises: string[] | null = Array.isArray(body.paises) ? body.paises : null;
     const modoTest = url.searchParams.has("test");
+
+    // Modo resumen diario
+    if (body.modo === "resumen" || url.searchParams.get("modo") === "resumen") {
+      await enviarResumenDiario();
+      return new Response(JSON.stringify({ ok: true, mensaje: "Resumen enviado" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Mapa de scrapers por país
     const SCRAPERS: Record<string, () => Promise<{ rows: ConcursoRow[]; errores: string[] }>> = {
@@ -1783,6 +2718,7 @@ serve(async (req: Request) => {
       GB: scrapeReinoUnido,
       SE: scrapeSweden,
       NO: scrapeNorway,
+      CH: scrapeSuiza,
       // Anglosajones
       US: scrapeEstadosUnidos,
       CA: scrapeCanada,
@@ -1792,9 +2728,21 @@ serve(async (req: Request) => {
       IN: scrapeIndia,
     };
 
-    const paises = soloPais
+    const paises = listaPaises
+      ? listaPaises.map(p => p.toUpperCase()).filter(p => SCRAPERS[p])
+      : soloPais
       ? [soloPais.toUpperCase()].filter(p => SCRAPERS[p])
       : Object.keys(SCRAPERS);
+
+    // Conteos actuales antes de scrapeary — para detectar caídas del 40%
+    const cuentasAntes: Record<string, number> = {};
+    if (!modoTest) {
+      const { data: activos } = await supabase
+        .from("concursos").select("pais").eq("activo", true);
+      for (const row of (activos ?? [])) {
+        cuentasAntes[row.pais] = (cuentasAntes[row.pais] ?? 0) + 1;
+      }
+    }
 
     const resumen: Record<string, unknown> = {};
     let total_insertados = 0;
@@ -1813,26 +2761,148 @@ serve(async (req: Request) => {
 
       for (const r of resultados) {
         if (r.status === "rejected") continue;
-        const { pais, rows, errores } = r.value;
+        const { pais, errores } = r.value;
+        let rows = r.value.rows;
+
+        // Retry si cayó más del 40% respecto al conteo anterior (hasta 2 reintentos)
+        const antes = cuentasAntes[pais] ?? 0;
+        if (!modoTest && antes > 10 && rows.length > 0 && rows.length < antes * 0.6) {
+          console.log(`${pais}: caída detectada (${rows.length} vs ${antes} prev). Reintentando...`);
+          for (let intento = 1; intento <= 2; intento++) {
+            await new Promise(res => setTimeout(res, 4000 * intento));
+            try {
+              const { rows: r2 } = await SCRAPERS[pais]();
+              if (r2.length > rows.length) rows = r2;
+              if (rows.length >= antes * 0.6) break;
+            } catch (_) { /* retry silencioso */ }
+          }
+          // Si después de reintentos sigue por debajo del 60%, alertar
+          if (rows.length < antes * 0.6) {
+            await enviarAlertaAdmin(pais, antes, rows.length);
+          }
+        }
 
         if (modoTest) {
           resumen[pais] = { rows_sample: rows.slice(0, 3), total: rows.length, errores };
         } else {
           const insertados = await upsertRows(rows);
           total_insertados += insertados;
-          resumen[pais] = { insertados, total_scrapeados: rows.length, errores };
 
-          // UY usa snapshot completo: desactivar registros que ya no están en el API.
-          // Se hace DESPUÉS del upsert para que si falla, los registros anteriores queden visibles.
-          if (pais === "UY" && insertados > 0 && rows.length > 0) {
-            const batchIds = rows.map(r => r.fuente_id);
-            await supabase
-              .from("concursos")
-              .update({ activo: false })
-              .eq("fuente", "uruguay_concursa")
-              .eq("activo", true)
-              .not("fuente_id", "in", `(${batchIds.join(",")})`);
+          // Cleanup con piso duro: no eliminar más del 50% de los activos actuales
+          let cleanupBloqueado = false;
+          if (insertados >= 15 && rows.length >= 15) {
+            const { count: activosActuales } = await supabase
+              .from("concursos").select("*", { count: "exact", head: true })
+              .eq("pais", pais).eq("activo", true);
+            const total = activosActuales ?? 0;
+
+            const fuenteGroups = new Map<string, string[]>();
+            for (const row of rows) {
+              if (!fuenteGroups.has(row.fuente)) fuenteGroups.set(row.fuente, []);
+              fuenteGroups.get(row.fuente)!.push(row.fuente_id);
+            }
+            // Estimar cuántos se desactivarían
+            let aBorrar = 0;
+            for (const [fuente, ids] of fuenteGroups) {
+              const { count } = await supabase
+                .from("concursos").select("*", { count: "exact", head: true })
+                .eq("fuente", fuente).eq("activo", true)
+                .not("fuente_id", "in", `(${ids.map(id => `"${id.replace(/"/g, '""')}"`).join(",")})`);
+              aBorrar += count ?? 0;
+            }
+            if (total > 0 && aBorrar > total * 0.5) {
+              // Cleanup bloquado: alertar pero no borrar
+              cleanupBloqueado = true;
+              await enviarAlertaAdmin(pais, total, total - aBorrar);
+            } else {
+              for (const [fuente, ids] of fuenteGroups) {
+                await supabase
+                  .from("concursos")
+                  .update({ activo: false })
+                  .eq("fuente", fuente).eq("activo", true)
+                  .not("fuente_id", "in", `(${ids.map(id => `"${id.replace(/"/g, '""')}"`).join(",")})`);
+              }
+            }
           }
+
+          // Contar activos finales para el log
+          const { count: activosFinal } = await supabase
+            .from("concursos").select("*", { count: "exact", head: true })
+            .eq("pais", pais).eq("activo", true);
+
+          resumen[pais] = { insertados, total_scrapeados: rows.length, errores, cleanup_bloqueado: cleanupBloqueado || undefined };
+
+          // Escribir log de ejecución
+          supabase.from("scraper_logs").insert({
+            pais,
+            total_scrapeados: rows.length,
+            total_insertados: insertados,
+            activos_antes: cuentasAntes[pais] ?? 0,
+            activos_despues: activosFinal ?? 0,
+            errores: errores.length > 0 ? errores : [],
+            ok: rows.length > 0,
+          }).then(() => {}).catch(() => {});
+        }
+      }
+    }
+
+    // Auto-retry: si un país devolvió 0, reintenta directo con Google News (evita reintentar fuente caída)
+    const GN_FALLBACK: Record<string, [string, string, string, string]> = {
+      UY: ["US","Uruguay concurso público empleo convocatoria vacante","uy_googlenews","es"],
+      AR: ["AR","Argentina concurso público empleo convocatoria vacante","ar_googlenews","es"],
+      CL: ["CL","Chile concurso público empleo cargo vacante gobierno","cl_googlenews","es"],
+      CO: ["US","Colombia empleo convocatoria concurso público cargo vacante","co_googlenews","es"],
+      BR: ["US","Brasil concurso público emprego convocatória vaga governo","br_googlenews","pt"],
+      PE: ["US","Perú empleo concurso público plaza vacante CAS SERVIR","pe_googlenews","es"],
+      PY: ["US","Paraguay empleo convocatoria cargo público vacante","py_googlenews","es"],
+      BO: ["BO","Bolivia empleo convocatoria cargo público vacante","bo_googlenews","es"],
+      EC: ["EC","Ecuador empleo convocatoria cargo público vacante","ec_googlenews","es"],
+      MX: ["US","México convocatoria empleo vacante gobierno plaza concurso","mx_googlenews","es"],
+      VE: ["US","Venezuela empleo vacante convocatoria trabajo cargo","ve_googlenews","es"],
+      CU: ["US","Cuba empleo convocatoria trabajo cargo vacante","cu_googlenews","es"],
+      CR: ["CR","Costa Rica empleo convocatoria concurso servicio civil","cr_googlenews","es"],
+      GT: ["GT","Guatemala empleo convocatoria cargo público vacante","gt_googlenews","es"],
+      SV: ["US","El Salvador empleo vacante trabajo convocatoria cargo","sv_googlenews","es"],
+      HN: ["US","Honduras empleo vacante trabajo convocatoria cargo","hn_googlenews","es"],
+      NI: ["US","Nicaragua empleo vacante trabajo convocatoria cargo","ni_googlenews","es"],
+      PA: ["US","Panamá empleo vacante trabajo convocatoria cargo público","pa_googlenews","es"],
+      DO: ["US","República Dominicana empleo vacante trabajo convocatoria","do_googlenews","es"],
+      ES: ["ES","oposición convocatoria empleo público España administración","es_googlenews","es"],
+      PT: ["US","Portugal concurso emprego público administração recrutamento","pt_googlenews","pt"],
+      IT: ["IT","concorso pubblico Italia assunzione bando selezione","it_googlenews","it"],
+      FR: ["FR","concours fonction publique France emploi recrutement administration","fr_googlenews","fr"],
+      DE: ["DE","Stellenausschreibung öffentlicher Dienst Deutschland Stelle","de_googlenews","de"],
+      GB: ["GB","UK civil service government jobs vacancy hiring 2026","gb_googlenews","en"],
+      SE: ["US","Sweden government jobs recruitment vacancy public service 2026","se_googlenews","en"],
+      NO: ["US","Norway government jobs recruitment vacancy public service 2026","no_googlenews","en"],
+      US: ["GB","USA federal government jobs vacancy hiring civil service 2026","usa_googlenews","en"],
+      CA: ["US","Canada federal government jobs GC Jobs public service hiring","ca_googlenews","en"],
+      AU: ["US","Australia government jobs APS hiring vacancy public service","au_googlenews","en"],
+      JP: ["US","Japan government jobs recruitment vacancy civil service 2026","jp_googlenews","en"],
+      IN: ["IN","India government recruitment 2026 vacancy apply UPSC SSC NHM","in_googlenews","en"],
+    };
+
+    if (!modoTest) {
+      const fallidos = paises.filter(p => {
+        const r = resumen[p] as Record<string, unknown>;
+        return r && ((r.total_scrapeados as number) === 0 || (r.insertados as number) === 0);
+      });
+      if (fallidos.length > 0) {
+        console.log(`Auto-retry (Google News fallback) para: ${fallidos.join(", ")}`);
+        for (const pais of fallidos) {
+          try {
+            const fb = GN_FALLBACK[pais];
+            if (!fb) continue;
+            const [locale, query, fuente, lang] = fb;
+            const { rows: r2, errores: e2 } = await scrapeGoogleNews(locale, query, fuente, pais, lang, 20);
+            if (r2.length > 0) {
+              const ins2 = await upsertRows(r2);
+              total_insertados += ins2;
+              resumen[pais] = { insertados: ins2, total_scrapeados: r2.length, errores: e2, retry: "google_news" };
+            } else {
+              (resumen[pais] as Record<string, unknown>).retry_fallido = true;
+            }
+          } catch (_) { /* retry silencioso */ }
         }
       }
     }
