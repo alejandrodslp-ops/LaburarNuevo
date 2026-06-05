@@ -1034,9 +1034,22 @@ async function scrapeMexico(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     errores.push("MX: DOF vacantes.php inaccesible");
   }
 
-  // Adzuna multi-búsqueda México — 20 ciudades × 10 categorías = 200 queries
-  const MX_CIDADES = ["Ciudad de Mexico","Guadalajara","Monterrey","Puebla","Tijuana","Leon","Juarez","Torreon","Queretaro","San Luis Potosi","Merida","Mexicali","Aguascalientes","Culiacan","Hermosillo","Chihuahua","Morelia","Veracruz","Cancun","Zapopan"];
-  const MX_CATS    = ["tecnologia","ventas","ingenieria","salud","logistica","manufactura","construccion","hosteleria","administrativo","operador"];
+  // Adzuna multi-búsqueda México — 35 ciudades × 14 categorías = 490 queries
+  const MX_CIDADES = [
+    "Ciudad de Mexico","Guadalajara","Monterrey","Puebla","Tijuana",
+    "Leon","Juarez","Torreon","Queretaro","San Luis Potosi",
+    "Merida","Mexicali","Aguascalientes","Culiacan","Hermosillo",
+    "Chihuahua","Morelia","Veracruz","Cancun","Zapopan",
+    // Ciudades y distritos adicionales
+    "Ecatepec","Naucalpan","Tlalnepantla","Nezahualcoyotl","Toluca",
+    "Saltillo","Xalapa","Tuxtla Gutierrez","Oaxaca","Durango",
+    "Villahermosa","Tepic","Colima","Campeche","Chetumal",
+  ];
+  const MX_CATS = [
+    "tecnologia","ventas","ingenieria","salud","logistica",
+    "manufactura","construccion","hosteleria","administrativo","operador",
+    "educacion","finanzas","seguridad","transporte",
+  ];
   const seenMX = new Set<string>(rows.map(r => r.fuente_id));
   const azMX = await adzunaMultiSearch("MX","mx", MX_CIDADES, MX_CATS, "es-MX,es;q=0.9,en;q=0.8", seenMX);
   rows.push(...azMX);
