@@ -12,7 +12,7 @@ on:
         default: ''
 
 jobs:
-  # ── Job 1: un solo país (workflow_dispatch con pais específico) ──────────────
+  # ── País específico (workflow_dispatch con pais) ─────────────────────────────
   scrape-single:
     if: ${{ github.event.inputs.pais != '' }}
     runs-on: ubuntu-latest
@@ -20,61 +20,96 @@ jobs:
     steps:
       - name: Correr scraper — país específico
         run: |
-          BODY="{\"pais\":\"${{ github.event.inputs.pais }}\"}"
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -d "$BODY")
+            -d "{\"pais\":\"${{ github.event.inputs.pais }}\"}")
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY_RESP=$(echo "$RESPONSE" | head -1)
           echo "HTTP: $HTTP_CODE"
           echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
           if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
 
-  # ── Job 2: Américas (cron o dispatch sin país) ───────────────────────────────
-  scrape-americas:
+  # ── Job 1: Brasil solo (el más pesado, ~65s) ─────────────────────────────────
+  scrape-brasil:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Correr scraper — Américas
+      - name: Correr scraper — Brasil
         run: |
-          BODY='{"paises":["UY","AR","CL","CO","BR","PE","PY","BO","EC","MX","VE","CU","CR","GT","SV","HN","NI","PA","DO"]}'
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -d "$BODY")
+            -d '{"paises":["BR"]}')
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY_RESP=$(echo "$RESPONSE" | head -1)
           echo "HTTP: $HTTP_CODE"
           echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
           if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
 
-  # ── Job 3: Europa + Anglosajones + Asia (cron o dispatch sin país) ───────────
+  # ── Job 2: LatAm sin Brasil (~65s) ───────────────────────────────────────────
+  scrape-latam:
+    if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Correr scraper — LatAm
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -d '{"paises":["UY","AR","CL","CO","PE","PY","BO","EC","MX","VE","CU","CR","GT","SV","HN","NI","PA","DO"]}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY_RESP=$(echo "$RESPONSE" | head -1)
+          echo "HTTP: $HTTP_CODE"
+          echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
+          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+
+  # ── Job 3: Europa (~55s) ─────────────────────────────────────────────────────
+  scrape-europa:
+    if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Correr scraper — Europa
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -d '{"paises":["ES","PT","IT","FR","DE","GB","SE","NO","CH"]}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY_RESP=$(echo "$RESPONSE" | head -1)
+          echo "HTTP: $HTTP_CODE"
+          echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
+          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+
+  # ── Job 4: Anglosajones + Asia (~45s) ────────────────────────────────────────
   scrape-mundo:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Correr scraper — Europa, Anglosajones y Asia
+      - name: Correr scraper — Anglosajones y Asia
         run: |
-          BODY='{"paises":["ES","PT","IT","FR","DE","GB","SE","NO","CH","US","CA","AU","JP","IN"]}'
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -d "$BODY")
+            -d '{"paises":["US","CA","AU","JP","IN"]}')
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY_RESP=$(echo "$RESPONSE" | head -1)
           echo "HTTP: $HTTP_CODE"
           echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
           if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
 
-  # ── Job 4: Verificar conteos y detectar anomalías ────────────────────────────
+  # ── Verificar conteos (corre cuando todos terminan) ──────────────────────────
   verificar:
-    needs: [scrape-americas, scrape-mundo]
+    needs: [scrape-brasil, scrape-latam, scrape-europa, scrape-mundo]
     if: always() && (github.event.inputs.pais == '' || github.event_name == 'schedule')
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -92,7 +127,7 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           python3 << 'EOF'
-          import urllib.request, json, os, sys
+          import urllib.request, json, os
           from datetime import date
 
           url = os.environ["SUPABASE_URL"]
@@ -103,106 +138,52 @@ jobs:
           prev = {}
           if os.path.exists(PREV_FILE):
               try:
-                  with open(PREV_FILE) as f:
-                      prev = json.load(f)
+                  with open(PREV_FILE) as f: prev = json.load(f)
                   print(f"Conteos previos cargados ({len(prev)} países)")
-              except Exception:
-                  pass
+              except Exception: pass
 
-          PAISES = [
-              "UY","AR","BR","ES","DE","US","FR","CA","AU","GB",
-              "MX","CL","PE","CO","PY","BO","EC","VE","CR","GT",
-              "SV","HN","NI","PA","DO","CU","PT","IN","JP","SE","IT","NO",
-          ]
-
-          MINIMOS = {
-              "UY": 50, "AR": 100, "BR": 50, "ES": 20, "DE": 20,
-              "US": 10, "FR": 20, "CA": 10, "AU": 20, "GB": 10,
-              "MX": 10, "CL": 20, "PE": 10, "CO": 10,
-          }
+          PAISES = ["UY","AR","BR","ES","DE","US","FR","CA","AU","GB","MX","CL","PE","CO",
+                    "PY","BO","EC","VE","CR","GT","SV","HN","NI","PA","DO","CU","PT","IN","JP","SE","IT","NO","CH"]
+          MINIMOS = {"UY":50,"AR":100,"BR":50,"ES":20,"DE":20,"US":10,"FR":20,"CA":10,"AU":20,"GB":10,"MX":10,"CL":20,"PE":10,"CO":10}
 
           current = {}
-          errores_query = []
-
           for pais in PAISES:
-              endpoint = (
-                  f"{url}/rest/v1/concursos"
-                  f"?select=pais&pais=eq.{pais}&activo=eq.true"
-                  f"&or=(fecha_cierre.is.null,fecha_cierre.gte.{hoy})"
-              )
-              req = urllib.request.Request(endpoint, headers={
-                  "Authorization": f"Bearer {key}",
-                  "apikey": key,
-                  "Prefer": "count=exact",
-              })
+              endpoint = f"{url}/rest/v1/concursos?select=pais&pais=eq.{pais}&activo=eq.true&or=(fecha_cierre.is.null,fecha_cierre.gte.{hoy})"
+              req = urllib.request.Request(endpoint, headers={"Authorization":f"Bearer {key}","apikey":key,"Prefer":"count=exact"})
               try:
                   with urllib.request.urlopen(req) as resp:
-                      cr = resp.headers.get("Content-Range", "0/0")
-                      total = int(cr.split("/")[-1]) if "/" in cr else 0
-                  current[pais] = total
-              except Exception as e:
-                  errores_query.append(f"{pais}: {e}")
-                  current[pais] = -1
+                      cr = resp.headers.get("Content-Range","0/0")
+                      current[pais] = int(cr.split("/")[-1]) if "/" in cr else 0
+              except: current[pais] = -1
 
-          print()
-          print("País | Actual | Anterior | Cambio")
+          print("\nPaís | Actual | Anterior | Cambio")
           print("-----|--------|----------|-------")
           alertas = []
-
           for pais in PAISES:
-              actual = current.get(pais, -1)
-              anterior = prev.get(pais, None)
-
+              actual = current.get(pais,-1)
+              anterior = prev.get(pais,None)
               if anterior is not None and anterior > 0 and actual >= 0:
                   cambio = actual - anterior
-                  pct = (cambio / anterior) * 100
-                  if abs(pct) >= 40 and abs(cambio) >= 10:
-                      signo = "📈" if cambio > 0 else "📉"
-                      cambio_str = f"{signo} {cambio:+d} ({pct:+.0f}%)"
-                  else:
-                      cambio_str = f"{cambio:+d} ({pct:+.0f}%)"
-              elif anterior is None:
-                  cambio_str = "(primera medición)"
-                  pct = 0; cambio = 0
+                  pct = (cambio/anterior)*100
+                  cambio_str = f"{'📈' if cambio>0 else '📉'} {cambio:+d} ({pct:+.0f}%)" if abs(pct)>=40 and abs(cambio)>=10 else f"{cambio:+d} ({pct:+.0f}%)"
               else:
-                  cambio_str = "—"
+                  cambio_str = "(primera medición)" if anterior is None else "—"
                   pct = 0; cambio = 0
-
               print(f"  {pais:4} | {actual:6} | {str(anterior or '—'):8} | {cambio_str}")
-
               minimo = MINIMOS.get(pais)
               if actual >= 0 and minimo and actual < minimo:
-                  alertas.append(f"⚠️  {pais}: {actual} registros (mínimo esperado: {minimo})")
-
-              if (anterior is not None and anterior > 0 and actual >= 0):
-                  if pct <= -40 and abs(cambio) >= 10:
-                      alertas.append(f"📉 {pais}: cayó de {anterior} a {actual} ({pct:.0f}%)")
-                  if pct >= 100 and abs(cambio) >= 50:
-                      alertas.append(f"📈 {pais}: subió de {anterior} a {actual} ({pct:.0f}%) — verificar duplicados")
-
-          if errores_query:
-              print()
-              print("Errores al consultar DB:")
-              for e in errores_query:
-                  print(f"  {e}")
+                  alertas.append(f"⚠️  {pais}: {actual} (mínimo: {minimo})")
+              if anterior is not None and anterior > 0 and actual >= 0 and pct <= -40 and abs(cambio) >= 10:
+                  alertas.append(f"📉 {pais}: cayó de {anterior} a {actual} ({pct:.0f}%)")
 
           try:
-              with open(PREV_FILE, "w") as f:
-                  json.dump(current, f)
-              print(f"\nConteos guardados en {PREV_FILE}")
-          except Exception as e:
-              print(f"No se pudo guardar conteos: {e}")
+              with open(PREV_FILE,"w") as f: json.dump(current,f)
+              print(f"\nConteos guardados")
+          except: pass
 
           if alertas:
-              print()
-              print("=============================================")
-              print("ALERTAS — anomalías detectadas (solo informativo)")
-              print("=============================================")
-              for a in alertas:
-                  print(f"  {a}")
-              print()
-              print("⚠️  Anomalías detectadas pero el scraper completó correctamente.")
+              print("\n===== ALERTAS =====")
+              for a in alertas: print(f"  {a}")
           else:
-              print()
-              print("✅ Sin anomalías. Todos los países están dentro de rangos normales.")
+              print("\n✅ Sin anomalías.")
           EOF
