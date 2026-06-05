@@ -45,8 +45,7 @@ jobs:
             "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -d "$BODY" \
-            --max-time 140)
+            -d "$BODY")
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY_RESP=$(echo "$RESPONSE" | head -1)
           echo "HTTP: $HTTP_CODE"
@@ -66,8 +65,7 @@ jobs:
             "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -d "$BODY" \
-            --max-time 140)
+            -d "$BODY")
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           BODY_RESP=$(echo "$RESPONSE" | head -1)
           echo "HTTP: $HTTP_CODE"
