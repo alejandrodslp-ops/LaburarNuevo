@@ -5,14 +5,21 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.app'
 export const metadata = {
   metadataBase: new URL(SITE),
   title: {
-    default: 'Nexu — Concursos y empleos en LatAm',
+    default: 'Nexu — Concursos Públicos y Empleos en Uruguay, Argentina y LatAm',
     template: '%s | Nexu',
   },
   description:
-    'Encontrá concursos y llamados de trabajo en Uruguay, Argentina y toda LatAm. Registrate gratis y recibí alertas personalizadas para tu perfil.',
+    'Miles de concursos públicos, llamados de trabajo y vacantes en Uruguay, Argentina, Brasil y toda LatAm. Sector público y privado. Actualizados diariamente. Gratis.',
+  keywords: [
+    'concursos públicos Uruguay','llamados ONSC','Uruguay Concursa','empleos Uruguay',
+    'concursos públicos Argentina','empleos Argentina','trabajo Argentina',
+    'vacantes gobierno','empleo público LatAm','concursos laborales',
+    'convocatorias trabajo','trabajo América Latina','empleos Brasil',
+    'trabajo Colombia','empleos Chile','concurso público',
+  ],
   openGraph: {
-    title: 'Nexu — Concursos y empleos en LatAm',
-    description: 'Encontrá concursos y llamados de trabajo en Uruguay, Argentina y toda LatAm. Gratis.',
+    title: 'Nexu — Concursos Públicos y Empleos en Uruguay, Argentina y LatAm',
+    description: 'Miles de concursos públicos y vacantes en Uruguay, Argentina, Brasil y toda LatAm. Actualizados diariamente. Gratis.',
     url: '/',
     siteName: 'Nexu',
     locale: 'es_UY',
@@ -21,8 +28,8 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
     site: '@nexuapp',
-    title: 'Nexu — Concursos y empleos en LatAm',
-    description: 'Concursos públicos y llamados de trabajo en Uruguay, Argentina y toda LatAm. Gratis.',
+    title: 'Nexu — Concursos Públicos y Empleos en LatAm',
+    description: 'Concursos públicos y empleos en Uruguay, Argentina y toda LatAm. Actualizados diariamente. Gratis.',
   },
   robots: { index: true, follow: true },
   icons: { icon: '/favicon.ico' },

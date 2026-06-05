@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { db } from '../../lib/supabase'
-import { nombrePais } from '../../lib/utils'
+
 import SearchForm from './SearchForm'
 import JobsRealtime from '../JobsRealtime'
 
@@ -9,30 +9,30 @@ export const revalidate = 600
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.app'
 
 export async function generateMetadata({ searchParams }) {
-  const pais = searchParams?.pais || ''
-  const q    = (searchParams?.q || '').slice(0, 60)
-  const loc  = pais ? `en ${nombrePais(pais)}` : 'en LatAm'
+  const q = (searchParams?.q || '').slice(0, 60)
   const titulo = q
-    ? `Empleos de ${q} ${loc}`
-    : pais ? `Empleos ${loc}` : 'Empleos y concursos en LatAm'
+    ? `Empleos de ${q} en LatAm y el mundo`
+    : 'Empleos y concursos públicos en Uruguay, Argentina y toda LatAm'
   return {
     title: titulo,
-    description: `Concursos y llamados de trabajo ${loc}. Registrate gratis en Nexu y recibí alertas personalizadas.`,
+    description: 'Todos los concursos públicos, llamados de trabajo y vacantes de Uruguay, Argentina, Brasil y 30 países más. Actualizados diariamente. Gratis.',
     alternates: { canonical: `${SITE}/empleos` },
+    keywords: ['concursos públicos Uruguay','empleos Uruguay','trabajos Argentina','vacantes LatAm','llamados ONSC','empleo público','trabajo América Latina'],
   }
 }
 
-async function getConcursos(pais, q) {
+async function getConcursos(q) {
   const safe = (q || '').replace(/[%_'"\\;]/g, c => `\\${c}`).slice(0, 100)
+  const minCierre = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
 
   let query = db
     .from('concursos')
     .select('id,titulo,cargo,organismo,pais,lugar,fecha_cierre,tipo_vinculo,tipo_tarea,puestos,created_at')
     .eq('activo', true)
+    .or(`fecha_cierre.is.null,fecha_cierre.gte.${minCierre}`)
     .order('created_at', { ascending: false })
     .limit(360)
 
-  if (pais) query = query.eq('pais', pais.toUpperCase().slice(0, 2))
   if (safe) query = query.or(`titulo.ilike.%${safe}%,cargo.ilike.%${safe}%,organismo.ilike.%${safe}%`)
 
   const { data } = await query
@@ -40,13 +40,10 @@ async function getConcursos(pais, q) {
 }
 
 export default async function EmpleosPage({ searchParams }) {
-  const pais = searchParams?.pais || ''
-  const q    = searchParams?.q    || ''
-  const concursos = await getConcursos(pais, q)
+  const q    = searchParams?.q || ''
+  const concursos = await getConcursos(q)
 
-  const titulo = q
-    ? `Resultados para "${q}"`
-    : pais ? `Empleos en ${nombrePais(pais)}` : 'Todos los empleos'
+  const titulo = q ? `Resultados para "${q}"` : 'Todos los empleos'
 
   return (
     <>
@@ -56,18 +53,17 @@ export default async function EmpleosPage({ searchParams }) {
       </nav>
 
       <div className="container">
-        <SearchForm defaultPais={pais} defaultQ={q} />
+        <SearchForm defaultQ={q} />
 
         <div className="section-header">
           <span className="section-title">{titulo}</span>
           <span className="section-count">Más recientes primero</span>
         </div>
 
-        {/* key fuerza re-mount al cambiar filtros */}
         <JobsRealtime
-          key={`${pais}-${q}`}
+          key={q}
           initialJobs={concursos}
-          pais={pais ? pais.toUpperCase().slice(0, 2) : null}
+          pais={null}
         />
       </div>
 
@@ -76,6 +72,36 @@ export default async function EmpleosPage({ searchParams }) {
         <p>Registrate gratis en Nexu y te avisamos cuando salgan concursos para tu perfil.</p>
         <a href="/download" className="btn-primary">📱 Descargar Nexu — Gratis</a>
       </div>
+
+      {/* Contenido SEO — palabras clave para Google */}
+      <section style={{ background: '#f8fafc', padding: '48px 24px', borderTop: '1px solid #e2e8f0' }}>
+        <div style={{ maxWidth: 860, margin: '0 auto' }}>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: '#1a3a5c', marginBottom: 12 }}>
+            Concursos públicos y empleos en Uruguay, Argentina y toda América Latina
+          </h2>
+          <p style={{ color: '#475569', fontSize: 14, lineHeight: 1.7, marginBottom: 16 }}>
+            Nexu reúne diariamente miles de <strong>concursos públicos</strong>, <strong>llamados de trabajo</strong> y <strong>vacantes</strong> de Uruguay (ONSC, Uruguay Concursa), Argentina, Brasil, Chile, Colombia, México y 27 países más. Tanto empleo público como privado, actualizados dos veces por día.
+          </p>
+          <p style={{ color: '#475569', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
+            Buscá por cargo o profesión para filtrar los resultados. Desde <strong>docentes y enfermeros</strong> hasta <strong>administrativos, ingenieros, plomeros y operarios</strong> — todos los rubros en un solo lugar.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {[
+              ['Uruguay','uruguay'], ['Argentina','argentina'], ['Brasil','brasil'],
+              ['Chile','chile'], ['Colombia','colombia'], ['México','mexico'],
+              ['España','espana'], ['Estados Unidos','estados-unidos'],
+            ].map(([nombre, slug]) => (
+              <Link
+                key={slug}
+                href={`/empleos/pais/${slug}`}
+                style={{ background: '#e0e7ff', color: '#3730a3', borderRadius: 20, padding: '6px 14px', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}
+              >
+                Empleos en {nombre}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
       <footer className="footer">
         <p>© {new Date().getFullYear()} Nexu · nexu.app</p>
