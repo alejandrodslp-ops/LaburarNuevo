@@ -853,7 +853,7 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     const ua = UA_POOL[Math.floor(Math.random() * UA_POOL.length)];
     const url = `https://api.adzuna.com/v1/api/jobs/br/search/1`
       + `?app_id=${ADZUNA_APP_ID_LOCAL}&app_key=${ADZUNA_APP_KEY_LOCAL}`
-      + `&results_per_page=50&sort_by=date&max_days_old=21&content-type=application/json`
+      + `&results_per_page=50&sort_by=date&content-type=application/json`
       + `&what=${encodeURIComponent(what)}&where=${encodeURIComponent(where)}`;
 
     let intentos = 0;
@@ -1034,22 +1034,9 @@ async function scrapeMexico(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     errores.push("MX: DOF vacantes.php inaccesible");
   }
 
-  // Adzuna multi-búsqueda México — 35 ciudades × 14 categorías = 490 queries
-  const MX_CIDADES = [
-    "Ciudad de Mexico","Guadalajara","Monterrey","Puebla","Tijuana",
-    "Leon","Juarez","Torreon","Queretaro","San Luis Potosi",
-    "Merida","Mexicali","Aguascalientes","Culiacan","Hermosillo",
-    "Chihuahua","Morelia","Veracruz","Cancun","Zapopan",
-    // Ciudades y distritos adicionales
-    "Ecatepec","Naucalpan","Tlalnepantla","Nezahualcoyotl","Toluca",
-    "Saltillo","Xalapa","Tuxtla Gutierrez","Oaxaca","Durango",
-    "Villahermosa","Tepic","Colima","Campeche","Chetumal",
-  ];
-  const MX_CATS = [
-    "tecnologia","ventas","ingenieria","salud","logistica",
-    "manufactura","construccion","hosteleria","administrativo","operador",
-    "educacion","finanzas","seguridad","transporte",
-  ];
+  // Adzuna multi-búsqueda México — 20 ciudades × 10 categorías = 200 queries
+  const MX_CIDADES = ["Ciudad de Mexico","Guadalajara","Monterrey","Puebla","Tijuana","Leon","Juarez","Torreon","Queretaro","San Luis Potosi","Merida","Mexicali","Aguascalientes","Culiacan","Hermosillo","Chihuahua","Morelia","Veracruz","Cancun","Zapopan"];
+  const MX_CATS    = ["tecnologia","ventas","ingenieria","salud","logistica","manufactura","construccion","hosteleria","administrativo","operador"];
   const seenMX = new Set<string>(rows.map(r => r.fuente_id));
   const azMX = await adzunaMultiSearch("MX","mx", MX_CIDADES, MX_CATS, "es-MX,es;q=0.9,en;q=0.8", seenMX);
   rows.push(...azMX);
@@ -1203,7 +1190,7 @@ async function adzunaMultiSearch(
       const ua  = UA_POOL_MULTI[Math.floor(Math.random() * UA_POOL_MULTI.length)];
       const url = `https://api.adzuna.com/v1/api/jobs/${adzunaCountry}/search/1`
         + `?app_id=${APP_ID}&app_key=${APP_KEY}`
-        + `&results_per_page=50&sort_by=date&max_days_old=21&content-type=application/json`
+        + `&results_per_page=50&sort_by=date&content-type=application/json`
         + `&what=${encodeURIComponent(what)}&where=${encodeURIComponent(where)}`;
 
       let intentos = 0;
@@ -2788,60 +2775,51 @@ serve(async (req: Request) => {
           const insertados = await upsertRows(rows);
           total_insertados += insertados;
 
-          // Cleanup con piso duro: no eliminar más del 50% de los activos actuales
-          let cleanupBloqueado = false;
-          if (insertados >= 15 && rows.length >= 15) {
-            const { count: activosActuales } = await supabase
-              .from("concursos").select("*", { count: "exact", head: true })
-              .eq("pais", pais).eq("activo", true);
-            const total = activosActuales ?? 0;
+          resumen[pais] = { insertados, total_scrapeados: rows.length, errores };
 
+          // Cleanup y log totalmente async — no bloquean la respuesta principal
+          if (insertados >= 15 && rows.length >= 15) {
             const fuenteGroups = new Map<string, string[]>();
             for (const row of rows) {
               if (!fuenteGroups.has(row.fuente)) fuenteGroups.set(row.fuente, []);
               fuenteGroups.get(row.fuente)!.push(row.fuente_id);
             }
-            // Estimar cuántos se desactivarían
-            let aBorrar = 0;
-            for (const [fuente, ids] of fuenteGroups) {
-              const { count } = await supabase
+            (async () => {
+              const { count: total } = await supabase
                 .from("concursos").select("*", { count: "exact", head: true })
-                .eq("fuente", fuente).eq("activo", true)
-                .not("fuente_id", "in", `(${ids.map(id => `"${id.replace(/"/g, '""')}"`).join(",")})`);
-              aBorrar += count ?? 0;
-            }
-            if (total > 0 && aBorrar > total * 0.5) {
-              // Cleanup bloquado: alertar pero no borrar
-              cleanupBloqueado = true;
-              await enviarAlertaAdmin(pais, total, total - aBorrar);
-            } else {
+                .eq("pais", pais).eq("activo", true);
+              let aBorrar = 0;
               for (const [fuente, ids] of fuenteGroups) {
-                await supabase
-                  .from("concursos")
-                  .update({ activo: false })
+                const { count } = await supabase
+                  .from("concursos").select("*", { count: "exact", head: true })
                   .eq("fuente", fuente).eq("activo", true)
                   .not("fuente_id", "in", `(${ids.map(id => `"${id.replace(/"/g, '""')}"`).join(",")})`);
+                aBorrar += count ?? 0;
               }
-            }
+              if ((total ?? 0) > 0 && aBorrar > (total ?? 0) * 0.5) {
+                await enviarAlertaAdmin(pais, total ?? 0, (total ?? 0) - aBorrar);
+              } else {
+                for (const [fuente, ids] of fuenteGroups) {
+                  await supabase
+                    .from("concursos")
+                    .update({ activo: false })
+                    .eq("fuente", fuente).eq("activo", true)
+                    .not("fuente_id", "in", `(${ids.map(id => `"${id.replace(/"/g, '""')}"`).join(",")}`);
+                }
+              }
+              supabase.from("scraper_logs").insert({
+                pais, total_scrapeados: rows.length, total_insertados: insertados,
+                activos_antes: cuentasAntes[pais] ?? 0, activos_despues: (total ?? 0) - aBorrar + insertados,
+                errores: errores.length > 0 ? errores : [], ok: rows.length > 0,
+              }).then(() => {}).catch(() => {});
+            })().catch(() => {});
+          } else {
+            supabase.from("scraper_logs").insert({
+              pais, total_scrapeados: rows.length, total_insertados: insertados,
+              activos_antes: cuentasAntes[pais] ?? 0, activos_despues: insertados,
+              errores: errores.length > 0 ? errores : [], ok: rows.length > 0,
+            }).then(() => {}).catch(() => {});
           }
-
-          // Contar activos finales para el log
-          const { count: activosFinal } = await supabase
-            .from("concursos").select("*", { count: "exact", head: true })
-            .eq("pais", pais).eq("activo", true);
-
-          resumen[pais] = { insertados, total_scrapeados: rows.length, errores, cleanup_bloqueado: cleanupBloqueado || undefined };
-
-          // Escribir log de ejecución
-          supabase.from("scraper_logs").insert({
-            pais,
-            total_scrapeados: rows.length,
-            total_insertados: insertados,
-            activos_antes: cuentasAntes[pais] ?? 0,
-            activos_despues: activosFinal ?? 0,
-            errores: errores.length > 0 ? errores : [],
-            ok: rows.length > 0,
-          }).then(() => {}).catch(() => {});
         }
       }
     }
