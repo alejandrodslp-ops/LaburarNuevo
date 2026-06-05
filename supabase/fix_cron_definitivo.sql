@@ -23,7 +23,7 @@ SELECT cron.schedule(
   $$
   SELECT net.http_post(
     url     := 'https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/scraper-concursos',
-    headers := '{"Content-Type":"application/json","Authorization":"Bearer sb_secret_wvrgUu5yDWrNs6vYtO5_UQ_vdrMSCrb"}'::jsonb,
+    headers := '{"Content-Type":"application/json","Authorization":"Bearer SUPABASE_SERVICE_KEY_PLACEHOLDER"}'::jsonb,
     body    := '{}'::jsonb
   );
   $$
@@ -36,7 +36,7 @@ SELECT cron.schedule(
   $$
   SELECT net.http_post(
     url     := 'https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/scraper-concursos',
-    headers := '{"Content-Type":"application/json","Authorization":"Bearer sb_secret_wvrgUu5yDWrNs6vYtO5_UQ_vdrMSCrb"}'::jsonb,
+    headers := '{"Content-Type":"application/json","Authorization":"Bearer SUPABASE_SERVICE_KEY_PLACEHOLDER"}'::jsonb,
     body    := '{"modo":"resumen"}'::jsonb
   );
   $$
@@ -49,7 +49,7 @@ SELECT cron.schedule(
   $$
   SELECT net.http_post(
     url     := 'https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/scraper-concursos',
-    headers := '{"Content-Type":"application/json","Authorization":"Bearer sb_secret_wvrgUu5yDWrNs6vYtO5_UQ_vdrMSCrb"}'::jsonb,
+    headers := '{"Content-Type":"application/json","Authorization":"Bearer SUPABASE_SERVICE_KEY_PLACEHOLDER"}'::jsonb,
     body    := '{"paises":["UY","AR","BR"]}'::jsonb
   );
   $$
@@ -62,7 +62,7 @@ SELECT cron.schedule(
   $$
   SELECT net.http_post(
     url     := 'https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/scraper-concursos',
-    headers := '{"Content-Type":"application/json","Authorization":"Bearer sb_secret_wvrgUu5yDWrNs6vYtO5_UQ_vdrMSCrb"}'::jsonb,
+    headers := '{"Content-Type":"application/json","Authorization":"Bearer SUPABASE_SERVICE_KEY_PLACEHOLDER"}'::jsonb,
     body    := '{"paises":["CL","CO","PE","PY","BO","EC","MX","VE","CR","GT","ES","PT"]}'::jsonb
   );
   $$
