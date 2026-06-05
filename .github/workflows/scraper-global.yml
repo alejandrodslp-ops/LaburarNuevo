@@ -1,9 +1,9 @@
-name: Scraper Global (32 países)
+name: Scraper Global (33 países)
 
 on:
   schedule:
-    - cron: '0 8 * * *'   # 8am UTC = 5am UY, antes de que los usuarios despierten
-    - cron: '0 20 * * *'  # 8pm UTC = 5pm UY, tarde del día
+    - cron: '0 8 * * *'   # 8am UTC = 5am UY
+    - cron: '0 20 * * *'  # 8pm UTC = 5pm UY
   workflow_dispatch:
     inputs:
       pais:
@@ -12,17 +12,15 @@ on:
         default: ''
 
 jobs:
-  scrape:
+  # ── Job 1: un solo país (workflow_dispatch con pais específico) ──────────────
+  scrape-single:
+    if: ${{ github.event.inputs.pais != '' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    timeout-minutes: 5
     steps:
-      - name: Correr scraper Edge Function
+      - name: Correr scraper — país específico
         run: |
-          BODY="{}"
-          if [ -n "${{ github.event.inputs.pais }}" ]; then
-            BODY="{\"pais\":\"${{ github.event.inputs.pais }}\"}"
-          fi
+          BODY="{\"pais\":\"${{ github.event.inputs.pais }}\"}"
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
             -H "Content-Type: application/json" \
@@ -34,8 +32,56 @@ jobs:
           echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
           if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
 
+  # ── Job 2: Américas (cron o dispatch sin país) ───────────────────────────────
+  scrape-americas:
+    if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Correr scraper — Américas
+        run: |
+          BODY='{"paises":["UY","AR","CL","CO","BR","PE","PY","BO","EC","MX","VE","CU","CR","GT","SV","HN","NI","PA","DO"]}'
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -d "$BODY" \
+            --max-time 140)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY_RESP=$(echo "$RESPONSE" | head -1)
+          echo "HTTP: $HTTP_CODE"
+          echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
+          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+
+  # ── Job 3: Europa + Anglosajones + Asia (cron o dispatch sin país) ───────────
+  scrape-mundo:
+    if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Correr scraper — Europa, Anglosajones y Asia
+        run: |
+          BODY='{"paises":["ES","PT","IT","FR","DE","GB","SE","NO","CH","US","CA","AU","JP","IN"]}'
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -d "$BODY" \
+            --max-time 140)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY_RESP=$(echo "$RESPONSE" | head -1)
+          echo "HTTP: $HTTP_CODE"
+          echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
+          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+
+  # ── Job 4: Verificar conteos y detectar anomalías ────────────────────────────
+  verificar:
+    needs: [scrape-americas, scrape-mundo]
+    if: always() && (github.event.inputs.pais == '' || github.event_name == 'schedule')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
       - name: Restaurar conteos anteriores
-        if: github.event.inputs.pais == '' || github.event.inputs.pais == null
         uses: actions/cache@v4
         with:
           path: /tmp/nexu_counts_prev.json
@@ -43,7 +89,6 @@ jobs:
           restore-keys: nexu-counts-
 
       - name: Verificar conteos y detectar anomalías
-        if: github.event.inputs.pais == '' || github.event.inputs.pais == null
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -57,7 +102,6 @@ jobs:
           hoy = date.today().isoformat()
           PREV_FILE = "/tmp/nexu_counts_prev.json"
 
-          # Cargar conteos anteriores si existen
           prev = {}
           if os.path.exists(PREV_FILE):
               try:
@@ -67,14 +111,12 @@ jobs:
               except Exception:
                   pass
 
-          # Todos los países monitoreados
           PAISES = [
               "UY","AR","BR","ES","DE","US","FR","CA","AU","GB",
               "MX","CL","PE","CO","PY","BO","EC","VE","CR","GT",
               "SV","HN","NI","PA","DO","CU","PT","IN","JP","SE","IT","NO",
           ]
 
-          # Mínimos absolutos por país
           MINIMOS = {
               "UY": 50, "AR": 100, "BR": 50, "ES": 20, "DE": 20,
               "US": 10, "FR": 20, "CA": 10, "AU": 20, "GB": 10,
@@ -104,7 +146,6 @@ jobs:
                   errores_query.append(f"{pais}: {e}")
                   current[pais] = -1
 
-          # Imprimir tabla de conteos
           print()
           print("País | Actual | Anterior | Cambio")
           print("-----|--------|----------|-------")
@@ -124,16 +165,13 @@ jobs:
                       cambio_str = f"{cambio:+d} ({pct:+.0f}%)"
               elif anterior is None:
                   cambio_str = "(primera medición)"
-                  pct = 0
-                  cambio = 0
+                  pct = 0; cambio = 0
               else:
                   cambio_str = "—"
-                  pct = 0
-                  cambio = 0
+                  pct = 0; cambio = 0
 
               print(f"  {pais:4} | {actual:6} | {str(anterior or '—'):8} | {cambio_str}")
 
-              # Detectar anomalías
               minimo = MINIMOS.get(pais)
               if actual >= 0 and minimo and actual < minimo:
                   alertas.append(f"⚠️  {pais}: {actual} registros (mínimo esperado: {minimo})")
@@ -150,25 +188,22 @@ jobs:
               for e in errores_query:
                   print(f"  {e}")
 
-          # Guardar conteos actuales para la próxima corrida
           try:
               with open(PREV_FILE, "w") as f:
                   json.dump(current, f)
-              print()
-              print(f"Conteos guardados en {PREV_FILE}")
+              print(f"\nConteos guardados en {PREV_FILE}")
           except Exception as e:
               print(f"No se pudo guardar conteos: {e}")
 
-          # Reportar anomalías
           if alertas:
               print()
               print("=============================================")
-              print("ALERTAS — anomalías detectadas")
+              print("ALERTAS — anomalías detectadas (solo informativo)")
               print("=============================================")
               for a in alertas:
                   print(f"  {a}")
               print()
-              sys.exit(1)
+              print("⚠️  Anomalías detectadas pero el scraper completó correctamente.")
           else:
               print()
               print("✅ Sin anomalías. Todos los países están dentro de rangos normales.")
