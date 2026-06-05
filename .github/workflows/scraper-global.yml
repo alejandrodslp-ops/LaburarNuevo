@@ -65,24 +65,6 @@ jobs:
           echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
           if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
 
-  # México en su propio job para maximizar queries Adzuna
-  scrape-mexico:
-    if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: México
-        run: |
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -d '{"paises":["MX"]}')
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          echo "HTTP: $HTTP_CODE"
-          echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
-          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
-
   scrape-latam-norte:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
@@ -94,7 +76,7 @@ jobs:
             "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -d '{"paises":["VE","CU","CR","GT","SV","HN","NI","PA","DO"]}')
+            -d '{"paises":["MX","VE","CU","CR","GT","SV","HN","NI","PA","DO"]}')
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           echo "HTTP: $HTTP_CODE"
           echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
@@ -152,7 +134,7 @@ jobs:
           if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
 
   verificar:
-    needs: [scrape-brasil, scrape-mexico, scrape-latam-sur, scrape-latam-norte, scrape-europa-oeste, scrape-europa-este, scrape-mundo]
+    needs: [scrape-brasil, scrape-latam-sur, scrape-latam-norte, scrape-europa-oeste, scrape-europa-este, scrape-mundo]
     if: always() && (github.event.inputs.pais == '' || github.event_name == 'schedule')
     runs-on: ubuntu-latest
     timeout-minutes: 5
