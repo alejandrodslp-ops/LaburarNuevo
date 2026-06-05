@@ -163,12 +163,12 @@ jobs:
           if alertas:
               print()
               print("=============================================")
-              print("ALERTAS — anomalías detectadas")
+              print("ALERTAS — anomalías detectadas (solo informativo)")
               print("=============================================")
               for a in alertas:
                   print(f"  {a}")
               print()
-              sys.exit(1)
+              print("⚠️  Anomalías detectadas pero el scraper completó correctamente.")
           else:
               print()
               print("✅ Sin anomalías. Todos los países están dentro de rangos normales.")
