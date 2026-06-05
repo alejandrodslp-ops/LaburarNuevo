@@ -12,7 +12,6 @@ on:
         default: ''
 
 jobs:
-  # ── País específico (workflow_dispatch con pais) ─────────────────────────────
   scrape-single:
     if: ${{ github.event.inputs.pais != '' }}
     runs-on: ubuntu-latest
@@ -31,13 +30,13 @@ jobs:
           echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
           if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
 
-  # ── Job 1: Brasil solo (el más pesado, ~65s) ─────────────────────────────────
+  # 7 jobs paralelos — cada uno max ~70s
   scrape-brasil:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Correr scraper — Brasil
+      - name: Brasil
         run: |
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
@@ -45,56 +44,84 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
             -d '{"paises":["BR"]}')
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY_RESP=$(echo "$RESPONSE" | head -1)
           echo "HTTP: $HTTP_CODE"
-          echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
+          echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
           if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
 
-  # ── Job 2: LatAm sin Brasil (~65s) ───────────────────────────────────────────
-  scrape-latam:
+  scrape-latam-sur:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Correr scraper — LatAm
+      - name: LatAm Sur
         run: |
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -d '{"paises":["UY","AR","CL","CO","PE","PY","BO","EC","MX","VE","CU","CR","GT","SV","HN","NI","PA","DO"]}')
+            -d '{"paises":["UY","AR","CL","CO","PE","PY","BO","EC"]}')
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY_RESP=$(echo "$RESPONSE" | head -1)
           echo "HTTP: $HTTP_CODE"
-          echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
+          echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
           if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
 
-  # ── Job 3: Europa (~55s) ─────────────────────────────────────────────────────
-  scrape-europa:
+  scrape-latam-norte:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Correr scraper — Europa
+      - name: LatAm Norte
         run: |
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -d '{"paises":["ES","PT","IT","FR","DE","GB","SE","NO","CH"]}')
+            -d '{"paises":["MX","VE","CU","CR","GT","SV","HN","NI","PA","DO"]}')
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY_RESP=$(echo "$RESPONSE" | head -1)
           echo "HTTP: $HTTP_CODE"
-          echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
+          echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
           if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
 
-  # ── Job 4: Anglosajones + Asia (~45s) ────────────────────────────────────────
+  scrape-europa-oeste:
+    if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Europa Oeste
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -d '{"paises":["ES","PT","IT","FR"]}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          echo "HTTP: $HTTP_CODE"
+          echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
+          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+
+  scrape-europa-este:
+    if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Europa Este + CH
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -d '{"paises":["DE","GB","SE","NO","CH"]}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          echo "HTTP: $HTTP_CODE"
+          echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
+          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+
   scrape-mundo:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Correr scraper — Anglosajones y Asia
+      - name: Anglosajones y Asia
         run: |
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
@@ -102,14 +129,12 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
             -d '{"paises":["US","CA","AU","JP","IN"]}')
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY_RESP=$(echo "$RESPONSE" | head -1)
           echo "HTTP: $HTTP_CODE"
-          echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
+          echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
           if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
 
-  # ── Verificar conteos (corre cuando todos terminan) ──────────────────────────
   verificar:
-    needs: [scrape-brasil, scrape-latam, scrape-europa, scrape-mundo]
+    needs: [scrape-brasil, scrape-latam-sur, scrape-latam-norte, scrape-europa-oeste, scrape-europa-este, scrape-mundo]
     if: always() && (github.event.inputs.pais == '' || github.event_name == 'schedule')
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -121,7 +146,7 @@ jobs:
           key: nexu-counts-${{ github.run_number }}
           restore-keys: nexu-counts-
 
-      - name: Verificar conteos y detectar anomalías
+      - name: Verificar conteos
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -139,8 +164,7 @@ jobs:
           if os.path.exists(PREV_FILE):
               try:
                   with open(PREV_FILE) as f: prev = json.load(f)
-                  print(f"Conteos previos cargados ({len(prev)} países)")
-              except Exception: pass
+              except: pass
 
           PAISES = ["UY","AR","BR","ES","DE","US","FR","CA","AU","GB","MX","CL","PE","CO",
                     "PY","BO","EC","VE","CR","GT","SV","HN","NI","PA","DO","CU","PT","IN","JP","SE","IT","NO","CH"]
@@ -156,9 +180,14 @@ jobs:
                       current[pais] = int(cr.split("/")[-1]) if "/" in cr else 0
               except: current[pais] = -1
 
+          total_global = sum(v for v in current.values() if v > 0)
+          print(f"\n{'='*50}")
+          print(f"TOTAL GLOBAL: {total_global:,} llamados activos")
+          print(f"{'='*50}")
           print("\nPaís | Actual | Anterior | Cambio")
           print("-----|--------|----------|-------")
           alertas = []
+
           for pais in PAISES:
               actual = current.get(pais,-1)
               anterior = prev.get(pais,None)
@@ -167,18 +196,14 @@ jobs:
                   pct = (cambio/anterior)*100
                   cambio_str = f"{'📈' if cambio>0 else '📉'} {cambio:+d} ({pct:+.0f}%)" if abs(pct)>=40 and abs(cambio)>=10 else f"{cambio:+d} ({pct:+.0f}%)"
               else:
-                  cambio_str = "(primera medición)" if anterior is None else "—"
-                  pct = 0; cambio = 0
+                  cambio_str = "(primera)" if anterior is None else "—"
               print(f"  {pais:4} | {actual:6} | {str(anterior or '—'):8} | {cambio_str}")
               minimo = MINIMOS.get(pais)
               if actual >= 0 and minimo and actual < minimo:
                   alertas.append(f"⚠️  {pais}: {actual} (mínimo: {minimo})")
-              if anterior is not None and anterior > 0 and actual >= 0 and pct <= -40 and abs(cambio) >= 10:
-                  alertas.append(f"📉 {pais}: cayó de {anterior} a {actual} ({pct:.0f}%)")
 
           try:
               with open(PREV_FILE,"w") as f: json.dump(current,f)
-              print(f"\nConteos guardados")
           except: pass
 
           if alertas:
