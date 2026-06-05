@@ -813,25 +813,16 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
   const seenBR = new Set<string>(rows.map(r => r.fuente_id));
 
   const BR_CIDADES = [
-    // Capitais e grandes centros
     "São Paulo","Rio de Janeiro","Belo Horizonte","Brasília","Salvador",
     "Fortaleza","Curitiba","Manaus","Recife","Porto Alegre",
     "Belém","Goiânia","Guarulhos","Campinas","São Luís",
-    "Maceió","Natal","Teresina","Campo Grande","João Pessoa",
-    // Cidades médias com mercado forte
-    "São Bernardo do Campo","Santo André","Osasco","São José dos Campos",
-    "Ribeirão Preto","Uberlândia","Contagem","Sorocaba","Aracaju","Cuiabá",
-    "Macapá","Porto Velho","Boa Vista","Palmas","Rio Branco",
-    // Cidades em crescimento econômico
-    "Florianópolis","Joinville","Blumenau","Londrina","Maringá",
-    "Caxias do Sul","Pelotas","Santa Maria","Volta Redonda","Niterói",
-    "Santos","São José do Rio Preto","Bauru","Piracicaba","Franca",
+    "Maceió","Natal","Florianópolis","Campo Grande","João Pessoa",
+    "Ribeirão Preto","Uberlândia","Sorocaba","Aracaju","Cuiabá",
   ];
 
   const BR_CATEGORIAS = [
     "tecnologia","saúde","vendas","logística","administração",
-    "engenharia","educação","finanças","construção","alimentação",
-    "atendimento","segurança","limpeza","transporte","manufatura",
+    "engenharia","educação","construção","alimentação","manufactura",
   ];
 
   // User-Agents reales de browsers para rotar — evita patrón de bot
