@@ -1183,9 +1183,9 @@ async function adzunaMultiSearch(
     }
   }
 
-  // Ejecutar en lotes de 30 paralelas para no saturar
-  for (let i = 0; i < queries.length; i += 30) {
-    const lote = queries.slice(i, i + 30);
+  // Ejecutar en lotes de 15 paralelas para no saturar memoria ni rate limits
+  for (let i = 0; i < queries.length; i += 15) {
+    const lote = queries.slice(i, i + 15);
     const resultados = await Promise.all(lote.map(async ([what, where]) => {
       const ua  = UA_POOL_MULTI[Math.floor(Math.random() * UA_POOL_MULTI.length)];
       const url = `https://api.adzuna.com/v1/api/jobs/${adzunaCountry}/search/1`
@@ -2633,11 +2633,18 @@ async function upsertRows(rows: ConcursoRow[]): Promise<number> {
   const hoy = new Date().toISOString().slice(0, 10);
   const validas = legitimas.filter(r => !r.fecha_cierre || r.fecha_cierre >= hoy);
   if (validas.length === 0) return 0;
-  const { error } = await supabase
-    .from("concursos")
-    .upsert(validas, { onConflict: "fuente,fuente_id", ignoreDuplicates: false });
-  if (error) console.error("upsert error:", error.message);
-  return error ? 0 : validas.length;
+
+  // Upsert en chunks de 1000 para no agotar memoria ni tiempo en lotes grandes
+  const CHUNK = 1000;
+  let total = 0;
+  for (let i = 0; i < validas.length; i += CHUNK) {
+    const { error } = await supabase
+      .from("concursos")
+      .upsert(validas.slice(i, i + CHUNK), { onConflict: "fuente,fuente_id", ignoreDuplicates: false });
+    if (error) { console.error("upsert error:", error.message); break; }
+    total += Math.min(CHUNK, validas.length - i);
+  }
+  return total;
 }
 
 async function marcarFuenteInactiva(fuente: string) {
