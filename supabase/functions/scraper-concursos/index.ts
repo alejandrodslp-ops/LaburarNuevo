@@ -592,11 +592,17 @@ async function scrapeChile(): Promise<{ rows: ConcursoRow[]; errores: string[] }
     }
   }
 
-  if (rows.length > 0) return { rows, errores };
-
-  // 4. Google News fallback
-  const gn = await scrapeGoogleNews("CL", "concurso público Chile cargo vacante gobierno", "chile_googlenews");
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  // 4. Google News — siempre se agrega (completa lo que Computrabajo no da)
+  const [gn1, gn2, gn3, gn4] = await Promise.all([
+    scrapeGoogleNews("CL", "concurso público Chile cargo vacante gobierno 2026", "chile_googlenews", "CL", "es", 25),
+    scrapeGoogleNews("CL", "Chile trabajo empleo Santiago Valparaíso Concepción 2026", "chile_googlenews2", "CL", "es", 25),
+    scrapeGoogleNews("CL", "Chile empleo empresa privada oferta laboral cargo 2026", "chile_googlenews3", "CL", "es", 25),
+    scrapeGoogleNews("CL", "Chile postulación trabajo Servicio Civil municipal 2026", "chile_googlenews4", "CL", "es", 20),
+  ]);
+  for (const gn of [gn1, gn2, gn3, gn4]) {
+    addRows(gn.rows); errores.push(...gn.errores);
+  }
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -693,9 +699,20 @@ async function scrapeColombia(): Promise<{ rows: ConcursoRow[]; errores: string[
   if (ct.rows.length > 0) return { rows: ct.rows, errores: [...errores, ...ct.errores] };
   errores.push(...ct.errores);
 
-  // 3. Google News
-  const gn = await scrapeGoogleNews("US", "Colombia empleo convocatoria concurso público cargo vacante", "colombia_googlenews", "CO");
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  // 3. Google News — múltiples queries en paralelo
+  const [gn1, gn2, gn3, gn4] = await Promise.all([
+    scrapeGoogleNews("US", "Colombia empleo convocatoria concurso público cargo vacante 2026", "colombia_googlenews", "CO", "es", 25),
+    scrapeGoogleNews("US", "Colombia empleo trabajo empresa privada cargo disponible 2026", "colombia_googlenews2", "CO", "es", 25),
+    scrapeGoogleNews("US", "Colombia oferta laboral trabajo Bogotá Medellín Cali 2026", "colombia_googlenews3", "CO", "es", 25),
+    scrapeGoogleNews("US", "Colombia SENA convocatoria empleo oportunidad laboral 2026", "colombia_googlenews4", "CO", "es", 20),
+  ]);
+  const seen2 = new Set<string>();
+  const allRows: ConcursoRow[] = [];
+  for (const gn of [gn1, gn2, gn3, gn4]) {
+    for (const r of gn.rows) { if (!seen2.has(r.fuente_id)) { seen2.add(r.fuente_id); allRows.push(r); } }
+    errores.push(...gn.errores);
+  }
+  return { rows: allRows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -935,7 +952,21 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
 async function scrapePerú(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const ct = await scrapeComputrabajo("pe", "PE", "peru_concursar");
   if (ct.rows.length > 0) return ct;
-  return scrapeGoogleNews("US", "Perú empleo concurso público plaza vacante CAS SERVIR", "peru_googlenews", "PE");
+
+  const [gn1, gn2, gn3, gn4] = await Promise.all([
+    scrapeGoogleNews("US", "Perú empleo concurso público plaza vacante CAS SERVIR 2026", "peru_googlenews", "PE", "es", 25),
+    scrapeGoogleNews("US", "Perú trabajo empleo Lima Arequipa Trujillo oferta laboral 2026", "peru_googlenews2", "PE", "es", 25),
+    scrapeGoogleNews("US", "Perú convocatoria trabajo empresa privada cargo disponible 2026", "peru_googlenews3", "PE", "es", 25),
+    scrapeGoogleNews("US", "Perú gobierno regional municipal empleo convocatoria vacante 2026", "peru_googlenews4", "PE", "es", 20),
+  ]);
+  const seen = new Set<string>();
+  const rows: ConcursoRow[] = [];
+  const errores: string[] = [];
+  for (const gn of [gn1, gn2, gn3, gn4]) {
+    for (const r of gn.rows) { if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); } }
+    errores.push(...gn.errores);
+  }
+  return { rows, errores };
 }
 
 async function scrapeParaguay(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
@@ -1025,9 +1056,16 @@ async function scrapeMexico(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     errores.push("MX: DOF vacantes.php inaccesible");
   }
 
-  // Adzuna multi-búsqueda México — 20 ciudades × 10 categorías = 200 queries
-  const MX_CIDADES = ["Ciudad de Mexico","Guadalajara","Monterrey","Puebla","Tijuana","Leon","Juarez","Torreon","Queretaro","San Luis Potosi","Merida","Mexicali","Aguascalientes","Culiacan","Hermosillo","Chihuahua","Morelia","Veracruz","Cancun","Zapopan"];
-  const MX_CATS    = ["tecnologia","ventas","ingenieria","salud","logistica","manufactura","construccion","hosteleria","administrativo","operador"];
+  // Adzuna multi-búsqueda México — 30 ciudades × 10 categorías = 300 queries
+  const MX_CIDADES = [
+    "Ciudad de Mexico","Guadalajara","Monterrey","Puebla","Tijuana",
+    "Leon","Juarez","Torreon","Queretaro","San Luis Potosi",
+    "Merida","Mexicali","Aguascalientes","Culiacan","Hermosillo",
+    "Chihuahua","Morelia","Veracruz","Cancun","Zapopan",
+    "Ecatepec","Naucalpan","Tlalnepantla","Toluca","Saltillo",
+    "Xalapa","Tuxtla Gutierrez","Oaxaca","Iztapalapa","Celaya",
+  ];
+  const MX_CATS = ["tecnologia","ventas","ingenieria","salud","logistica","manufactura","construccion","hosteleria","administrativo","operador"];
   const seenMX = new Set<string>(rows.map(r => r.fuente_id));
   const azMX = await adzunaMultiSearch("MX","mx", MX_CIDADES, MX_CATS, "es-MX,es;q=0.9,en;q=0.8", seenMX);
   rows.push(...azMX);
