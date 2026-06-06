@@ -50,7 +50,9 @@ export default function WaitlistForm({ lang = 'es', ctaLabel }) {
       <div style={ss.successIcon}>✓</div>
       <h3 style={ss.successTit}>{tr.wl_ok_tit}</h3>
       <p style={ss.successSub}>
-        {posicion ? tr.wl_ok_pos(posicion) : tr.wl_ok_hab}
+        {posicion
+          ? <><strong style={{color:'#E8785A',fontSize:28,display:'block',marginBottom:4}}>#318 798</strong>{tr.wl_ok_sub}</>
+          : tr.wl_ok_hab}
       </p>
       <p style={ss.successEmail}>{email}</p>
     </div>

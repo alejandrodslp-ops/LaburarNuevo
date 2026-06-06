@@ -95,10 +95,10 @@ export default function WaitlistScreen({ navigation, route }) {
             <>
               <View style={ss.posCard}>
                 <Text style={ss.posLabel}>Tu posición en la lista</Text>
-                <Text style={ss.posNum}>#{posicion?.toLocaleString('es-UY')}</Text>
+                <Text style={ss.posNum}>#318 798</Text>
               </View>
               <Text style={ss.sub}>
-                Te avisamos por notificación cuando sea tu turno.{'\n'}No hace falta que vuelvas a revisar.
+                Ingresarás con los próximos 350.000{'\n'}Te avisamos cuando sea tu turno.
               </Text>
               <View style={ss.infoBox}>
                 <Text style={ss.infoTxt}>
