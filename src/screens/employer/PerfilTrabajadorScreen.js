@@ -37,7 +37,7 @@ function CalificarModal({visible,workerId,propuestaId,onClose,onDone}){
       const{data:cals}=await supabase.from('calificaciones').select('promedio').eq('calificado_id',workerId);
       if(cals&&cals.length>0){
         const avg=cals.reduce((s,c)=>s+Number(c.promedio),0)/cals.length;
-        await supabase.from('profiles').update({estrellas:avg.toFixed(2),total_calificaciones:cals.length}).eq('id',workerId);
+        await supabase.from('profiles').update({estrellas:avg.toFixed(2),rating:avg,total_calificaciones:cals.length,total_valoraciones:cals.length}).eq('id',workerId);
       }
       Alert.alert('¡Gracias!','Tu calificación fue enviada.');
       onDone();onClose();
