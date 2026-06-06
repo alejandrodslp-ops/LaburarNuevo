@@ -1,5 +1,6 @@
 import { db } from '../lib/supabase'
 import { toSlug } from '../lib/utils'
+import { SLUGS_CATEGORIA } from '../lib/categorias'
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.app'
 
@@ -40,10 +41,21 @@ export default async function sitemap() {
     priority: 0.85,
   }))
 
+  // Páginas por país + categoría — alta prioridad SEO
+  const categoriaUrls = PAISES_SLUGS.flatMap(pais =>
+    SLUGS_CATEGORIA.map(cat => ({
+      url: `${SITE}/empleos/pais/${pais}/${cat}`,
+      lastModified: new Date(),
+      changeFrequency: 'daily',
+      priority: 0.80,
+    }))
+  )
+
   return [
     { url: SITE,                lastModified: new Date(), changeFrequency: 'daily',  priority: 1    },
     { url: `${SITE}/empleos`,   lastModified: new Date(), changeFrequency: 'hourly', priority: 0.9  },
     ...paisUrls,
+    ...categoriaUrls,
     ...concursoUrls,
   ]
 }
