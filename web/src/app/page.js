@@ -1,5 +1,7 @@
+import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import WaitlistForm from '../components/WaitlistForm'
+import JobsRealtime from './JobsRealtime'
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
@@ -8,11 +10,15 @@ async function getStats() {
   return { total: count ?? 0 }
 }
 
-const BANDERAS = [
-  '🇧🇷','🇦🇷','🇺🇾','🇨🇱','🇨🇴','🇲🇽','🇵🇪','🇪🇨','🇧🇴','🇵🇾','🇻🇪',
-  '🇬🇹','🇭🇳','🇳🇮','🇨🇷','🇵🇦','🇨🇺','🇩🇴','🇸🇻','🇵🇹','🇪🇸','🇮🇹',
-  '🇫🇷','🇩🇪','🇬🇧','🇺🇸','🇨🇦','🇦🇺','🇸🇪','🇳🇴','🇨🇭','🇯🇵','🇮🇳',
-]
+async function getRecentJobs() {
+  const { data } = await db
+    .from('concursos')
+    .select('id,titulo,cargo,organismo,pais,lugar,fecha_cierre,tipo_vinculo,tipo_tarea,puestos,created_at')
+    .eq('activo', true)
+    .order('created_at', { ascending: false })
+    .limit(8)
+  return data ?? []
+}
 
 export const metadata = {
   title: 'Nexu — Concursos Públicos y Empleos en Uruguay, Argentina y toda LatAm',
@@ -25,63 +31,69 @@ export const metadata = {
 }
 
 export default async function Home() {
-  const { total } = await getStats()
+  const [{ total }, recentJobs] = await Promise.all([getStats(), getRecentJobs()])
 
   return (
     <>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg) } }
-        @keyframes fadeUp { from { opacity:0; transform:translateY(24px) } to { opacity:1; transform:translateY(0) } }
-        .hero-anim { animation: fadeUp 0.7s ease both }
-        .stat-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px 28px; text-align: center; }
-        .stat-num  { font-size: 40px; font-weight: 900; color: #E8785A; letter-spacing: -2px; line-height: 1; }
-        .stat-lbl  { font-size: 13px; color: #94A3B8; margin-top: 4px; font-weight: 500; }
-        .feature-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 24px; }
-        .feature-icon { font-size: 32px; margin-bottom: 12px; }
-        .feature-tit  { font-size: 16px; font-weight: 800; color: #F1F5F9; margin-bottom: 6px; }
-        .feature-desc { font-size: 14px; color: #64748B; line-height: 1.6; }
-        @media (max-width: 640px) {
-          .hero-title  { font-size: clamp(32px, 9vw, 52px) !important; }
-          .stats-grid  { grid-template-columns: 1fr 1fr !important; }
-          .feature-grid { grid-template-columns: 1fr !important; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        .hero-anim { animation: fadeUp 0.6s ease both }
+        .live-dot { animation: pulse 2s infinite }
+        .stat-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:20px 24px; text-align:center }
+        .stat-num  { font-size:clamp(28px,4vw,40px); font-weight:900; color:#E8785A; letter-spacing:-2px; line-height:1 }
+        .stat-lbl  { font-size:13px; color:#94A3B8; margin-top:4px; font-weight:500 }
+        .feature-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:16px; padding:24px }
+        @media(max-width:640px){
+          .hero-title { font-size:clamp(32px,9vw,52px) !important }
+          .stats-grid { grid-template-columns:1fr 1fr !important }
+          .feature-grid { grid-template-columns:1fr !important }
+          .hero-btns { flex-direction:column !important; align-items:center !important }
         }
       `}</style>
 
       {/* NAV */}
       <nav className="nav">
-        <span className="nav-logo">Nexu</span>
-        <a href="/empleos" style={{ color:'#94A3B8', fontSize:13, fontWeight:600 }}>Ver empleos →</a>
+        <Link href="/" className="nav-logo">Nexu</Link>
+        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+          <Link href="/empleos" style={{ color:'#94A3B8', fontSize:13, fontWeight:600 }}>Ver empleos</Link>
+          <a href="/download" className="nav-btn">App gratis</a>
+        </div>
       </nav>
 
       {/* HERO */}
-      <section style={{ background:'linear-gradient(160deg, #0D1117 60%, #1a0f0a)', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'80px 24px 60px', textAlign:'center' }}>
-
+      <section style={{ background:'linear-gradient(160deg,#0D1117 60%,#1a0f0a)', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'80px 24px 60px', textAlign:'center' }}>
         <div className="hero-anim" style={{ maxWidth:680, width:'100%' }}>
 
-          {/* Badge */}
-          <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(232,120,90,0.12)', border:'1px solid rgba(232,120,90,0.25)', borderRadius:100, padding:'6px 16px', marginBottom:32 }}>
-            <span style={{ width:7, height:7, borderRadius:'50%', background:'#E8785A', display:'inline-block', boxShadow:'0 0 8px #E8785A' }}/>
-            <span style={{ fontSize:12, color:'#E8785A', fontWeight:700, letterSpacing:0.5 }}>LANZAMIENTO PRÓXIMO — LISTA DE ESPERA ABIERTA</span>
+          {/* Badge EN VIVO */}
+          <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(45,212,191,0.1)', border:'1px solid rgba(45,212,191,0.25)', borderRadius:100, padding:'6px 16px', marginBottom:32 }}>
+            <span className="live-dot" style={{ width:7, height:7, borderRadius:'50%', background:'#2DD4BF', display:'inline-block' }}/>
+            <span style={{ fontSize:12, color:'#2DD4BF', fontWeight:700, letterSpacing:0.5 }}>EN VIVO — {total.toLocaleString('es')} empleos activos hoy</span>
           </div>
 
           {/* Título */}
-          <h1 className="hero-title" style={{ fontSize:'clamp(36px, 6vw, 64px)', fontWeight:900, color:'#F1F5F9', lineHeight:1.08, letterSpacing:-2, marginBottom:20 }}>
+          <h1 className="hero-title" style={{ fontSize:'clamp(36px,6vw,64px)', fontWeight:900, color:'#F1F5F9', lineHeight:1.08, letterSpacing:-2, marginBottom:20 }}>
             El empleo de{' '}
             <em style={{ color:'#E8785A', fontStyle:'italic' }}>América Latina</em>
             <br />en un solo lugar
           </h1>
 
-          <p style={{ fontSize:'clamp(16px, 2.5vw, 20px)', color:'#94A3B8', maxWidth:500, margin:'0 auto 48px', lineHeight:1.6 }}>
-            Nexu conecta trabajadores y empleadores en 33 países. Gratis para buscar. Gratis para encontrar.
+          <p style={{ fontSize:'clamp(16px,2.5vw,20px)', color:'#94A3B8', maxWidth:500, margin:'0 auto 40px', lineHeight:1.6 }}>
+            Todos los llamados públicos y empleos de 33 países, actualizados a diario. Gratis para buscar. Gratis para encontrar.
           </p>
 
-          {/* Form */}
-          <div style={{ display:'flex', justifyContent:'center', marginBottom:48 }}>
-            <WaitlistForm />
+          {/* CTA buttons */}
+          <div className="hero-btns" style={{ display:'flex', gap:12, justifyContent:'center', marginBottom:56, flexWrap:'wrap' }}>
+            <Link href="/empleos" style={{ background:'#E8785A', color:'#fff', borderRadius:10, padding:'14px 28px', fontSize:15, fontWeight:800, textDecoration:'none', letterSpacing:-0.3 }}>
+              Ver empleos →
+            </Link>
+            <a href="/download" style={{ background:'rgba(255,255,255,0.07)', color:'#F1F5F9', borderRadius:10, padding:'14px 28px', fontSize:15, fontWeight:700, textDecoration:'none', border:'1px solid rgba(255,255,255,0.12)' }}>
+              📱 App gratis
+            </a>
           </div>
 
           {/* Stats */}
-          <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12, maxWidth:480, margin:'0 auto 48px' }}>
+          <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, maxWidth:480, margin:'0 auto 48px' }}>
             <div className="stat-card">
               <div className="stat-num">{total.toLocaleString('es')}</div>
               <div className="stat-lbl">empleos activos</div>
@@ -91,54 +103,55 @@ export default async function Home() {
               <div className="stat-lbl">países</div>
             </div>
             <div className="stat-card">
-              <div className="stat-num" style={{fontSize:28}}>100%</div>
-              <div className="stat-lbl">gratis para vos</div>
+              <div className="stat-num" style={{ fontSize:24 }}>diario</div>
+              <div className="stat-lbl">actualización</div>
             </div>
-          </div>
-
-          {/* Banderas */}
-          <div style={{ display:'flex', flexWrap:'wrap', justifyContent:'center', gap:8, maxWidth:500, margin:'0 auto' }}>
-            {BANDERAS.map((b, i) => (
-              <span key={i} style={{ fontSize:24, lineHeight:1 }} title="">{b}</span>
-            ))}
           </div>
 
         </div>
       </section>
 
-      {/* FEATURES */}
-      <section style={{ background:'#0D1117', padding:'80px 24px', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
+      {/* EMPLEOS RECIENTES */}
+      <section style={{ background:'#0D1117', padding:'64px 24px 48px', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ maxWidth:900, margin:'0 auto' }}>
-          <h2 style={{ fontSize:'clamp(24px, 4vw, 36px)', fontWeight:900, color:'#F1F5F9', textAlign:'center', marginBottom:12, letterSpacing:-1 }}>
-            ¿Qué es Nexu?
-          </h2>
-          <p style={{ color:'#64748B', textAlign:'center', marginBottom:48, fontSize:16 }}>
-            Una plataforma diseñada para el mercado laboral de América Latina
-          </p>
-          <div className="feature-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:16 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
+            <h2 style={{ fontSize:20, fontWeight:800, color:'#F1F5F9', letterSpacing:-0.5 }}>Empleos recientes</h2>
+            <Link href="/empleos" style={{ color:'#E8785A', fontSize:13, fontWeight:700, textDecoration:'none' }}>Ver todos →</Link>
+          </div>
+          <JobsRealtime initialJobs={recentJobs} />
+        </div>
+      </section>
+
+      {/* FEATURES */}
+      <section style={{ background:'#080D12', padding:'64px 24px', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ maxWidth:900, margin:'0 auto' }}>
+          <h2 style={{ fontSize:'clamp(22px,4vw,34px)', fontWeight:900, color:'#F1F5F9', textAlign:'center', marginBottom:10, letterSpacing:-1 }}>¿Qué es Nexu?</h2>
+          <p style={{ color:'#64748B', textAlign:'center', marginBottom:48, fontSize:15 }}>Una plataforma diseñada para el mercado laboral de América Latina</p>
+          <div className="feature-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
             {[
-              { icon:'💼', tit:'Para trabajadores', desc:'Creá tu perfil, aparecé en búsquedas de empleadores de tu zona y recibí propuestas directas. Sin intermediarios.' },
-              { icon:'🏢', tit:'Para empleadores', desc:'Encontrá el perfil que necesitás entre miles de trabajadores calificados. Pagás solo para contactar.' },
-              { icon:'🌎', tit:'33 países', desc:'América Latina, Europa, Asia y Oceanía. Empleos públicos y privados, actualizados todos los días.' },
+              { icon:'🔍', tit:'Buscá empleos', desc:'Concursos públicos, convocatorias y vacantes privadas de 33 países. Todo en un solo lugar, actualizado todos los días.' },
+              { icon:'👤', tit:'Creá tu perfil', desc:'Los empleadores te encuentran a vos. Sin intermediarios, sin comisiones. Gratis para registrarte.' },
+              { icon:'🔔', tit:'Alertas diarias', desc:'Configurá tu perfil y Nexu te avisa cuando aparezca una oportunidad que se ajuste a lo que buscás.' },
+              { icon:'🏛️', tit:'Concursa', desc:'Llamados del sector público, ONSC, convocatorias gubernamentales. Todo comparado con tu perfil.' },
             ].map((f, i) => (
               <div key={i} className="feature-card">
-                <div className="feature-icon">{f.icon}</div>
-                <div className="feature-tit">{f.tit}</div>
-                <div className="feature-desc">{f.desc}</div>
+                <div style={{ fontSize:32, marginBottom:12 }}>{f.icon}</div>
+                <div style={{ fontSize:15, fontWeight:800, color:'#F1F5F9', marginBottom:6 }}>{f.tit}</div>
+                <div style={{ fontSize:13, color:'#64748B', lineHeight:1.6 }}>{f.desc}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA FINAL */}
-      <section style={{ background:'linear-gradient(135deg, #1a0a05, #0D1117)', padding:'80px 24px', textAlign:'center', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
+      {/* WAITLIST */}
+      <section style={{ background:'linear-gradient(160deg,#0D1117,#0d1a17)', padding:'80px 24px', textAlign:'center', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ maxWidth:520, margin:'0 auto' }}>
-          <h2 style={{ fontSize:'clamp(24px, 4vw, 36px)', fontWeight:900, color:'#F1F5F9', marginBottom:12, letterSpacing:-1 }}>
-            Miles ya están en lista.
+          <h2 style={{ fontSize:'clamp(22px,4vw,36px)', fontWeight:900, color:'#F1F5F9', marginBottom:10, letterSpacing:-1 }}>
+            Alertas personalizadas para tu perfil
           </h2>
-          <p style={{ color:'#64748B', marginBottom:40, fontSize:16 }}>
-            No dejes que otros se queden con tus oportunidades.
+          <p style={{ color:'#64748B', marginBottom:40, fontSize:15, lineHeight:1.6 }}>
+            Anotate y te avisamos cuando salgan empleos que coincidan con tu oficio, en tu país.
           </p>
           <div style={{ display:'flex', justifyContent:'center' }}>
             <WaitlistForm />
@@ -148,9 +161,12 @@ export default async function Home() {
 
       {/* FOOTER */}
       <footer style={{ background:'#0D1117', borderTop:'1px solid rgba(255,255,255,0.06)', padding:'32px 24px', textAlign:'center' }}>
-        <span style={{ color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-1 }}>Nexu</span>
+        <Link href="/" style={{ color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-1, textDecoration:'none' }}>Nexu</Link>
         <p style={{ color:'#475569', fontSize:12, marginTop:8 }}>
-          © {new Date().getFullYear()} Nexu · <a href="/empleos" style={{ color:'#64748B' }}>Ver empleos</a> · soporte@nexu.fyi
+          © {new Date().getFullYear()} Nexu ·{' '}
+          <Link href="/empleos" style={{ color:'#64748B' }}>Ver empleos</Link> ·{' '}
+          <a href="/download" style={{ color:'#64748B' }}>App gratis</a> ·{' '}
+          soporte@nexu.fyi
         </p>
       </footer>
     </>
