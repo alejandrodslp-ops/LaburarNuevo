@@ -312,14 +312,17 @@ async function scrapeUruguay() {
     const titleRaw  = $('title', el).text();
     const link      = $('link', el).text();
     const descHtml  = $('description', el).text();
-    const idMatch   = link.match(/\?(\d+)$/);
+    // Link puede ser: https://uruguayconcursa.gub.uy/llamado/41537
+    // o (viejo): https://...?41537  — ambos patrones cubiertos
+    const idMatch = link.match(/\/(\d+)$/) || link.match(/\?(\d+)$/);
     if (!idMatch) return;
     const fuente_id = idMatch[1];
 
-    const titleClean = titleRaw.replace(/^Llamado\s+N[ºo°]\s*/i, '').trim();
-    const parts      = titleClean.split(' - ');
-    const cargo      = parts[1]?.trim() || titleClean;
-    const organismo  = parts.slice(2).join(' - ').trim() || null;
+    // Título: "Llamado Nº A0030/2026 - cargo - organismo"
+    const titleClean = titleRaw.replace(/^Llamado\s+N[ºo°]?\s*[A-Z\d/]*\s*[-–]?\s*/i, '').trim();
+    const parts      = titleClean.split(/\s+-\s+/);
+    const cargo      = parts[0]?.trim() || titleClean;
+    const organismo  = parts.slice(1).join(' - ').trim() || null;
     const descText   = stripHtml(descHtml);
     const periodoM   = descText.match(/(\d{2}\/\d{2}\/\d{4})\s*[-–]\s*(\d{2}\/\d{2}\/\d{4})/);
 
@@ -329,9 +332,9 @@ async function scrapeUruguay() {
       descripcion: descText || null,
       fecha_inicio:  periodoM ? parseFecha(periodoM[1]) : null,
       fecha_cierre:  periodoM ? parseFecha(periodoM[2]) : null,
-      url_detalle:   `https://www.uruguayconcursa.gub.uy/llamado/${fuente_id}`,
-      url_postulacion: `https://www.uruguayconcursa.gub.uy/llamado/${fuente_id}`,
-      keywords: extraerKeywords(cargo),
+      url_detalle:   `https://uruguayconcursa.gub.uy/llamado/${fuente_id}`,
+      url_postulacion: `https://uruguayconcursa.gub.uy/llamado/${fuente_id}`,
+      keywords: extraerKeywords(cargo + ' ' + (organismo || '')),
     }));
   });
 
@@ -1216,10 +1219,15 @@ async function scrapeReinoUnido() {
 // ─── ESTADOS UNIDOS ──────────────────────────────────────────────────────────
 async function scrapeEstadosUnidos() {
   console.log('🇺🇸 Estados Unidos...');
-  // USAJobs API — requiere solo User-Agent personalizado
+  // USAJobs API — requiere Authorization-Key (obligatorio desde 2022)
+  const usajobsKey = process.env.USAJOBS_API_KEY || '';
   const data = await fetchJSON(
     'https://data.usajobs.gov/api/search?ResultsPerPage=50&WhoMayApply=All&SortField=DatePosted&SortDirection=Desc',
-    { headers: { 'User-Agent': 'nexu@nexu.uy' }, timeout: 12000 }
+    { headers: {
+        'Host': 'data.usajobs.gov',
+        'User-Agent': 'nexu@nexu.uy',
+        'Authorization-Key': usajobsKey,
+      }, timeout: 12000 }
   );
   if (data) {
     const jobs = data?.SearchResult?.SearchResultItems ?? [];
@@ -1244,13 +1252,17 @@ async function scrapeEstadosUnidos() {
     }
     if (rows.length > 0) { const n = await upsert(rows,'usa_usajobs'); console.log(`  ✓ ${n} (USAJobs)`); return n; }
   }
-  // Fallback: USAJobs RSS
-  const rssRows = await fetchRSS('https://www.usajobs.gov/Search/Results?format=rss', 'US', 'usa_usajobs_rss');
-  if (rssRows.length > 0) { const n = await upsert(rssRows,'usa_usajobs_rss'); console.log(`  ✓ ${n} (USAJobs RSS)`); return n; }
+  // Fallback: Adzuna US (gobierno + sector privado)
   const az = await adzunaSearch('us', 'US', 'us_adzuna', 'government federal public sector jobs');
   if (az.length > 0) { const n = await upsert(az,'us_adzuna'); console.log(`  ✓ ${n} (Adzuna)`); return n; }
   const jb = await joobleSearch('government federal jobs', 'United States', 'US', 'us_jooble');
   if (jb.length > 0) { const n = await upsert(jb,'us_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
+  // Google News RSS como último recurso
+  const gnRows = await fetchRSS(
+    `https://news.google.com/rss/search?q=${encodeURIComponent('federal government jobs USA civil service hiring 2026')}&hl=en-US&gl=US&ceid=US:en`,
+    'US', 'us_gnews', { organismo: 'USA Government', lugar: 'United States' }
+  );
+  if (gnRows.length > 0) { const n = await upsert(gnRows,'us_gnews'); console.log(`  ✓ ${n} (Google News)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 

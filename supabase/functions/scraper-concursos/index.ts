@@ -150,6 +150,58 @@ async function fetchUrl(url: string, timeoutMs = 15000, extraHeaders?: Record<st
 }
 
 // ─────────────────────────────────────────────────────────────
+// HELPER: Uruguay Concursa — fallback RSS público
+// Se usa cuando la API api-backend/llamados/recientes no responde desde cloud
+// ─────────────────────────────────────────────────────────────
+async function scrapeUruguayRSS(errores: string[]): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const rows: ConcursoRow[] = [];
+  const rssXml = await fetchUrl(
+    "https://www.uruguayconcursa.gub.uy/Portal/servlet/com.si.recsel.arssllamados?,ABIERTO",
+    15000
+  );
+  if (!rssXml || !rssXml.includes("<item>")) {
+    errores.push("UY RSS: sin items");
+    return { rows, errores };
+  }
+  const items = extraerItems(rssXml);
+  for (const item of items) {
+    const titleRaw = extraerTag(item, "title");
+    const link     = extraerTag(item, "link");
+    const descHtml = extraerTag(item, "description");
+    // Link: https://uruguayconcursa.gub.uy/llamado/41537
+    const idMatch  = link.match(/\/(\d+)$/) || link.match(/[?=](\d+)$/);
+    if (!idMatch) continue;
+    const id = idMatch[1];
+
+    // Título: "Llamado Nº A0030/2026 - cargo - organismo"
+    const titleClean = titleRaw.replace(/^Llamado\s+N[ºo°]?\s*[A-Z\d/]*\s*[-–]?\s*/i, "").trim();
+    const parts      = titleClean.split(/\s+-\s+/);
+    const cargo      = parts[0]?.trim() || titleClean;
+    const organismo  = parts.slice(1).join(" - ").trim() || null;
+    const descText   = stripHtml(descHtml);
+    const periodoM   = descText.match(/(\d{2}\/\d{2}\/\d{4})\s*[-–]\s*(\d{2}\/\d{2}\/\d{4})/);
+
+    if (rows.some(r => r.fuente_id === id)) continue;
+    rows.push({
+      fuente_id: id, fuente: "uruguay_concursa", pais: "UY",
+      numero_llamado: null, titulo: titleClean, cargo, organismo,
+      descripcion: descText.slice(0, 600) || null,
+      requisitos: null, tipo_tarea: null, tipo_vinculo: null, lugar: null,
+      fecha_inicio:  periodoM ? parseFecha(periodoM[1]) : null,
+      fecha_cierre:  periodoM ? parseFecha(periodoM[2]) : sumarDias(null, 30),
+      puestos: 1,
+      url_detalle:    `https://uruguayconcursa.gub.uy/llamado/${id}`,
+      url_postulacion: `https://uruguayconcursa.gub.uy/llamado/${id}`,
+      keywords: extraerKeywords(`${cargo} ${organismo ?? ""}`),
+      activo: true,
+    });
+  }
+  if (rows.length > 0) console.log(`UY RSS: ${rows.length} llamados`);
+  else errores.push("UY RSS: 0 items parseables");
+  return { rows, errores };
+}
+
+// ─────────────────────────────────────────────────────────────
 // PARSER: Uruguay Concursa (RSS — confirmado funcionando)
 // URL: https://www.uruguayconcursa.gub.uy/Portal/servlet/com.si.recsel.arssllamados?,ABIERTO
 // ─────────────────────────────────────────────────────────────
@@ -172,17 +224,24 @@ async function scrapeUruguay(): Promise<{ rows: ConcursoRow[]; errores: string[]
     errores.push(`UY: API recientes error — ${(e as Error).message}`);
   }
 
-  if (!resp) return { rows, errores: ["UY: API recientes sin respuesta"] };
+  if (!resp) {
+    errores.push("UY: API recientes sin respuesta — usando RSS fallback");
+    return scrapeUruguayRSS(errores);
+  }
 
   let lista: Record<string, unknown>[] = [];
   try {
     const json = JSON.parse(resp);
     lista = (json.ListaLlamados ?? json.listaLlamados ?? []) as Record<string, unknown>[];
   } catch {
-    return { rows, errores: ["UY: API recientes respuesta inválida"] };
+    errores.push("UY: API recientes respuesta inválida — usando RSS fallback");
+    return scrapeUruguayRSS(errores);
   }
 
-  if (lista.length === 0) return { rows, errores: ["UY: API recientes devolvió 0 llamados"] };
+  if (lista.length === 0) {
+    errores.push("UY: API recientes devolvió 0 llamados — usando RSS fallback");
+    return scrapeUruguayRSS(errores);
+  }
 
   for (const l of lista) {
     const id        = String(l.LlaId ?? "");
@@ -1716,6 +1775,21 @@ async function scrapeEstadosUnidos(): Promise<{ rows: ConcursoRow[]; errores: st
   } catch (e) {
     errores.push(`US: USAJobs API error — ${(e as Error).message}`);
   }
+
+  // Adzuna multi-búsqueda USA — 20 ciudades × 10 categorías = 200 queries
+  const US_CIDADES = [
+    "New York","Los Angeles","Chicago","Houston","Phoenix",
+    "Philadelphia","San Antonio","San Diego","Dallas","San Jose",
+    "Austin","Jacksonville","Fort Worth","Columbus","Charlotte",
+    "Indianapolis","San Francisco","Seattle","Denver","Nashville",
+  ];
+  const US_CATS = [
+    "technology","healthcare","sales","logistics","engineering",
+    "finance","construction","marketing","education","government",
+  ];
+  const seenUS = new Set<string>(rows.map(r => r.fuente_id));
+  const azUS = await adzunaMultiSearch("US", "us", US_CIDADES, US_CATS, "en-US,en;q=0.9", seenUS);
+  rows.push(...azUS);
 
   // Google News USA — locale="GB" para forzar inglés, paisRow="US" para etiquetar como US
   const seen = new Set<string>(rows.map(r => r.fuente_id));
