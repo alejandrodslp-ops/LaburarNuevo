@@ -2331,8 +2331,13 @@ function TabWaitlist() {
 
       {/* Número principal */}
       <View style={{ backgroundColor: '#1A3A5C', borderRadius: 18, padding: 20, alignItems: 'center', marginBottom: 16 }}>
-        <Text style={{ fontSize: 56, fontWeight: '900', color: '#FFFFFF', lineHeight: 60 }}>{datos?.en_espera ?? 0}</Text>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>personas en lista de espera</Text>
+        <Text style={{ fontSize: 56, fontWeight: '900', color: '#FFFFFF', lineHeight: 60 }}>
+          {((datos?.en_espera ?? 0) + (datos?.habilitados ?? 0) + (datos?.registrados ?? 0))}
+        </Text>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>registrados en lista de espera</Text>
+        {(datos?.en_espera ?? 0) > 0 && (
+          <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>{datos.en_espera} esperando · {datos.habilitados ?? 0} habilitados · {datos.registrados ?? 0} registrados</Text>
+        )}
       </View>
 
       {/* Toggle ON/OFF */}
