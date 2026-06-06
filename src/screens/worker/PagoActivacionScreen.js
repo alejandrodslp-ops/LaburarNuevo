@@ -1,5 +1,5 @@
 import React,{useState,useEffect,useRef} from 'react';
-import{View,Text,StyleSheet,TouchableOpacity,Alert,ActivityIndicator,ScrollView,Linking,AppState}from 'react-native';
+import{View,Text,StyleSheet,TouchableOpacity,Alert,ActivityIndicator,ScrollView,Linking,AppState,Modal,Share,Image}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{LinearGradient}from 'expo-linear-gradient';
 import{supabase}from '../../services/supabase';
@@ -14,14 +14,44 @@ export default function PagoActivacionScreen({navigation}){
   const[loadingMP,setLoadingMP]=useState(false);
   const[loadingTarjeta,setLoadingTarjeta]=useState(false);
   const[loadingSMS,setLoadingSMS]=useState(false);
+  const[loadingPIX,setLoadingPIX]=useState(false);
   const[esperando,setEsperando]=useState(false);
   const[mostrarAyuda,setMostrarAyuda]=useState(false);
+  const[pixData,setPixData]=useState(null); // {qr_code, qr_base64, monto, modo}
+  const[pais,setPais]=useState(null);
   const intervaloRef=useRef(null);
   const timeoutRef=useRef(null);
   const appStateRef=useRef(AppState.currentState);
   // Guarda la fecha de activación ANTES de iniciar el pago.
   // verificar() solo celebra si esa fecha cambia a una más nueva.
   const prevHastaRef=useRef(null);
+
+  useEffect(()=>{
+    supabase.auth.getUser().then(({data:{user}})=>{
+      if(!user)return;
+      supabase.from('profiles').select('pais').eq('id',user.id).single()
+        .then(({data})=>setPais(data?.pais||null));
+    });
+  },[]);
+
+  async function handlePIX(){
+    if(loadingPIX||esperando)return;
+    setLoadingPIX(true);
+    try{
+      const{data:{user}}=await supabase.auth.getUser();
+      if(!user){Alert.alert('Error','Debes iniciar sesion');return;}
+      const{data:perfil}=await supabase.from('profiles').select('perfil_activo_hasta').eq('id',user.id).single();
+      prevHastaRef.current=perfil?.perfil_activo_hasta||null;
+      await AsyncStorage.setItem('metodo_pago_worker','pix');
+      const{data,error}=await supabase.functions.invoke('criar-pago-pix',{
+        body:{monto_brl:15,tipo:'worker_activacion'},
+      });
+      if(error)throw error;
+      setPixData(data);
+      setEsperando(true);
+    }catch(e){Alert.alert('Erro','Nao foi possivel gerar o PIX. Tente novamente.');}
+    finally{setLoadingPIX(false);}
+  }
 
   useEffect(()=>{
     if(!esperando)return;
@@ -179,9 +209,57 @@ export default function PagoActivacionScreen({navigation}){
 
         <Text style={ss.smsHint}>Enviá un SMS al {SMS_NUMERO} y se descuenta de tu plan mensual. Ideal si tenés saldo que no usás.</Text>
 
+        {/* PIX — visible para todos pero destacado para usuarios de Brasil */}
+        <View style={ss.pixSep}>
+          <View style={ss.pixLine}/><Text style={ss.pixSepTxt}>ou pague com PIX 🇧🇷</Text><View style={ss.pixLine}/>
+        </View>
+
+        <TouchableOpacity style={ss.btnWrap} onPress={handlePIX} disabled={loadingPIX||esperando}>
+          <LinearGradient colors={['#22c55e','#16a34a']} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
+            {loadingPIX
+              ?<ActivityIndicator color="#FFF" size="small"/>
+              :<Text style={ss.btnTxt}>⚡ Pagar com PIX (R$ 15)</Text>}
+          </LinearGradient>
+        </TouchableOpacity>
+        <Text style={ss.smsHint}>Qualquer banco, qualquer hora. Aprovacao instantanea.</Text>
+
         <Text style={ss.legal}>Pago único de USD $1 por 60 días. No se renueva automáticamente. Al vencer podés reactivar cuando quieras.</Text>
 
       </ScrollView>
+
+      {/* Modal PIX */}
+      <Modal visible={!!pixData} animationType="slide" transparent onRequestClose={()=>{if(!esperando)setPixData(null);}}>
+        <View style={ss.modalBg}>
+          <View style={ss.modalCard}>
+            <Text style={ss.modalTit}>⚡ Pague com PIX</Text>
+            <Text style={ss.modalSub}>R$ {pixData?.monto ?? 15} · aprovacao em segundos</Text>
+
+            {pixData?.qr_base64
+              ?<Image source={{uri:`data:image/png;base64,${pixData.qr_base64}`}} style={ss.qrImg}/>
+              :<View style={ss.qrPlaceholder}><Text style={ss.qrIcon}>🟩</Text></View>}
+
+            <Text style={ss.copiaTit}>Copia e Cola</Text>
+            <TouchableOpacity style={ss.copiaWrap} onPress={()=>{
+              Share.share({message:pixData?.qr_code??''});
+            }}>
+              <Text style={ss.copiaKey} numberOfLines={2}>{pixData?.qr_code??'Gerando...'}</Text>
+              <Text style={ss.copiaBtn}>Copiar</Text>
+            </TouchableOpacity>
+
+            {pixData?.modo==='estatico'&&(
+              <Text style={ss.staticHint}>Apos o pagamento, adicione seu ID ({pixData?.referencia}) na descricao do PIX para confirmacao automatica.</Text>
+            )}
+
+            <Text style={ss.modalEsp}>Aguardando confirmacao do pagamento...</Text>
+            <ActivityIndicator color="#22c55e" style={{marginTop:8}}/>
+
+            <TouchableOpacity style={ss.modalClose} onPress={()=>{setPixData(null);setEsperando(false);}}>
+              <Text style={ss.modalCloseTxt}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -213,4 +291,24 @@ const ss=StyleSheet.create({
   btnTxt:{color:'#FFFFFF',fontSize:16,fontWeight:'800'},
   smsHint:{fontSize:11,color:'#A898B8',textAlign:'center',lineHeight:16,marginHorizontal:16,marginTop:4,marginBottom:8},
   legal:{fontSize:11,color:'#A898B8',textAlign:'center',lineHeight:16,margin:16},
+  // PIX
+  pixSep:{flexDirection:'row',alignItems:'center',marginHorizontal:16,marginTop:8,marginBottom:4},
+  pixLine:{flex:1,height:1,backgroundColor:'#EDE8E2'},
+  pixSepTxt:{fontSize:12,color:'#A898B8',marginHorizontal:10,fontWeight:'600'},
+  // Modal PIX
+  modalBg:{flex:1,backgroundColor:'rgba(0,0,0,0.6)',justifyContent:'flex-end'},
+  modalCard:{backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24,padding:24,paddingBottom:40},
+  modalTit:{fontSize:22,fontWeight:'900',color:'#1A1020',textAlign:'center',marginBottom:4},
+  modalSub:{fontSize:14,color:'#A898B8',textAlign:'center',marginBottom:20},
+  qrImg:{width:200,height:200,alignSelf:'center',marginBottom:16,borderRadius:8},
+  qrPlaceholder:{width:200,height:200,alignSelf:'center',backgroundColor:'#F2FDF4',borderRadius:8,alignItems:'center',justifyContent:'center',marginBottom:16},
+  qrIcon:{fontSize:80},
+  copiaTit:{fontSize:11,fontWeight:'700',color:'#A898B8',letterSpacing:1,marginBottom:6},
+  copiaWrap:{backgroundColor:'#F2FDF4',borderRadius:12,padding:12,borderWidth:1.5,borderColor:'#86EFAC',flexDirection:'row',alignItems:'center',gap:8,marginBottom:12},
+  copiaKey:{flex:1,fontSize:11,color:'#16A34A',fontFamily:'monospace'},
+  copiaBtn:{fontSize:12,fontWeight:'800',color:'#16A34A'},
+  staticHint:{fontSize:11,color:'#F59E0B',backgroundColor:'#FEF3C7',borderRadius:8,padding:10,marginBottom:12,lineHeight:16},
+  modalEsp:{fontSize:13,color:'#A898B8',textAlign:'center',marginTop:12},
+  modalClose:{alignSelf:'center',marginTop:16,padding:12},
+  modalCloseTxt:{fontSize:14,color:'#A898B8',fontWeight:'600'},
 });

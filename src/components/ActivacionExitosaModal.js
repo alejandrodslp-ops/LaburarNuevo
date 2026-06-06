@@ -1,4 +1,4 @@
-import React,{useEffect,useRef} from 'react';
+import React,{useEffect,useRef}from 'react';
 import{View,Text,TouchableOpacity,StyleSheet,Modal,Animated,Share}from 'react-native';
 import{LinearGradient}from 'expo-linear-gradient';
 import{supabase}from '../services/supabase';
@@ -26,13 +26,14 @@ export default function ActivacionExitosaModal({visible,onClose}){
   async function compartir(){
     try{
       const{data:{user}}=await supabase.auth.getUser();
-      const{data}=await supabase.from('profiles').select('codigo_referido').eq('id',user.id).single();
+      const{data}=await supabase.from('profiles').select('codigo_referido,pais').eq('id',user.id).single();
       const codigo=data?.codigo_referido||'';
       const link=codigo?`${BASE_URL}?r=${codigo}`:BASE_URL;
-      await Share.share({
-        message:`Hacé que las oportunidades te encuentren con Nexu, de forma cómoda y directa.\n${link}`,
-        title:'Nexu — Que las oportunidades te encuentren',
-      });
+      const esBR=data?.pais==='BR';
+      const mensaje=esBR
+        ?`Milhares de trabalhadores já estão recebendo ofertas de emprego pelo Nexu. Não fique de fora — baixe o app grátis e ative seu perfil agora:\n${link}`
+        :`Miles de trabajadores ya están recibiendo ofertas de empleo por empresas en Nexu. No te quedés afuera — descargá la app gratis y activá tu perfil ahora:\n${link}`;
+      await Share.share({message:mensaje,title:'Nexu'});
     }catch(e){}
   }
 

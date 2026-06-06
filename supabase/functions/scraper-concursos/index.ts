@@ -592,11 +592,17 @@ async function scrapeChile(): Promise<{ rows: ConcursoRow[]; errores: string[] }
     }
   }
 
-  if (rows.length > 0) return { rows, errores };
-
-  // 4. Google News fallback
-  const gn = await scrapeGoogleNews("CL", "concurso público Chile cargo vacante gobierno", "chile_googlenews");
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  // 4. Google News — siempre se agrega (completa lo que Computrabajo no da)
+  const [gn1, gn2, gn3, gn4] = await Promise.all([
+    scrapeGoogleNews("CL", "concurso público Chile cargo vacante gobierno 2026", "chile_googlenews", "CL", "es", 25),
+    scrapeGoogleNews("CL", "Chile trabajo empleo Santiago Valparaíso Concepción 2026", "chile_googlenews2", "CL", "es", 25),
+    scrapeGoogleNews("CL", "Chile empleo empresa privada oferta laboral cargo 2026", "chile_googlenews3", "CL", "es", 25),
+    scrapeGoogleNews("CL", "Chile postulación trabajo Servicio Civil municipal 2026", "chile_googlenews4", "CL", "es", 20),
+  ]);
+  for (const gn of [gn1, gn2, gn3, gn4]) {
+    addRows(gn.rows); errores.push(...gn.errores);
+  }
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -693,9 +699,20 @@ async function scrapeColombia(): Promise<{ rows: ConcursoRow[]; errores: string[
   if (ct.rows.length > 0) return { rows: ct.rows, errores: [...errores, ...ct.errores] };
   errores.push(...ct.errores);
 
-  // 3. Google News
-  const gn = await scrapeGoogleNews("US", "Colombia empleo convocatoria concurso público cargo vacante", "colombia_googlenews", "CO");
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  // 3. Google News — múltiples queries en paralelo
+  const [gn1, gn2, gn3, gn4] = await Promise.all([
+    scrapeGoogleNews("US", "Colombia empleo convocatoria concurso público cargo vacante 2026", "colombia_googlenews", "CO", "es", 25),
+    scrapeGoogleNews("US", "Colombia empleo trabajo empresa privada cargo disponible 2026", "colombia_googlenews2", "CO", "es", 25),
+    scrapeGoogleNews("US", "Colombia oferta laboral trabajo Bogotá Medellín Cali 2026", "colombia_googlenews3", "CO", "es", 25),
+    scrapeGoogleNews("US", "Colombia SENA convocatoria empleo oportunidad laboral 2026", "colombia_googlenews4", "CO", "es", 20),
+  ]);
+  const seen2 = new Set<string>();
+  const allRows: ConcursoRow[] = [];
+  for (const gn of [gn1, gn2, gn3, gn4]) {
+    for (const r of gn.rows) { if (!seen2.has(r.fuente_id)) { seen2.add(r.fuente_id); allRows.push(r); } }
+    errores.push(...gn.errores);
+  }
+  return { rows: allRows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -813,25 +830,16 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
   const seenBR = new Set<string>(rows.map(r => r.fuente_id));
 
   const BR_CIDADES = [
-    // Capitais e grandes centros
     "São Paulo","Rio de Janeiro","Belo Horizonte","Brasília","Salvador",
     "Fortaleza","Curitiba","Manaus","Recife","Porto Alegre",
     "Belém","Goiânia","Guarulhos","Campinas","São Luís",
-    "Maceió","Natal","Teresina","Campo Grande","João Pessoa",
-    // Cidades médias com mercado forte
-    "São Bernardo do Campo","Santo André","Osasco","São José dos Campos",
-    "Ribeirão Preto","Uberlândia","Contagem","Sorocaba","Aracaju","Cuiabá",
-    "Macapá","Porto Velho","Boa Vista","Palmas","Rio Branco",
-    // Cidades em crescimento econômico
-    "Florianópolis","Joinville","Blumenau","Londrina","Maringá",
-    "Caxias do Sul","Pelotas","Santa Maria","Volta Redonda","Niterói",
-    "Santos","São José do Rio Preto","Bauru","Piracicaba","Franca",
+    "Maceió","Natal","Florianópolis","Campo Grande","João Pessoa",
+    "Ribeirão Preto","Uberlândia","Sorocaba","Aracaju","Cuiabá",
   ];
 
   const BR_CATEGORIAS = [
     "tecnologia","saúde","vendas","logística","administração",
-    "engenharia","educação","finanças","construção","alimentação",
-    "atendimento","segurança","limpeza","transporte","manufatura",
+    "engenharia","educação","construção","alimentação","manufactura",
   ];
 
   // User-Agents reales de browsers para rotar — evita patrón de bot
@@ -853,7 +861,7 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     const ua = UA_POOL[Math.floor(Math.random() * UA_POOL.length)];
     const url = `https://api.adzuna.com/v1/api/jobs/br/search/1`
       + `?app_id=${ADZUNA_APP_ID_LOCAL}&app_key=${ADZUNA_APP_KEY_LOCAL}`
-      + `&results_per_page=50&sort_by=date&max_days_old=21&content-type=application/json`
+      + `&results_per_page=50&sort_by=date&content-type=application/json`
       + `&what=${encodeURIComponent(what)}&where=${encodeURIComponent(where)}`;
 
     let intentos = 0;
@@ -944,7 +952,21 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
 async function scrapePerú(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const ct = await scrapeComputrabajo("pe", "PE", "peru_concursar");
   if (ct.rows.length > 0) return ct;
-  return scrapeGoogleNews("US", "Perú empleo concurso público plaza vacante CAS SERVIR", "peru_googlenews", "PE");
+
+  const [gn1, gn2, gn3, gn4] = await Promise.all([
+    scrapeGoogleNews("US", "Perú empleo concurso público plaza vacante CAS SERVIR 2026", "peru_googlenews", "PE", "es", 25),
+    scrapeGoogleNews("US", "Perú trabajo empleo Lima Arequipa Trujillo oferta laboral 2026", "peru_googlenews2", "PE", "es", 25),
+    scrapeGoogleNews("US", "Perú convocatoria trabajo empresa privada cargo disponible 2026", "peru_googlenews3", "PE", "es", 25),
+    scrapeGoogleNews("US", "Perú gobierno regional municipal empleo convocatoria vacante 2026", "peru_googlenews4", "PE", "es", 20),
+  ]);
+  const seen = new Set<string>();
+  const rows: ConcursoRow[] = [];
+  const errores: string[] = [];
+  for (const gn of [gn1, gn2, gn3, gn4]) {
+    for (const r of gn.rows) { if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); } }
+    errores.push(...gn.errores);
+  }
+  return { rows, errores };
 }
 
 async function scrapeParaguay(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
@@ -1034,22 +1056,16 @@ async function scrapeMexico(): Promise<{ rows: ConcursoRow[]; errores: string[] 
     errores.push("MX: DOF vacantes.php inaccesible");
   }
 
-  // Adzuna multi-búsqueda México — 35 ciudades × 14 categorías = 490 queries
+  // Adzuna multi-búsqueda México — 30 ciudades × 10 categorías = 300 queries
   const MX_CIDADES = [
     "Ciudad de Mexico","Guadalajara","Monterrey","Puebla","Tijuana",
     "Leon","Juarez","Torreon","Queretaro","San Luis Potosi",
     "Merida","Mexicali","Aguascalientes","Culiacan","Hermosillo",
     "Chihuahua","Morelia","Veracruz","Cancun","Zapopan",
-    // Ciudades y distritos adicionales
-    "Ecatepec","Naucalpan","Tlalnepantla","Nezahualcoyotl","Toluca",
-    "Saltillo","Xalapa","Tuxtla Gutierrez","Oaxaca","Durango",
-    "Villahermosa","Tepic","Colima","Campeche","Chetumal",
+    "Ecatepec","Naucalpan","Tlalnepantla","Toluca","Saltillo",
+    "Xalapa","Tuxtla Gutierrez","Oaxaca","Iztapalapa","Celaya",
   ];
-  const MX_CATS = [
-    "tecnologia","ventas","ingenieria","salud","logistica",
-    "manufactura","construccion","hosteleria","administrativo","operador",
-    "educacion","finanzas","seguridad","transporte",
-  ];
+  const MX_CATS = ["tecnologia","ventas","ingenieria","salud","logistica","manufactura","construccion","hosteleria","administrativo","operador"];
   const seenMX = new Set<string>(rows.map(r => r.fuente_id));
   const azMX = await adzunaMultiSearch("MX","mx", MX_CIDADES, MX_CATS, "es-MX,es;q=0.9,en;q=0.8", seenMX);
   rows.push(...azMX);
@@ -1196,14 +1212,14 @@ async function adzunaMultiSearch(
     }
   }
 
-  // Ejecutar en lotes de 30 paralelas para no saturar
-  for (let i = 0; i < queries.length; i += 30) {
-    const lote = queries.slice(i, i + 30);
+  // Ejecutar en lotes de 15 paralelas para no saturar memoria ni rate limits
+  for (let i = 0; i < queries.length; i += 15) {
+    const lote = queries.slice(i, i + 15);
     const resultados = await Promise.all(lote.map(async ([what, where]) => {
       const ua  = UA_POOL_MULTI[Math.floor(Math.random() * UA_POOL_MULTI.length)];
       const url = `https://api.adzuna.com/v1/api/jobs/${adzunaCountry}/search/1`
         + `?app_id=${APP_ID}&app_key=${APP_KEY}`
-        + `&results_per_page=50&sort_by=date&max_days_old=21&content-type=application/json`
+        + `&results_per_page=50&sort_by=date&content-type=application/json`
         + `&what=${encodeURIComponent(what)}&where=${encodeURIComponent(where)}`;
 
       let intentos = 0;
@@ -2646,11 +2662,18 @@ async function upsertRows(rows: ConcursoRow[]): Promise<number> {
   const hoy = new Date().toISOString().slice(0, 10);
   const validas = legitimas.filter(r => !r.fecha_cierre || r.fecha_cierre >= hoy);
   if (validas.length === 0) return 0;
-  const { error } = await supabase
-    .from("concursos")
-    .upsert(validas, { onConflict: "fuente,fuente_id", ignoreDuplicates: false });
-  if (error) console.error("upsert error:", error.message);
-  return error ? 0 : validas.length;
+
+  // Upsert en chunks de 1000 para no agotar memoria ni tiempo en lotes grandes
+  const CHUNK = 1000;
+  let total = 0;
+  for (let i = 0; i < validas.length; i += CHUNK) {
+    const { error } = await supabase
+      .from("concursos")
+      .upsert(validas.slice(i, i + CHUNK), { onConflict: "fuente,fuente_id", ignoreDuplicates: false });
+    if (error) { console.error("upsert error:", error.message); break; }
+    total += Math.min(CHUNK, validas.length - i);
+  }
+  return total;
 }
 
 async function marcarFuenteInactiva(fuente: string) {
@@ -2734,16 +2757,7 @@ serve(async (req: Request) => {
       ? [soloPais.toUpperCase()].filter(p => SCRAPERS[p])
       : Object.keys(SCRAPERS);
 
-    // Conteos actuales antes de scrapeary — para detectar caídas del 40%
     const cuentasAntes: Record<string, number> = {};
-    if (!modoTest) {
-      const { data: activos } = await supabase
-        .from("concursos").select("pais").eq("activo", true);
-      for (const row of (activos ?? [])) {
-        cuentasAntes[row.pais] = (cuentasAntes[row.pais] ?? 0) + 1;
-      }
-    }
-
     const resumen: Record<string, unknown> = {};
     let total_insertados = 0;
 
@@ -2762,25 +2776,7 @@ serve(async (req: Request) => {
       for (const r of resultados) {
         if (r.status === "rejected") continue;
         const { pais, errores } = r.value;
-        let rows = r.value.rows;
-
-        // Retry si cayó más del 40% respecto al conteo anterior (hasta 2 reintentos)
-        const antes = cuentasAntes[pais] ?? 0;
-        if (!modoTest && antes > 10 && rows.length > 0 && rows.length < antes * 0.6) {
-          console.log(`${pais}: caída detectada (${rows.length} vs ${antes} prev). Reintentando...`);
-          for (let intento = 1; intento <= 2; intento++) {
-            await new Promise(res => setTimeout(res, 4000 * intento));
-            try {
-              const { rows: r2 } = await SCRAPERS[pais]();
-              if (r2.length > rows.length) rows = r2;
-              if (rows.length >= antes * 0.6) break;
-            } catch (_) { /* retry silencioso */ }
-          }
-          // Si después de reintentos sigue por debajo del 60%, alertar
-          if (rows.length < antes * 0.6) {
-            await enviarAlertaAdmin(pais, antes, rows.length);
-          }
-        }
+        const rows = r.value.rows;
 
         if (modoTest) {
           resumen[pais] = { rows_sample: rows.slice(0, 3), total: rows.length, errores };
@@ -2788,60 +2784,51 @@ serve(async (req: Request) => {
           const insertados = await upsertRows(rows);
           total_insertados += insertados;
 
-          // Cleanup con piso duro: no eliminar más del 50% de los activos actuales
-          let cleanupBloqueado = false;
-          if (insertados >= 15 && rows.length >= 15) {
-            const { count: activosActuales } = await supabase
-              .from("concursos").select("*", { count: "exact", head: true })
-              .eq("pais", pais).eq("activo", true);
-            const total = activosActuales ?? 0;
+          resumen[pais] = { insertados, total_scrapeados: rows.length, errores };
 
+          // Cleanup y log totalmente async — no bloquean la respuesta principal
+          if (insertados >= 15 && rows.length >= 15) {
             const fuenteGroups = new Map<string, string[]>();
             for (const row of rows) {
               if (!fuenteGroups.has(row.fuente)) fuenteGroups.set(row.fuente, []);
               fuenteGroups.get(row.fuente)!.push(row.fuente_id);
             }
-            // Estimar cuántos se desactivarían
-            let aBorrar = 0;
-            for (const [fuente, ids] of fuenteGroups) {
-              const { count } = await supabase
+            (async () => {
+              const { count: total } = await supabase
                 .from("concursos").select("*", { count: "exact", head: true })
-                .eq("fuente", fuente).eq("activo", true)
-                .not("fuente_id", "in", `(${ids.map(id => `"${id.replace(/"/g, '""')}"`).join(",")})`);
-              aBorrar += count ?? 0;
-            }
-            if (total > 0 && aBorrar > total * 0.5) {
-              // Cleanup bloquado: alertar pero no borrar
-              cleanupBloqueado = true;
-              await enviarAlertaAdmin(pais, total, total - aBorrar);
-            } else {
+                .eq("pais", pais).eq("activo", true);
+              let aBorrar = 0;
               for (const [fuente, ids] of fuenteGroups) {
-                await supabase
-                  .from("concursos")
-                  .update({ activo: false })
+                const { count } = await supabase
+                  .from("concursos").select("*", { count: "exact", head: true })
                   .eq("fuente", fuente).eq("activo", true)
                   .not("fuente_id", "in", `(${ids.map(id => `"${id.replace(/"/g, '""')}"`).join(",")})`);
+                aBorrar += count ?? 0;
               }
-            }
+              if ((total ?? 0) > 0 && aBorrar > (total ?? 0) * 0.5) {
+                await enviarAlertaAdmin(pais, total ?? 0, (total ?? 0) - aBorrar);
+              } else {
+                for (const [fuente, ids] of fuenteGroups) {
+                  await supabase
+                    .from("concursos")
+                    .update({ activo: false })
+                    .eq("fuente", fuente).eq("activo", true)
+                    .not("fuente_id", "in", `(${ids.map(id => `"${id.replace(/"/g, '""')}"`).join(",")}`);
+                }
+              }
+              supabase.from("scraper_logs").insert({
+                pais, total_scrapeados: rows.length, total_insertados: insertados,
+                activos_antes: cuentasAntes[pais] ?? 0, activos_despues: (total ?? 0) - aBorrar + insertados,
+                errores: errores.length > 0 ? errores : [], ok: rows.length > 0,
+              }).then(() => {}).catch(() => {});
+            })().catch(() => {});
+          } else {
+            supabase.from("scraper_logs").insert({
+              pais, total_scrapeados: rows.length, total_insertados: insertados,
+              activos_antes: cuentasAntes[pais] ?? 0, activos_despues: insertados,
+              errores: errores.length > 0 ? errores : [], ok: rows.length > 0,
+            }).then(() => {}).catch(() => {});
           }
-
-          // Contar activos finales para el log
-          const { count: activosFinal } = await supabase
-            .from("concursos").select("*", { count: "exact", head: true })
-            .eq("pais", pais).eq("activo", true);
-
-          resumen[pais] = { insertados, total_scrapeados: rows.length, errores, cleanup_bloqueado: cleanupBloqueado || undefined };
-
-          // Escribir log de ejecución
-          supabase.from("scraper_logs").insert({
-            pais,
-            total_scrapeados: rows.length,
-            total_insertados: insertados,
-            activos_antes: cuentasAntes[pais] ?? 0,
-            activos_despues: activosFinal ?? 0,
-            errores: errores.length > 0 ? errores : [],
-            ok: rows.length > 0,
-          }).then(() => {}).catch(() => {});
         }
       }
     }

@@ -12,9 +12,8 @@ Se va actualizando a medida que avanza el desarrollo.
   Sin tarjeta, Google bloquea la key cuando supera las 1.000 imágenes/mes gratis.
   → https://console.cloud.google.com/billing
 
-- [ ] **Supabase — actualizar `SUPABASE_SERVICE_KEY` en `backend/.env`**
-  El archivo tiene el placeholder `PEGAR_CLAVE_NEXU_AQUI`. Reemplazar con la clave `nexu`
-  del dashboard: https://supabase.com/dashboard/project/waevdcqdkovqaxkonlvj/settings/api-keys
+- [x] **Supabase — `backend/.env`** ✅ No aplica
+  El `backend/server.js` no se usa — la app conecta directo a Supabase Edge Functions.
 
 - [x] **Supabase — SQL del schema aplicado en producción** ✅
   14/14 statements OK — índices, columnas updated_at, triggers, fecha_cierre→TIMESTAMPTZ
@@ -34,10 +33,8 @@ Se va actualizando a medida que avanza el desarrollo.
   `backend/.env` tiene placeholders para `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET`.
   Reemplazar con las claves productivas desde https://dashboard.stripe.com
 
-- [ ] **App móvil — crear `.env` con `HASH_SALT` real**
-  El archivo `.env.example` tiene el placeholder `GENERAR_CON_EL_COMANDO_DE_ARRIBA`.
-  Generar valor real: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
-  ⚠️ Una vez en producción con usuarios registrados, este valor NO puede cambiarse.
+- [x] **App móvil — `HASH_SALT`** ✅ No aplica
+  No se referencia en ningún archivo del código móvil.
 
 - [x] **Supabase — key rotada** ✅
   Key vieja revocada. Nueva key activa en .env.local, scraper-sa/.env.local y cron jobs.
@@ -76,9 +73,8 @@ Se va actualizando a medida que avanza el desarrollo.
 
 ## 🟡 RECOMENDADOS — para una operación estable
 
-- [ ] **Configurar `RESEND_API_KEY` en Supabase Edge Functions Secrets**
-  Los emails automáticos al admin (alertas del scraper) y los mensajes de bienvenida
-  los envía Resend. Sin la key, se silencian silenciosamente.
+- [x] **Configurar `RESEND_API_KEY` en Supabase Edge Functions Secrets** ✅
+  Funcionando — comprobantes, alertas y reportes diarios llegan correctamente.
 
 - [ ] **Cron jobs de scraper — verificar que estén activos**
   Los 4 jobs (`scraper-concursos-manana`, `-resumen`, `-mediodia`, `-noche`) se crearon

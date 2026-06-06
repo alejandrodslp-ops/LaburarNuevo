@@ -9,6 +9,11 @@ export async function registrar({ email, password, nombre, apellido1, apellido2,
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw error;
   if (data.user) {
+    const esWorker = rol === 'worker';
+    const gratis = esWorker
+      ? new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+
     const { error: insertError } = await supabase.from('profiles').insert({
       id: data.user.id,
       nombre,
@@ -16,6 +21,7 @@ export async function registrar({ email, password, nombre, apellido1, apellido2,
       apellido2: apellido2||'',
       rol,
       codigo_referido: generarCodigo(),
+      periodo_gratis_hasta: gratis,
     });
     if (insertError) {
       // Rollback: cerrar sesión para no dejar al usuario en estado inconsistente

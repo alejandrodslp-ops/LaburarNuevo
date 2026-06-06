@@ -270,7 +270,9 @@ export default function PerfilScreen({navigation}){
 
   async function compartirNexu(){
     try{
-      await Share.share({message:t('compartir_msg')});
+      const codigo=u.codigo_referido||'';
+      const link=codigo?`https://nexu.app/download?r=${codigo}`:'https://nexu.app/download';
+      await Share.share({message:`${t('compartir_msg')}\n${link}`,title:'Nexu'});
     }catch(e){}
   }
 

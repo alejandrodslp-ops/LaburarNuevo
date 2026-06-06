@@ -1,9 +1,9 @@
 import Link from 'next/link'
-import { APP_STORE_URL, GOOGLE_PLAY_URL } from '../../lib/config'
+import WaitlistForm from '../../components/WaitlistForm'
 
 export const metadata = {
-  title: 'Descarga Nexu',
-  description: 'Descarga Nexu gratis en App Store y Google Play. Recibí alertas de empleos y concursos que se adaptan a tu perfil.',
+  title: 'Descargá Nexu — Acceso anticipado',
+  description: 'Miles de personas quieren descargar Nexu. Anotate para recibir tu acceso antes que el resto.',
 }
 
 export default function DownloadPage() {
@@ -13,83 +13,76 @@ export default function DownloadPage() {
         background: '#0D1117', padding: '0 32px', height: 64,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'sticky', top: 0, zIndex: 100,
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
         <Link href="/" style={{ color: '#E8785A', fontSize: 22, fontWeight: 900, letterSpacing: -0.5 }}>Nexu</Link>
+        <Link href="/empleos" style={{ color: '#94A3B8', fontSize: 13, fontWeight: 600 }}>Ver empleos →</Link>
       </nav>
 
       <section style={{
-        background: '#0D1117', color: 'white',
+        background: 'linear-gradient(160deg, #0D1117 60%, #1a0a05)',
+        color: 'white',
         padding: '80px 24px 88px', textAlign: 'center',
-        position: 'relative', overflow: 'hidden',
-        minHeight: '80vh', display: 'flex', flexDirection: 'column',
+        minHeight: '85vh', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
       }}>
-        {/* Glow sutil */}
+
+        {/* Badge de demanda */}
         <div style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none',
-          background: 'radial-gradient(ellipse 70% 60% at 50% 50%, rgba(45,212,191,0.08) 0%, transparent 70%)',
-        }} />
-
-        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#2DD4BF', marginBottom: 20 }}>
-          Disponible en
-        </p>
-
-        <h1 style={{
-          fontFamily: 'Georgia, serif', fontStyle: 'italic',
-          fontSize: 'clamp(34px, 6vw, 58px)', fontWeight: 700,
-          lineHeight: 1.12, color: 'white', maxWidth: 600,
-          margin: '0 auto 16px',
+          display: 'inline-flex', alignItems: 'center', gap: 8,
+          background: 'rgba(232,120,90,0.12)', border: '1px solid rgba(232,120,90,0.3)',
+          borderRadius: 100, padding: '7px 18px', marginBottom: 32,
         }}>
-          Haz que las <span style={{ color: '#E8785A' }}>oportunidades</span><br />te encuentren
-        </h1>
-
-        <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.6)', maxWidth: 420, margin: '0 auto 48px', lineHeight: 1.65 }}>
-          Deja de buscar. Tu próximo trabajo ya está en tu bolsillo.
-        </p>
-
-        {/* Botones de descarga */}
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center', position: 'relative' }}>
-
-          {/* App Store */}
-          <a href={APP_STORE_URL} style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            background: 'white', color: '#0D1117',
-            borderRadius: 14, padding: '14px 24px',
-            textDecoration: 'none', minWidth: 200,
-          }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="#0D1117">
-              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-            </svg>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, opacity: 0.6, letterSpacing: 0.5 }}>Descargar en el</div>
-              <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.1 }}>App Store</div>
-            </div>
-          </a>
-
-          {/* Google Play */}
-          <a href={GOOGLE_PLAY_URL} style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            background: 'white', color: '#0D1117',
-            borderRadius: 14, padding: '14px 24px',
-            textDecoration: 'none', minWidth: 200,
-          }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="#0D1117">
-              <path d="M3.18 23.76c.3.17.64.22.99.14l12.12-6.98-2.61-2.61-10.5 9.45zm-1.05-20.3C2.06 3.73 2 4.03 2 4.37v15.26c0 .34.06.64.13.91l.07.06 8.55-8.55v-.2L2.2 3.4l-.07.06zm17.42 8.98l-2.44-1.41-2.91 2.91 2.91 2.91 2.46-1.42c.7-.4.7-1.58-.02-1.99zM4.17.42L16.29 7.4l-2.61 2.61L3.18.56c.3-.18.67-.2.99-.14z"/>
-            </svg>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 10, fontWeight: 600, opacity: 0.6, letterSpacing: 0.5 }}>Disponible en</div>
-              <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.1 }}>Google Play</div>
-            </div>
-          </a>
+          <span style={{ fontSize: 16 }}>🔥</span>
+          <span style={{ fontSize: 12, color: '#E8785A', fontWeight: 700, letterSpacing: 0.5 }}>
+            ALTA DEMANDA — ACCESO POR ORDEN DE REGISTRO
+          </span>
         </div>
 
-        <p style={{ marginTop: 28, fontSize: 13, color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>
-          Gratis · Sin tarjeta de crédito
+        <h1 style={{
+          fontSize: 'clamp(32px, 6vw, 58px)', fontWeight: 900,
+          lineHeight: 1.08, color: 'white', maxWidth: 580,
+          margin: '0 auto 18px', letterSpacing: -2,
+        }}>
+          El flujo de descargas es<br />
+          <em style={{ color: '#E8785A', fontStyle: 'italic' }}>más alto de lo esperado</em>
+        </h1>
+
+        <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.55)', maxWidth: 460, margin: '0 auto 12px', lineHeight: 1.65 }}>
+          Para garantizarte la mejor experiencia, estamos activando cuentas por tandas según el orden de registro.
         </p>
+
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)', maxWidth: 400, margin: '0 auto 44px', lineHeight: 1.6 }}>
+          Anotate ahora y te avisamos por email cuando sea tu turno — los primeros de la lista tienen prioridad.
+        </p>
+
+        {/* Waitlist form */}
+        <div style={{ width: '100%', maxWidth: 440 }}>
+          <WaitlistForm ctaLabel="Quiero mi acceso →" />
+        </div>
+
+        {/* Social proof */}
+        <div style={{
+          display: 'flex', gap: 32, justifyContent: 'center', flexWrap: 'wrap',
+          marginTop: 48, paddingTop: 40,
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          maxWidth: 500,
+        }}>
+          {[
+            { num: '65.000+', label: 'empleos disponibles hoy' },
+            { num: '33',      label: 'países cubiertos' },
+            { num: '100%',    label: 'alertas personalizadas' },
+          ].map((s, i) => (
+            <div key={i} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 26, fontWeight: 900, color: '#E8785A', letterSpacing: -1 }}>{s.num}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
       </section>
 
       <footer style={{
-        background: '#0D1117', color: 'rgba(255,255,255,0.4)',
+        background: '#0D1117', color: 'rgba(255,255,255,0.3)',
         textAlign: 'center', padding: '24px', fontSize: 13,
         borderTop: '1px solid rgba(255,255,255,0.06)',
       }}>

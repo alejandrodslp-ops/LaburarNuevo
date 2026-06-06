@@ -1,5 +1,5 @@
 # Estado del Proyecto — Laburar (Nexu)
-**Última actualización: 17 mayo 2026 (sesión 9)**
+**Última actualización: 03 junio 2026 (sesión actual)**
 
 ---
 
@@ -29,6 +29,53 @@ App móvil de empleo para trabajadores y empleadores de Latinoamérica, construi
 | AdminScreen | ✅ Completo — ver detalle abajo |
 | WaitlistScreen | ✅ Nuevo — lista de espera |
 | VerificarTelefonoScreen | ✅ Nuevo — verificación de teléfono vía email OTP |
+
+---
+
+## Funcionalidades creadas y pendientes de activación
+
+### 🟡 PIX Inteligente — sistema de cobro automático para Brasil
+
+**Contexto:** El mercado principal de Nexu es Brasil. Los trabajadores brasileños pagan via PIX (sistema de pago instantáneo del Banco Central de Brasil). El desafío era cómo recibir PIX desde Uruguay sin entidad legal brasileña y activar automáticamente el perfil del usuario sin intervención manual.
+
+**Solución diseñada:** Un sistema en tres partes que usa el estándar EMVCo de PIX para embeber el ID del usuario dentro del código de pago, un monitor de Gmail gratuito (Google Apps Script) que detecta la notificación de pago de Banco Rendimento, y un webhook de Nexu que activa el perfil automáticamente.
+
+**Estado:** Código creado y listo. Pendiente de activar cuando Banco Rendimento apruebe la cuenta CNR (Conta de Não Residente) — solicitud enviada el 03/06/2026, aprobación esperada en 2-3 días hábiles.
+
+**Archivos creados (NO deployados):**
+- `supabase/functions/gerar-pix/index.ts` — genera código PIX único por usuario con su ID embebido en el campo `referenceLabel` del estándar EMVCo
+- `supabase/functions/ativar-via-pix/index.ts` — recibe la señal del monitor y activa el perfil del usuario
+- `scripts/monitor-pix-rendimento.gs` — Google Apps Script (gratis) que monitorea Gmail cada 60 segundos buscando notificaciones de pago de Rendimento, extrae el ID del usuario y llama al webhook
+
+**Para activar:**
+1. Esperar aprobación de Banco Rendimento
+2. Obtener clave PIX de Rendimento
+3. Agregar `PIX_KEY_RENDIMENTO` y `PIX_WEBHOOK_SECRET` en Supabase Secrets
+4. Deployar `gerar-pix` y `ativar-via-pix`
+5. Crear cuenta Google dedicada (pagos-nexu@gmail.com)
+6. Pegar `monitor-pix-rendimento.gs` en script.google.com y activar trigger cada 1 minuto
+7. Abrir MercadoPago Brasil con la cuenta de Rendimento para PIX dinámico con confirmación directa (sin Gmail)
+
+---
+
+### 🟡 iOS Live Activities — confirmación de pago en Dynamic Island
+
+**Contexto:** Cuando un usuario paga PIX, abandona Nexu para ir a su banco. El problema es hacer que sepa que el pago fue confirmado sin necesidad de volver manualmente a la app. En iOS, las notificaciones push requieren permiso del usuario — que algunos niegan.
+
+**Solución diseñada:** iOS Live Activities (introducido en iOS 16.1) permite mostrar información en tiempo real en la Dynamic Island (la pastilla negra del iPhone) y en la pantalla de bloqueo, sin necesitar permiso de notificaciones. El usuario ve en la pastilla: "Pago PIX pendiente → ✓ Confirmado" mientras está en su banco, sin tocar nada.
+
+**Estado:** Código Swift creado, listo para integrar al build nativo. Pendiente de conectar al `app.json` y al `PagoActivacionScreen` cuando se autorice.
+
+**Archivos creados (NO activados):**
+- `ios/NexuLiveActivity/NexuLiveActivity.swift` — vista Swift de la Dynamic Island y Lock Screen con tres estados: esperando (teal), confirmado (verde), error (coral)
+- `ios/NexuLiveActivity/NexuLiveActivity-Info.plist` — configuración del Widget Extension para Xcode
+- `src/services/liveActivity.js` — servicio JS que controla el Live Activity desde la app React Native
+
+**Para activar:**
+1. Autorizar modificación de `app.json` para agregar el plugin del Widget Extension
+2. Autorizar modificación de `PagoActivacionScreen.js` para llamar a `iniciarLiveActivityPIX()` cuando el usuario toca "Pagar PIX" y `atualizarLiveActivityPIX()` cuando se confirma el pago
+3. Hacer nuevo EAS Build para compilar el código nativo Swift
+4. Solo funciona en iOS 16.1+ con build nativo (no Expo Go)
 
 ---
 

@@ -49,102 +49,130 @@ function generarHTML(data: {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Comprobante ${data.numero} &mdash; Nexu</title>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: Arial, sans-serif; color: #1A1020; background: #fff; padding: 40px; }
-  .header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:40px; border-bottom:3px solid #E8785A; padding-bottom:24px; }
-  .logo { font-size:32px; font-weight:900; color:#E8785A; letter-spacing:-1px; }
-  .logo-sub { font-size:12px; color:#888; margin-top:2px; }
-  .comp-num { text-align:right; }
-  .comp-num h2 { font-size:14px; color:#888; font-weight:600; letter-spacing:1px; text-transform:uppercase; }
-  .comp-num h1 { font-size:22px; font-weight:900; color:#1A1020; }
-  .comp-num p { font-size:13px; color:#666; margin-top:4px; }
-  .section { margin-bottom:28px; }
-  .section h3 { font-size:11px; color:#888; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:10px; }
-  .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-  .info-item label { font-size:11px; color:#999; display:block; margin-bottom:2px; }
-  .info-item p { font-size:14px; color:#1A1020; font-weight:600; }
-  table { width:100%; border-collapse:collapse; margin-bottom:24px; }
-  thead th { background:#F5F0EB; padding:10px 16px; text-align:left; font-size:12px; color:#666; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
-  tbody td { padding:14px 16px; border-bottom:1px solid #EDE8E2; font-size:14px; }
-  .total-row { background:#FFF8F5; }
-  .total-row td { font-weight:900; font-size:18px; color:#E8785A; border-bottom:none; }
-  .footer { margin-top:40px; padding-top:20px; border-top:1px solid #EDE8E2; font-size:11px; color:#999; line-height:1.8; }
-  .stamp { display:inline-block; border:2px solid #22C55E; color:#22C55E; padding:6px 18px; border-radius:6px; font-size:13px; font-weight:800; letter-spacing:1px; margin-bottom:16px; }
-  @media print { body { padding:20px; } }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:Arial,Helvetica,sans-serif;background:#EDEBE8;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;}
+  .card{background:#fff;width:100%;max-width:620px;border-radius:12px;box-shadow:0 4px 32px rgba(0,0,0,0.13);overflow:hidden;}
+  /* ---- Header oscuro ---- */
+  .hdr{background:#1A1020;padding:28px 36px;display:flex;justify-content:space-between;align-items:center;}
+  .hdr-logo{font-size:30px;font-weight:900;color:#E8785A;letter-spacing:-1px;}
+  .hdr-sub{font-size:11px;color:#666;margin-top:3px;}
+  .hdr-right{text-align:right;}
+  .hdr-label{font-size:10px;color:#777;text-transform:uppercase;letter-spacing:1.5px;}
+  .hdr-num{font-size:17px;font-weight:800;color:#fff;margin-top:3px;font-family:monospace;}
+  .hdr-date{font-size:12px;color:#aaa;margin-top:3px;}
+  /* ---- Body ---- */
+  .body{padding:32px 36px;}
+  /* Monto + badge */
+  .top-row{display:flex;align-items:center;gap:16px;margin-bottom:28px;}
+  .badge{background:#DCFCE7;color:#16A34A;border:1.5px solid #86EFAC;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:800;letter-spacing:0.5px;white-space:nowrap;}
+  .monto{font-size:40px;font-weight:900;color:#1A1020;letter-spacing:-2px;line-height:1;}
+  /* Billing */
+  .billing{display:grid;grid-template-columns:1fr 1fr;border:1px solid #E8E3DC;border-radius:8px;overflow:hidden;margin-bottom:28px;}
+  .bill-col{padding:18px 20px;background:#FAF8F5;}
+  .bill-col:first-child{border-right:1px solid #E8E3DC;}
+  .bill-lbl{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:7px;}
+  .bill-name{font-size:15px;font-weight:800;color:#1A1020;margin-bottom:3px;}
+  .bill-detail{font-size:12px;color:#777;line-height:1.6;}
+  /* Divider */
+  .div{border:none;border-top:1px solid #EDE8E2;margin:0 0 24px;}
+  /* Tabla */
+  table{width:100%;border-collapse:collapse;margin-bottom:0;}
+  thead th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#999;padding:0 0 10px;border-bottom:2px solid #1A1020;}
+  tbody td{padding:16px 0;border-bottom:1px solid #EDE8E2;font-size:14px;color:#1A1020;vertical-align:top;}
+  tfoot td{padding:16px 0 0;}
+  .t-total-lbl{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;text-align:right;vertical-align:middle;padding-right:16px;}
+  .t-total-val{font-size:26px;font-weight:900;color:#E8785A;text-align:right;}
+  /* Meta */
+  .meta{display:flex;gap:32px;flex-wrap:wrap;margin-top:24px;padding-top:20px;border-top:1px solid #EDE8E2;}
+  .meta-item{}
+  .meta-lbl{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:4px;}
+  .meta-val{font-size:13px;color:#1A1020;font-weight:600;}
+  .meta-mono{font-family:monospace;font-size:12px;color:#555;}
+  /* Footer */
+  .footer{background:#FAF8F5;padding:18px 36px;border-top:1px solid #EDE8E2;}
+  .footer p{font-size:11px;color:#aaa;line-height:1.8;}
+  @media print{body{background:#fff;padding:0;}.card{box-shadow:none;border-radius:0;}}
 </style>
 </head>
 <body>
-  <div class="header">
+<div class="card">
+
+  <div class="hdr">
     <div>
-      <div class="logo">Nexu</div>
-      <div class="logo-sub">nexu.app &middot; Plataforma de empleo</div>
+      <div class="hdr-logo">Nexu</div>
+      <div class="hdr-sub">nexu.app &middot; Plataforma de empleo</div>
     </div>
-    <div class="comp-num">
-      <h2>Comprobante de pago</h2>
-      <h1>${data.numero}</h1>
-      <p>${fecha}</p>
-    </div>
-  </div>
-
-  <div class="section">
-    <div class="stamp">&#x2713; PAGADO</div>
-    <div class="info-grid">
-      <div class="info-item">
-        <label>Emisor</label>
-        <p>Nexu &mdash; Plataforma de empleo</p>
-      </div>
-      <div class="info-item">
-        <label>Receptor</label>
-        <p>${data.razon_social || "&mdash;"}</p>
-      </div>
-      ${data.rut_nit ? `<div class="info-item"><label>RUT / NIT / CUIT</label><p>${data.rut_nit}</p></div>` : ""}
-      <div class="info-item">
-        <label>Email</label>
-        <p>${data.email}</p>
-      </div>
+    <div class="hdr-right">
+      <div class="hdr-label">Comprobante de pago</div>
+      <div class="hdr-num">${data.numero}</div>
+      <div class="hdr-date">${fecha}</div>
     </div>
   </div>
 
-  <div class="section">
-    <h3>Detalle del servicio</h3>
+  <div class="body">
+
+    <div class="top-row">
+      <span class="badge">&#x2713;&nbsp;PAGADO</span>
+      <span class="monto">${montoFmt}</span>
+    </div>
+
+    <div class="billing">
+      <div class="bill-col">
+        <div class="bill-lbl">De</div>
+        <div class="bill-name">Nexu</div>
+        <div class="bill-detail">nexu.app<br>soporte@nexu.app</div>
+      </div>
+      <div class="bill-col">
+        <div class="bill-lbl">Para</div>
+        <div class="bill-name">${data.razon_social || "Cliente"}</div>
+        <div class="bill-detail">${data.email}${data.rut_nit ? `<br>RUT/NIT: ${data.rut_nit}` : ""}</div>
+      </div>
+    </div>
+
     <table>
       <thead>
         <tr>
-          <th>Concepto</th>
+          <th style="text-align:left">Concepto</th>
           <th style="text-align:right">Importe</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td>${data.concepto}</td>
-          <td style="text-align:right">${montoFmt}</td>
-        </tr>
-        <tr class="total-row">
-          <td>TOTAL</td>
-          <td style="text-align:right">${montoFmt}</td>
+          <td style="text-align:right;font-weight:700">${montoFmt}</td>
         </tr>
       </tbody>
+      <tfoot>
+        <tr>
+          <td class="t-total-lbl">Total</td>
+          <td class="t-total-val">${montoFmt}</td>
+        </tr>
+      </tfoot>
     </table>
-  </div>
 
-  <div class="section">
-    <div class="info-grid">
-      <div class="info-item">
-        <label>M&eacute;todo de pago</label>
-        <p>${metodoLabel[data.metodo] ?? data.metodo}</p>
+    <div class="meta">
+      <div class="meta-item">
+        <div class="meta-lbl">M&eacute;todo de pago</div>
+        <div class="meta-val">${metodoLabel[data.metodo] ?? data.metodo}</div>
       </div>
-      <div class="info-item">
-        <label>Referencia de transacci&oacute;n</label>
-        <p style="font-family:monospace; font-size:12px">${data.referencia}</p>
+      <div class="meta-item">
+        <div class="meta-lbl">Referencia</div>
+        <div class="meta-mono">${data.referencia}</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-lbl">Fecha</div>
+        <div class="meta-val">${fecha}</div>
       </div>
     </div>
+
   </div>
 
   <div class="footer">
-    <p>Este documento es un comprobante de pago v&aacute;lido emitido por Nexu.</p>
-    <p>Para consultas: soporte@nexu.app &middot; nexu.app</p>
-    <p style="margin-top:8px; color:#ccc">${data.numero} &middot; Generado autom&aacute;ticamente el ${fecha}</p>
+    <p>Comprobante v&aacute;lido emitido por Nexu &middot; soporte@nexu.app &middot; nexu.app</p>
+    <p>${data.numero} &middot; Generado autom&aacute;ticamente el ${fecha}</p>
   </div>
+
+</div>
 </body>
 </html>`;
 }
@@ -232,7 +260,7 @@ serve(async (req) => {
       body: JSON.stringify({
         from:    "Nexu <onboarding@resend.dev>",
         to:      [email],
-        subject: ` Comprobante de pago ${numero} &mdash; Nexu`,
+        subject: `Comprobante de pago ${numero} - Nexu`,
         html:    html,
       }),
       signal: AbortSignal.timeout(10000),

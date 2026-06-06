@@ -462,6 +462,26 @@ async function updateWaitlistConfig(db: ReturnType<typeof createClient>, params:
   return ok({ ok: true });
 }
 
+async function getWaitlistLista(db: ReturnType<typeof createClient>, params: any) {
+  const pagina = Math.max(0, Number(params?.pagina ?? 0));
+  const filtro = params?.filtro ?? "todos";
+  const tam    = 50;
+
+  let countQ = db.from("waitlist").select("*", { count: "exact", head: true });
+  let dataQ  = db.from("waitlist").select("posicion,email,nombre,habilitado,registrado,created_at");
+  if (filtro === "en_espera")   { countQ = countQ.eq("habilitado", false);                             dataQ = dataQ.eq("habilitado", false); }
+  if (filtro === "habilitados") { countQ = countQ.eq("habilitado", true).eq("registrado", false);      dataQ = dataQ.eq("habilitado", true).eq("registrado", false); }
+  if (filtro === "registrados") { countQ = countQ.eq("registrado", true);                              dataQ = dataQ.eq("registrado", true); }
+
+  const [{ count }, { data, error }] = await Promise.all([
+    countQ,
+    dataQ.order("posicion", { ascending: true }).range(pagina * tam, pagina * tam + tam - 1),
+  ]);
+
+  if (error) return err(error.message);
+  return ok({ usuarios: data ?? [], total: count ?? 0, pagina, tam });
+}
+
 async function habilitarManualWaitlist(db: ReturnType<typeof createClient>, params: any) {
   const cantidad = Math.min(Number(params?.cantidad ?? 100), 5000);
   const { data: proximos } = await db.from("waitlist")
@@ -971,8 +991,9 @@ serve(async (req) => {
       case "pagos_resumen":   return await getPagos(db, params ?? {});
       case "consultas":       return await consultas(db, params ?? {});
       case "enviar_mensajes":      return await enviarMensajes(db, params ?? {}, adminId ?? "");
-      case "waitlist_stats":       return await getWaitlistStats(db);
-      case "waitlist_config":      return await updateWaitlistConfig(db, params ?? {});
+      case "waitlist_stats":        return await getWaitlistStats(db);
+      case "waitlist_lista":        return await getWaitlistLista(db, params ?? {});
+      case "waitlist_config":       return await updateWaitlistConfig(db, params ?? {});
       case "waitlist_habilitar":    return await habilitarManualWaitlist(db, params ?? {});
       case "reportes_pendientes":   return await getReportesPendientes(db);
       case "accion_usuario":        return await accionUsuario(db, params ?? {});

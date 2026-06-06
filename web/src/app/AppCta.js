@@ -77,6 +77,45 @@ const T = {
     gratis:   'Kostenlos',
     btn:      '📱 Nexu herunterladen — Kostenlos',
   },
+  sv: {
+    pre:      'För att hålla dig informerad om jobb som detta',
+    slogan:   'Låt möjligheterna hitta dig',
+    desc:     'Sluta söka. Ditt nästa jobb finns redan i din ficka. Möjligheter som anpassar sig till dig, inte tvärtom.',
+    props: [
+      { icon: '🔒', titulo: 'Din integritet först',       cuerpo: 'Arbetsgivaren visas anonymt. Du ser bara deras färdigheter tills du bestämmer dig för att ta kontakt.' },
+      { icon: '⚡', titulo: 'Möjligheter hittar dig',     cuerpo: 'Aktivera din profil och jobb kommer direkt till din telefon, utan att slösa tid på att söka.' },
+      { icon: '🏛️', titulo: 'Offentliga tjänster',        cuerpo: 'Vi meddelar dig när du uppfyller kraven för offentliga tjänster. Inkluderat, utan kostnad.' },
+    ],
+    descarga: 'Ladda ner Nexu',
+    gratis:   'Gratis',
+    btn:      '📱 Ladda ner Nexu — Gratis',
+  },
+  no: {
+    pre:      'For å holde deg informert om jobber som denne',
+    slogan:   'La mulighetene finne deg',
+    desc:     'Slutt å søke. Din neste jobb er allerede i lommen din. Muligheter som tilpasser seg deg, ikke omvendt.',
+    props: [
+      { icon: '🔒', titulo: 'Ditt personvern først',      cuerpo: 'Arbeidsgiveren vises anonymt. Du ser bare deres ferdigheter til du bestemmer deg for kontakt.' },
+      { icon: '⚡', titulo: 'Muligheter finner deg',       cuerpo: 'Aktiver profilen din og jobber kommer direkte til telefonen din, uten å kaste bort tid på å søke.' },
+      { icon: '🏛️', titulo: 'Offentlige stillinger',       cuerpo: 'Vi varsler deg når du oppfyller kravene for offentlige stillinger. Inkludert, uten kostnad.' },
+    ],
+    descarga: 'Last ned Nexu',
+    gratis:   'Gratis',
+    btn:      '📱 Last ned Nexu — Gratis',
+  },
+  ja: {
+    pre:      'このような求人情報をお知らせするために',
+    slogan:   'チャンスがあなたを見つける',
+    desc:     '探すのをやめよう。次の仕事はもうあなたのポケットにある。あなたに合った機会が、逆ではなく。',
+    props: [
+      { icon: '🔒', titulo: 'あなたのプライバシー優先',   cuerpo: '雇用主は匿名で表示されます。連絡を決めるまでスキルだけが見えます。' },
+      { icon: '⚡', titulo: 'チャンスがあなたに来る',     cuerpo: 'プロフィールを有効にして、検索に時間を無駄にせず、求人が直接スマホに届く。' },
+      { icon: '🏛️', titulo: '公募コンクール',             cuerpo: '公共のコンクールの要件を満たしたときにお知らせします。含まれており、無料です。' },
+    ],
+    descarga: 'Nexuをダウンロード',
+    gratis:   '無料',
+    btn:      '📱 Nexuをダウンロード — 無料',
+  },
 }
 
 export default function AppCta({ lang = 'es', cargo = null }) {

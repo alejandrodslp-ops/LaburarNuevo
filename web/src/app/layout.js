@@ -11,11 +11,25 @@ export const metadata = {
   description:
     'Miles de concursos públicos, llamados de trabajo y vacantes en Uruguay, Argentina, Brasil y toda LatAm. Sector público y privado. Actualizados diariamente. Gratis.',
   keywords: [
+    // Uruguay
     'concursos públicos Uruguay','llamados ONSC','Uruguay Concursa','empleos Uruguay',
-    'concursos públicos Argentina','empleos Argentina','trabajo Argentina',
-    'vacantes gobierno','empleo público LatAm','concursos laborales',
-    'convocatorias trabajo','trabajo América Latina','empleos Brasil',
-    'trabajo Colombia','empleos Chile','concurso público',
+    // Argentina
+    'concursos públicos Argentina','empleos Argentina','trabajo Argentina','convocatorias Argentina',
+    // Brasil (PT)
+    'concurso público Brasil','empregos Brasil','vagas Brasil','concurso público federal',
+    // México
+    'empleos México','convocatorias México','trabajo México','vacantes gobierno México',
+    // Colombia
+    'empleos Colombia','trabajo Colombia','convocatorias CNSC','empleo público Colombia',
+    // Chile
+    'empleos Chile','trabajo Chile','concursos públicos Chile',
+    // Resto LatAm
+    'trabajo América Latina','empleo público LatAm','concursos laborales',
+    // Multilang
+    'jobs Latin America','emplois Amérique latine','lavoro America Latina',
+    'Jobs Lateinamerika','jobb Latinamerika',
+    // Generic
+    'vacantes gobierno','empleo público','public sector jobs',
   ],
   openGraph: {
     title: 'Nexu — Concursos Públicos y Empleos en Uruguay, Argentina y LatAm',

@@ -6,6 +6,7 @@ import{supabase}from "../services/supabase";
 import * as SMS from "expo-sms";
 
 const PAISES_SA=["AR","BO","BR","CL","CO","EC","PY","PE","UY","VE","MX","GT","HN","SV","NI","CR","PA","CU","HT","DO","PR","BZ","GY","SR","TT","JM","BB","LC","VC","GD","AG","DM","KN"];
+const PAISES_DEVALUADOS=["IN"];
 const MONEDAS={"AR":{simbolo:"ARS",tasa:1200},"BO":{simbolo:"BOB",tasa:6.9},"BR":{simbolo:"BRL",tasa:5.1},"CL":{simbolo:"CLP",tasa:950},"CO":{simbolo:"COP",tasa:4100},"EC":{simbolo:"USD",tasa:1},"PY":{simbolo:"PYG",tasa:7400},"PE":{simbolo:"PEN",tasa:3.8},"UY":{simbolo:"UYU",tasa:41},"VE":{simbolo:"USD",tasa:1},"MX":{simbolo:"MXN",tasa:17},"GT":{simbolo:"GTQ",tasa:7.8},"HN":{simbolo:"HNL",tasa:24.8},"SV":{simbolo:"USD",tasa:1},"NI":{simbolo:"NIO",tasa:36.6},"CR":{simbolo:"CRC",tasa:520},"PA":{simbolo:"USD",tasa:1}};
 // Stripe pendiente de configurar — por ahora solo MercadoPago para todos los países
 
@@ -79,14 +80,15 @@ export default function PagoScreen({navigation,route}){
   },[perfil]);
 
   const esSudamerica=PAISES_SA.includes(pais);
+  const esDevaluado=PAISES_DEVALUADOS.includes(pais);
   const moneda=MONEDAS[pais];
 
   const PAQUETES={
-    '3':{cantidad:3,precioSA:3.99,precioWorld:7.98,porPerfilSA:1.33,porPerfilWorld:2.66},
-    '10':{cantidad:10,precioSA:9.99,precioWorld:19.99,porPerfilSA:1.00,porPerfilWorld:2.00},
+    '3':{cantidad:3,precioSA:3.99,precioWorld:7.98,precioDevaluado:1.50,porPerfilSA:1.33,porPerfilWorld:2.66,porPerfilDevaluado:0.50},
+    '10':{cantidad:10,precioSA:9.99,precioWorld:19.99,precioDevaluado:4.99,porPerfilSA:1.00,porPerfilWorld:2.00,porPerfilDevaluado:0.50},
   };
   const pkg=PAQUETES[paquete];
-  const montoPago=esSudamerica?pkg.precioSA:pkg.precioWorld;
+  const montoPago=esDevaluado?pkg.precioDevaluado:esSudamerica?pkg.precioSA:pkg.precioWorld;
   const precioLocal=moneda&&moneda.simbolo!=="USD"?Math.round(montoPago*moneda.tasa):null;
 
   useEffect(()=>{
@@ -106,7 +108,6 @@ export default function PagoScreen({navigation,route}){
     try{
       const{data:{user}}=await supabase.auth.getUser();
       if(!user){Alert.alert("Error","Debés iniciar sesión");return;}
-      // Guardar baseline antes de abrir el pago
       const{data:perfData}=await supabase.from('profiles').select('visualizaciones_disponibles').eq('id',user.id).single();
       prevVisualizacionesRef.current=perfData?.visualizaciones_disponibles||0;
       const{data,error}=await supabase.functions.invoke("crear-pago",{
@@ -117,6 +118,23 @@ export default function PagoScreen({navigation,route}){
       setEsperandoPago(true);
     }catch(e){Alert.alert("Error","No se pudo conectar con MercadoPago.");}
     finally{metodo==='mp'?setLoadingMP(false):setLoadingTarjeta(false);}
+  }
+
+  async function iniciarPagoStripe(){
+    setLoadingTarjeta(true);
+    try{
+      const{data:{user}}=await supabase.auth.getUser();
+      if(!user){Alert.alert("Error","Debés iniciar sesión");setLoadingTarjeta(false);return;}
+      const{data:perfData}=await supabase.from('profiles').select('visualizaciones_disponibles').eq('id',user.id).single();
+      prevVisualizacionesRef.current=perfData?.visualizaciones_disponibles||0;
+      const{data,error}=await supabase.functions.invoke("crear-pago-stripe",{
+        body:{user_id:user.id,monto:montoPago,descripcion:"Nexu - "+pkg.cantidad+" perfiles",worker_id:perfil?.id||'',cantidad_perfiles:pkg.cantidad},
+      });
+      if(error)throw error;
+      await Linking.openURL(data.checkout_url);
+      setEsperandoPago(true);
+    }catch(e){Alert.alert("Error","No se pudo conectar con el sistema de pagos.");}
+    setLoadingTarjeta(false);
   }
 
   async function handleSMS(){
@@ -173,7 +191,7 @@ export default function PagoScreen({navigation,route}){
             <TouchableOpacity style={[ss.paqueteCard,paquete==='3'&&ss.paqueteCardA]} onPress={()=>setPaquete('3')}>
               <Text style={[ss.paqueteCant,paquete==='3'&&ss.paqueteTextA]}>3</Text>
               <Text style={[ss.paqueteLabel,paquete==='3'&&ss.paqueteTextA]}>perfiles</Text>
-              <Text style={[ss.paquetePrecio,paquete==='3'&&ss.paqueteTextA]}>U${esSudamerica?"1.33":"2.66"}</Text>
+              <Text style={[ss.paquetePrecio,paquete==='3'&&ss.paqueteTextA]}>U${esDevaluado?"0.50":esSudamerica?"1.33":"2.66"}</Text>
               <Text style={[ss.paquetePorPerfil,paquete==='3'&&ss.paqueteSubA]}>por perfil</Text>
             </TouchableOpacity>
 
@@ -181,7 +199,7 @@ export default function PagoScreen({navigation,route}){
               <View style={ss.paqueteBadge}><Text style={ss.paqueteBadgeTxt}>-25%</Text></View>
               <Text style={[ss.paqueteCant,paquete==='10'&&ss.paqueteTextA]}>10</Text>
               <Text style={[ss.paqueteLabel,paquete==='10'&&ss.paqueteTextA]}>perfiles</Text>
-              <Text style={[ss.paquetePrecio,paquete==='10'&&ss.paqueteTextA]}>U${esSudamerica?"1.00":"2.00"}</Text>
+              <Text style={[ss.paquetePrecio,paquete==='10'&&ss.paqueteTextA]}>U${esDevaluado?"0.50":esSudamerica?"1.00":"2.00"}</Text>
               <Text style={[ss.paquetePorPerfil,paquete==='10'&&ss.paqueteSubA]}>por perfil</Text>
             </TouchableOpacity>
           </View>
@@ -206,17 +224,28 @@ export default function PagoScreen({navigation,route}){
         )}
         <Text style={ss.metodosTit}>ELEGIR METODO DE PAGO</Text>
 
-        <TouchableOpacity style={ss.btnWrap} onPress={()=>iniciarPagoMP('mp')} disabled={loadingMP||esperandoPago}>
-          <LinearGradient colors={["#009EE3","#0077B6"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
-            {loadingMP?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 MercadoPago</Text>}
-          </LinearGradient>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={ss.btnWrap} onPress={()=>iniciarPagoMP('tarjeta')} disabled={loadingTarjeta||esperandoPago}>
-          <LinearGradient colors={["#2DD4BF","#14B8A6"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
-            {loadingTarjeta?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 Tarjeta de crédito / débito</Text>}
-          </LinearGradient>
-        </TouchableOpacity>
+        {esSudamerica?(
+          <>
+            {/* LatAm: MercadoPago como opción principal */}
+            <TouchableOpacity style={ss.btnWrap} onPress={()=>iniciarPagoMP('mp')} disabled={loadingMP||esperandoPago}>
+              <LinearGradient colors={["#009EE3","#0077B6"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
+                {loadingMP?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 MercadoPago</Text>}
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity style={ss.btnWrap} onPress={iniciarPagoStripe} disabled={loadingTarjeta||esperandoPago}>
+              <LinearGradient colors={["#2DD4BF","#14B8A6"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
+                {loadingTarjeta?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 Tarjeta internacional</Text>}
+              </LinearGradient>
+            </TouchableOpacity>
+          </>
+        ):(
+          /* Resto del mundo: Stripe (tarjeta internacional) */
+          <TouchableOpacity style={ss.btnWrap} onPress={iniciarPagoStripe} disabled={loadingTarjeta||esperandoPago}>
+            <LinearGradient colors={["#6366F1","#4F46E5"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
+              {loadingTarjeta?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 Pagar con tarjeta</Text>}
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity style={ss.btnWrap} onPress={handleSMS} disabled={loadingSMS}>
           <LinearGradient colors={["#3DA882","#2E9472"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>

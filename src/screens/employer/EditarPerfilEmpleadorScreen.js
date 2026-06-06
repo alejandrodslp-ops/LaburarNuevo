@@ -10,7 +10,7 @@ const ESCOLARIDAD=["Sin requisito","Primaria completa","Secundaria completa","Te
 const IDIOMAS=["Espanol","Portugues","Ingles","Frances","Italiano","Aleman","Otro"];
 const CARGAS=["Tiempo completo","Medio tiempo","Por horas","Por tarea","A convenir"];
 const SUELDO_TIPO=["Monto fijo","A acordar","Por hora","Por tarea"];
-const TODOS_OFICIOS=["Niñera","Limpieza","Plomero","Electricista","Jardinero","Cocinero","Albañil","Pintor","Cuidado de animales","Chofer","Mucama","Carpintero","Mecanico","Guardia","Sereno","Mozo","Repostero","Costurero","Peluquero","Esteticista","Mudanzas","Delivery","Medico","Abogado","Contador","Ingeniero","Arquitecto","Psicologo","Enfermero","Veterinario","Docente","Programador","Diseñador","Fotografo","Electricista","Gasista","Herrero","Soldador","Tapicero","Cerrajero","Techista","Otro"];
+const TODOS_OFICIOS=["Niñera","Limpieza","Plomero","Electricista","Jardinero","Cocinero","Albañil","Pintor","Cuidado de animales","Chofer","Mucama","Carpintero","Mecanico","Guardia","Sereno","Mozo","Repostero","Costurero","Peluquero","Esteticista","Mudanzas","Delivery","Recepcionista","Cajero/a","Operador/a de produccion","Auxiliar de deposito","Operador/a de empilhadeira","Teleoperador/a","Manicura/Pedicura","Panadero/a","Cerrajero","Techista","Tapicero","Promotor/a de ventas","Masajista","Lavador/a de autos","Medico","Abogado","Contador","Ingeniero","Arquitecto","Psicologo","Enfermero","Veterinario","Docente","Programador","Diseñador","Fotografo","Gasista","Herrero","Soldador","Otro"];
 
 function Field({label,value,onChange,placeholder,multi,keyboard,optional}){
   return(

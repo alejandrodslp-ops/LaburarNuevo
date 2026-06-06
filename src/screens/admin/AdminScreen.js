@@ -2225,11 +2225,11 @@ function TabCampanas() {
 // Tab Waitlist
 // ─────────────────────────────────────────────────────────────────────────────
 function TabWaitlist() {
-  const [datos,    setDatos]    = useState(null);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState('');
-  const [guardando,setGuardando]= useState(false);
-  const [habilitando,setHabilitando] = useState(false);
+  const [datos,       setDatos]       = useState(null);
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState('');
+  const [guardando,   setGuardando]   = useState(false);
+  const [habilitando, setHabilitando] = useState(false);
 
   // Campos de config editables
   const [cfgActivo,    setCfgActivo]    = useState(true);
@@ -2238,6 +2238,14 @@ function TabWaitlist() {
   const [cfgUmbral,    setCfgUmbral]    = useState('');
   const [cfgCola,      setCfgCola]      = useState('');
   const [cantManual,   setCantManual]   = useState('100');
+
+  // Lista completa
+  const [listaFiltro,   setListaFiltro]   = useState('todos');
+  const [lista,         setLista]         = useState([]);
+  const [listaTotal,    setListaTotal]    = useState(0);
+  const [listaPagina,   setListaPagina]   = useState(0);
+  const [listaCargando, setListaCargando] = useState(false);
+  const [listaTiene,    setListaTiene]    = useState(false);
 
   useEffect(() => { cargar(); }, []);
 
@@ -2273,6 +2281,29 @@ function TabWaitlist() {
     finally { setGuardando(false); }
   }
 
+  async function cargarLista(filtro, pagina, reset = false) {
+    setListaCargando(true);
+    try {
+      const res = await callAdmin('waitlist_lista', { filtro, pagina });
+      setLista(prev => reset ? res.usuarios : [...prev, ...res.usuarios]);
+      setListaTotal(res.total);
+      setListaTiene(res.usuarios.length === res.tam);
+    } catch (e) { Alert.alert('Error', e.message); }
+    finally { setListaCargando(false); }
+  }
+
+  function cambiarFiltroLista(f) {
+    setListaFiltro(f);
+    setListaPagina(0);
+    cargarLista(f, 0, true);
+  }
+
+  function cargarMas() {
+    const siguiente = listaPagina + 1;
+    setListaPagina(siguiente);
+    cargarLista(listaFiltro, siguiente, false);
+  }
+
   async function habilitarManual() {
     const cant = Number(cantManual);
     if (!cant || cant < 1) { Alert.alert('Cantidad inválida'); return; }
@@ -2293,10 +2324,17 @@ function TabWaitlist() {
   if (loading) return <ActivityIndicator color="#E8785A" style={{ marginTop: 40 }} />;
   if (error)   return <Text style={[ss.actualizadoTxt, { color: '#EF4444', padding: 20 }]}>{error}</Text>;
 
-  const conv  = datos?.registrados && datos?.habilitados ? Math.round((datos.registrados / datos.habilitados) * 100) : 0;
+  const conv = datos?.registrados && datos?.habilitados ? Math.round((datos.registrados / datos.habilitados) * 100) : 0;
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} automaticallyAdjustContentInsets={false} contentInsetAdjustmentBehavior="never">
+
+      {/* Número principal */}
+      <View style={{ backgroundColor: '#1A3A5C', borderRadius: 18, padding: 20, alignItems: 'center', marginBottom: 16 }}>
+        <Text style={{ fontSize: 56, fontWeight: '900', color: '#FFFFFF', lineHeight: 60 }}>{datos?.en_espera ?? 0}</Text>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>personas en lista de espera</Text>
+      </View>
+
       {/* Toggle ON/OFF */}
       <View style={ss.wlToggleRow}>
         <View>
@@ -2305,7 +2343,7 @@ function TabWaitlist() {
         </View>
         <TouchableOpacity
           style={[ss.wlToggleBtn, cfgActivo ? ss.wlToggleBtnOn : ss.wlToggleBtnOff]}
-          onPress={() => { setCfgActivo(!cfgActivo); }}
+          onPress={() => setCfgActivo(!cfgActivo)}
         >
           <Text style={ss.wlToggleTxt}>{cfgActivo ? 'ON' : 'OFF'}</Text>
         </TouchableOpacity>
@@ -2414,6 +2452,70 @@ function TabWaitlist() {
           ))}
         </View>
       </>}
+
+      {/* Lista completa */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, marginBottom: 8 }}>
+        <Text style={ss.secTit}>LISTA COMPLETA{listaTotal > 0 ? ` (${listaTotal})` : ''}</Text>
+        {lista.length === 0 && (
+          <TouchableOpacity onPress={() => cargarLista('todos', 0, true)}>
+            <Text style={{ fontSize: 12, color: '#E8785A', fontWeight: '700' }}>Cargar →</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+        {[
+          { key: 'todos',       label: 'Todos' },
+          { key: 'en_espera',   label: 'En espera' },
+          { key: 'habilitados', label: 'Habilitados' },
+          { key: 'registrados', label: 'Registrados' },
+        ].map(f => (
+          <TouchableOpacity
+            key={f.key}
+            onPress={() => cambiarFiltroLista(f.key)}
+            style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, backgroundColor: listaFiltro === f.key ? '#1A3A5C' : '#F2EDE6' }}
+          >
+            <Text style={{ fontSize: 11, fontWeight: '700', color: listaFiltro === f.key ? '#FFF' : '#5A4E6A' }}>{f.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {lista.length > 0 && (
+        <View style={ss.barrasCard}>
+          {lista.map((u, i) => {
+            const estado = u.registrado ? { txt: 'Registrado', bg: '#E6FBF5', color: '#22C55E' }
+                         : u.habilitado  ? { txt: 'Habilitado',  bg: '#FFF7ED', color: '#F59E0B' }
+                         :                 { txt: 'En espera',   bg: '#F2EDE6', color: '#A898B8' };
+            return (
+              <View key={u.posicion ?? i} style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 }, i > 0 && { borderTopWidth: 1, borderTopColor: '#EDE8E2' }]}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#C4B8D4', width: 30, textAlign: 'right' }}>#{u.posicion}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#1A1020' }} numberOfLines={1}>{u.nombre || '—'}</Text>
+                  <Text style={{ fontSize: 11, color: '#A898B8' }} numberOfLines={1}>{u.email}</Text>
+                  <Text style={{ fontSize: 10, color: '#C4B8D4', marginTop: 2 }}>Se anotó: {fmtFecha(u.created_at)}</Text>
+                </View>
+                <View style={{ backgroundColor: estado.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: estado.color }}>{estado.txt}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {listaTiene && (
+        <TouchableOpacity
+          onPress={cargarMas}
+          disabled={listaCargando}
+          style={{ marginTop: 10, padding: 14, backgroundColor: '#F2EDE6', borderRadius: 12, alignItems: 'center' }}
+        >
+          {listaCargando
+            ? <ActivityIndicator color="#E8785A" size="small" />
+            : <Text style={{ fontSize: 13, fontWeight: '700', color: '#E8785A' }}>Ver más</Text>
+          }
+        </TouchableOpacity>
+      )}
+
     </ScrollView>
   );
 }

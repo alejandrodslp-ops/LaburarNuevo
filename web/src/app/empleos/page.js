@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { db } from '../../lib/supabase'
-
+import { nombrePais } from '../../lib/utils'
 import SearchForm from './SearchForm'
 import JobsRealtime from '../JobsRealtime'
 
@@ -21,7 +21,7 @@ export async function generateMetadata({ searchParams }) {
   }
 }
 
-async function getConcursos(q) {
+async function getConcursos(pais, q) {
   const safe = (q || '').replace(/[%_'"\\;]/g, c => `\\${c}`).slice(0, 100)
   const minCierre = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
 
@@ -33,6 +33,7 @@ async function getConcursos(q) {
     .order('created_at', { ascending: false })
     .limit(360)
 
+  if (pais) query = query.eq('pais', pais.toUpperCase().slice(0, 2))
   if (safe) query = query.or(`titulo.ilike.%${safe}%,cargo.ilike.%${safe}%,organismo.ilike.%${safe}%`)
 
   const { data } = await query
@@ -40,10 +41,13 @@ async function getConcursos(q) {
 }
 
 export default async function EmpleosPage({ searchParams }) {
-  const q    = searchParams?.q || ''
-  const concursos = await getConcursos(q)
+  const pais = searchParams?.pais || ''
+  const q    = searchParams?.q    || ''
+  const concursos = await getConcursos(pais, q)
 
-  const titulo = q ? `Resultados para "${q}"` : 'Todos los empleos'
+  const titulo = q
+    ? `Resultados para "${q}"`
+    : pais ? `Empleos en ${nombrePais(pais)}` : 'Todos los empleos'
 
   return (
     <>
@@ -53,7 +57,7 @@ export default async function EmpleosPage({ searchParams }) {
       </nav>
 
       <div className="container">
-        <SearchForm defaultQ={q} />
+        <SearchForm defaultPais={pais} defaultQ={q} />
 
         <div className="section-header">
           <span className="section-title">{titulo}</span>
