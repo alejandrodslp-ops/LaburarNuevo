@@ -2504,7 +2504,7 @@ function TabWaitlist() {
             const estado = u.registrado ? { txt: 'Registrado', bg: '#E6FBF5', color: '#22C55E' }
                          : u.habilitado  ? { txt: 'Habilitado',  bg: '#FFF7ED', color: '#F59E0B' }
                          :                 { txt: 'En espera',   bg: '#F2EDE6', color: '#A898B8' };
-            const bandera = BANDERAS[u.pais?.slice(-2)] ?? '';
+            const bandera = u.pais ? u.pais.split(' ')[0] : '';
             return (
               <View key={u.posicion ?? i} style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 8 }, i > 0 && { borderTopWidth: 1, borderTopColor: '#EDE8E2' }]}>
                 <Text style={{ fontSize: 12, fontWeight: '700', color: '#C4B8D4', width: 28, textAlign: 'right' }}>#{u.posicion}</Text>
@@ -2553,7 +2553,7 @@ function TabWaitlist() {
         return (
           <View style={ss.barrasCard}>
             {paises.slice(0, 15).map((p, i) => {
-              const bandera = BANDERAS[p.pais?.slice(-2)] ?? '🌍';
+              const bandera = p.pais && p.pais !== 'Sin datos' ? p.pais.split(' ')[0] : '🌍';
               const pct = Math.max(4, Math.round((p.total / max) * 100));
               return (
                 <View key={i} style={[{ paddingVertical: 8 }, i > 0 && { borderTopWidth: 1, borderTopColor: '#EDE8E2' }]}>
