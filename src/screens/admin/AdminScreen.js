@@ -2247,6 +2247,10 @@ function TabWaitlist() {
   const [listaCargando, setListaCargando] = useState(false);
   const [listaTiene,    setListaTiene]    = useState(false);
 
+  // Gráfica por país
+  const [paises,        setPaises]        = useState([]);
+  const [paisesLoading, setPaisesLoading] = useState(false);
+
   useEffect(() => { cargar(); }, []);
 
   async function cargar() {
@@ -2302,6 +2306,15 @@ function TabWaitlist() {
     const siguiente = listaPagina + 1;
     setListaPagina(siguiente);
     cargarLista(listaFiltro, siguiente, false);
+  }
+
+  async function cargarPaises() {
+    setPaisesLoading(true);
+    try {
+      const res = await callAdmin('waitlist_paises');
+      setPaises(res.paises ?? []);
+    } catch (e) { }
+    finally { setPaisesLoading(false); }
   }
 
   async function habilitarManual() {
@@ -2491,13 +2504,15 @@ function TabWaitlist() {
             const estado = u.registrado ? { txt: 'Registrado', bg: '#E6FBF5', color: '#22C55E' }
                          : u.habilitado  ? { txt: 'Habilitado',  bg: '#FFF7ED', color: '#F59E0B' }
                          :                 { txt: 'En espera',   bg: '#F2EDE6', color: '#A898B8' };
+            const bandera = BANDERAS[u.pais?.slice(-2)] ?? '';
             return (
-              <View key={u.posicion ?? i} style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 }, i > 0 && { borderTopWidth: 1, borderTopColor: '#EDE8E2' }]}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#C4B8D4', width: 30, textAlign: 'right' }}>#{u.posicion}</Text>
+              <View key={u.posicion ?? i} style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 8 }, i > 0 && { borderTopWidth: 1, borderTopColor: '#EDE8E2' }]}>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#C4B8D4', width: 28, textAlign: 'right' }}>#{u.posicion}</Text>
+                {bandera ? <Text style={{ fontSize: 18 }}>{bandera}</Text> : <View style={{ width: 18 }} />}
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 13, fontWeight: '700', color: '#1A1020' }} numberOfLines={1}>{u.nombre || '—'}</Text>
                   <Text style={{ fontSize: 11, color: '#A898B8' }} numberOfLines={1}>{u.email}</Text>
-                  <Text style={{ fontSize: 10, color: '#C4B8D4', marginTop: 2 }}>Se anotó: {fmtFecha(u.created_at)}</Text>
+                  <Text style={{ fontSize: 10, color: '#C4B8D4', marginTop: 2 }}>{u.pais ? u.pais.replace(/^[^ ]+ /, '') + ' · ' : ''}{fmtFecha(u.created_at)}</Text>
                 </View>
                 <View style={{ backgroundColor: estado.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
                   <Text style={{ fontSize: 10, fontWeight: '700', color: estado.color }}>{estado.txt}</Text>
@@ -2520,6 +2535,44 @@ function TabWaitlist() {
           }
         </TouchableOpacity>
       )}
+
+      {/* Gráfica por país */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 28, marginBottom: 8 }}>
+        <Text style={ss.secTit}>REGISTROS POR PAÍS</Text>
+        {paises.length === 0 && (
+          <TouchableOpacity onPress={cargarPaises}>
+            <Text style={{ fontSize: 12, color: '#E8785A', fontWeight: '700' }}>Ver →</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {paisesLoading && <ActivityIndicator color="#E8785A" style={{ marginVertical: 16 }} />}
+
+      {paises.length > 0 && (() => {
+        const max = paises[0]?.total ?? 1;
+        return (
+          <View style={ss.barrasCard}>
+            {paises.slice(0, 15).map((p, i) => {
+              const bandera = BANDERAS[p.pais?.slice(-2)] ?? '🌍';
+              const pct = Math.max(4, Math.round((p.total / max) * 100));
+              return (
+                <View key={i} style={[{ paddingVertical: 8 }, i > 0 && { borderTopWidth: 1, borderTopColor: '#EDE8E2' }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5, gap: 6 }}>
+                    <Text style={{ fontSize: 16 }}>{bandera}</Text>
+                    <Text style={{ flex: 1, fontSize: 12, fontWeight: '700', color: '#1A1020' }} numberOfLines={1}>
+                      {p.pais === 'Sin datos' ? 'Sin datos' : p.pais.replace(/^[^ ]+ /, '')}
+                    </Text>
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#1A3A5C' }}>{p.total}</Text>
+                  </View>
+                  <View style={{ height: 6, backgroundColor: '#F2EDE6', borderRadius: 3 }}>
+                    <View style={{ height: 6, width: `${pct}%`, backgroundColor: '#E8785A', borderRadius: 3 }} />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        );
+      })()}
 
     </ScrollView>
   );

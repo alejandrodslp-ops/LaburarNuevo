@@ -33,7 +33,7 @@ export default function WaitlistForm({ lang = 'es', ctaLabel }) {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/waitlist`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` },
-        body:    JSON.stringify({ accion: 'unirse', email: email.trim().toLowerCase(), nombre: nombre.trim() || null }),
+        body:    JSON.stringify({ accion: 'unirse', email: email.trim().toLowerCase(), nombre: nombre.trim() || null, pais: pais || null }),
       })
       const data = await res.json()
       if (data.posicion) { setPosicion(data.posicion); setEstado('ok') }

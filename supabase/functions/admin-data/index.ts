@@ -468,7 +468,7 @@ async function getWaitlistLista(db: ReturnType<typeof createClient>, params: any
   const tam    = 50;
 
   let countQ = db.from("waitlist").select("*", { count: "exact", head: true });
-  let dataQ  = db.from("waitlist").select("posicion,email,nombre,habilitado,registrado,created_at");
+  let dataQ  = db.from("waitlist").select("posicion,email,nombre,habilitado,registrado,created_at,pais");
   if (filtro === "en_espera")   { countQ = countQ.eq("habilitado", false);                             dataQ = dataQ.eq("habilitado", false); }
   if (filtro === "habilitados") { countQ = countQ.eq("habilitado", true).eq("registrado", false);      dataQ = dataQ.eq("habilitado", true).eq("registrado", false); }
   if (filtro === "registrados") { countQ = countQ.eq("registrado", true);                              dataQ = dataQ.eq("registrado", true); }
@@ -480,6 +480,20 @@ async function getWaitlistLista(db: ReturnType<typeof createClient>, params: any
 
   if (error) return err(error.message);
   return ok({ usuarios: data ?? [], total: count ?? 0, pagina, tam });
+}
+
+async function getWaitlistPaises(db: ReturnType<typeof createClient>) {
+  const { data, error } = await db.from("waitlist").select("pais");
+  if (error) return err(error.message);
+  const conteo: Record<string, number> = {};
+  for (const r of (data ?? []) as any[]) {
+    const p = r.pais?.trim() || "Sin datos";
+    conteo[p] = (conteo[p] ?? 0) + 1;
+  }
+  const lista = Object.entries(conteo)
+    .map(([pais, total]) => ({ pais, total }))
+    .sort((a, b) => b.total - a.total);
+  return ok({ paises: lista });
 }
 
 async function habilitarManualWaitlist(db: ReturnType<typeof createClient>, params: any) {
@@ -993,6 +1007,7 @@ serve(async (req) => {
       case "enviar_mensajes":      return await enviarMensajes(db, params ?? {}, adminId ?? "");
       case "waitlist_stats":        return await getWaitlistStats(db);
       case "waitlist_lista":        return await getWaitlistLista(db, params ?? {});
+      case "waitlist_paises":       return await getWaitlistPaises(db);
       case "waitlist_config":       return await updateWaitlistConfig(db, params ?? {});
       case "waitlist_habilitar":    return await habilitarManualWaitlist(db, params ?? {});
       case "reportes_pendientes":   return await getReportesPendientes(db);
