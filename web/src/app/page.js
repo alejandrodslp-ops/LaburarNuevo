@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 import WaitlistForm from '../components/WaitlistForm'
 import JobsRealtime from './JobsRealtime'
 
+export const revalidate = 3600
+
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
 async function getStats() {
