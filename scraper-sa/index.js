@@ -1394,6 +1394,9 @@ const GN = {
 };
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
+// NOTA: US, CA, AU, JP, IN quedan excluidos aquí — los maneja exclusivamente
+// el scraper-global.yml vía Edge Function. Tenerlos en ambos causaba doble
+// borrado y períodos de datos vacíos cuando uno de los dos fallaba.
 const SCRAPERS = {
   // Sudamérica
   UY: scrapeUruguay,   AR: scrapeArgentina, BR: scrapeBrasil,   CL: scrapeChile,
@@ -1405,8 +1408,6 @@ const SCRAPERS = {
   // Europa
   ES: scrapeEspana,    PT: scrapePortugal,  IT: scrapeItalia,    FR: scrapeFrancia,
   DE: scrapeAlemania,  GB: scrapeReinoUnido,
-  // Anglosajones
-  US: scrapeEstadosUnidos, CA: scrapeCanada, AU: scrapeAustralia,
 };
 
 const aCorrer = SOLO_PAIS && SCRAPERS[SOLO_PAIS]
@@ -1449,28 +1450,10 @@ if (!TEST_MODE) {
   await supabase.from('concursos').delete().like('fuente', '%_gnews');
   await supabase.from('concursos').delete().like('fuente', '%gnews%');
 
-  // 4) Pre-limpiar fuentes activas para que países que fallen no dejen datos viejos
-  const FUENTES_ACTIVAS = [
-    'uruguay_concursa','argentina_concursar','argentina_boletin_oficial',
-    'brasil_pciconcursos','chile_serviciocivil','chile_empleospublicos',
-    'colombia_cnsc','peru_servir','peru_bcrp','paraguay_sfp',
-    'bolivia_mteps','ecuador_mdt','ecuador_socioempleo',
-    'mexico_dof','venezuela_oncae','costarica_dgsc',
-    'guatemala_onsec','elsalvador_mtps','honduras_scgg',
-    'nicaragua_mhcp','panama_empleos','dominicana_map',
-    'espana_administracion','espana_boe','portugal_bep',
-    'italia_inpa','francia_choisirservicepublic',
-    'alemania_bundesagentur','alemania_interamt',
-    'uk_localgov','uk_civilservice',
-    'usa_usajobs','usa_usajobs_rss',
-    'canada_jobbank','canada_gc_jobs',
-    'australia_apsjobs',
-  ];
-  for (const f of FUENTES_ACTIVAS) {
-    _fuentesLimpiadas.add(f); // marcar como ya limpiadas para que upsert no las limpie de nuevo
-    await supabase.from('concursos').delete().eq('fuente', f);
-  }
-  console.log(`🧹 ${FUENTES_ACTIVAS.length} fuentes activas pre-limpiadas`);
+  // 4) NO pre-limpiar fuentes aquí — el upsert() limpia cada fuente justo antes de insertar
+  // datos nuevos. Si el scraping falla, los datos viejos se preservan (no se quedan vacíos).
+  // El patrón "borrar primero, insertar después" causaba que UY y US quedaran en 0
+  // durante horas cada vez que fallaba la fuente primaria.
 }
 
 console.log(`\n🌎 Nexu Scraper${TEST_MODE ? ' [TEST]' : ''} — ${Object.keys(aCorrer).length} países — ${new Date().toISOString()}\n`);
