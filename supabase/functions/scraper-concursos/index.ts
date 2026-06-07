@@ -162,7 +162,8 @@ async function fetchViaProxy(url: string, timeoutMs = 15000): Promise<string | n
 
 async function fetchViaScraperAPI(url: string, countryCode: string, timeoutMs = 20000): Promise<string | null> {
   if (!SCRAPER_API_KEY) return null;
-  const saUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}&country_code=${countryCode}&url=${encodeURIComponent(url)}`;
+  const cc = countryCode ? `&country_code=${countryCode}` : "";
+  const saUrl = `https://api.scraperapi.com?api_key=${SCRAPER_API_KEY}${cc}&url=${encodeURIComponent(url)}`;
   return fetchUrl(saUrl, timeoutMs, { "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" });
 }
 
@@ -580,6 +581,18 @@ function parseComputrabajo(
   }
 }
 
+// Fetch Computrabajo con fallback a ScraperAPI cuando Cloudflare bloquea.
+// ScraperAPI usa proxy del país indicado → bypasea geo-bloqueos.
+async function fetchCT(url: string, countryCode: string, timeoutMs = 12000): Promise<string | null> {
+  const direct = await fetchUrl(url, timeoutMs);
+  if (direct && direct.includes("<article")) return direct;
+  // Directo falló o no tiene artículos → ScraperAPI con proxy local
+  const viaProxy = await fetchViaScraperAPI(url, countryCode.toLowerCase(), 20000);
+  if (viaProxy && viaProxy.includes("<article")) return viaProxy;
+  // Último intento: ScraperAPI sin country_code (proxy US)
+  return await fetchViaScraperAPI(url, "", 18000);
+}
+
 // Scraper genérico para cualquier país en computrabajo.com
 async function scrapeComputrabajo(
   subdomain: string, pais: string, fuente: string
@@ -588,14 +601,13 @@ async function scrapeComputrabajo(
   const errores: string[] = [];
   const base = `https://${subdomain}.computrabajo.com`;
 
-  // Solo intentar la primera ruta con timeout corto — si Cloudflare bloquea falla rápido
   const paths = [
     "/trabajo-de-gobierno",
     "/trabajos?q=concurso+publico&orden=fecha",
   ];
 
   for (const path of paths) {
-    const html = await fetchUrl(`${base}${path}`, 7000);
+    const html = await fetchCT(`${base}${path}`, pais, 12000);
     if (!html) { errores.push(`${pais}: ${base}${path} sin respuesta`); break; }
     parseComputrabajo(html, pais, fuente, base, rows);
     if (rows.length > 0) break;
@@ -627,7 +639,7 @@ async function scrapeComputrabajoPaginado(
       const url = page === 1
         ? `${base}/trabajo-de-gobierno`
         : `${base}/trabajo-de-gobierno?p=${page}`;
-      const html = await fetchUrl(url, 10000);
+      const html = await fetchCT(url, pais, 14000);
       if (!html) { errores.push(`${pais}: CT p${page} sin respuesta`); return; }
       const pageRows: ConcursoRow[] = [];
       parseComputrabajo(html, pais, fuente, base, pageRows);
@@ -660,7 +672,7 @@ async function scrapeComputrabajoPrivado(
       const url = page === 1
         ? `${base}/empleos`
         : `${base}/empleos?p=${page}`;
-      const html = await fetchUrl(url, 10000);
+      const html = await fetchCT(url, pais, 14000);
       if (!html) { errores.push(`${pais}: CT privado p${page} sin respuesta`); return; }
       const pageRows: ConcursoRow[] = [];
       parseComputrabajo(html, pais, fuente, base, pageRows);
