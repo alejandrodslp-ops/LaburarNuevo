@@ -3,9 +3,6 @@
 // Formato: {t: "texto de la frase", a: "I. Apellido" | null}
 
 export const FRASES = [
-
-  // ─── CONCIENCIA E IMAGINACIÓN ───────────────────────────────────────────────
-
   {t:"Tu imaginación no es un lujo ni un escape. Es el único taller donde se construye el futuro antes de que exista.",a:null},
   {t:"Lo que vives afuera es el molde exacto de lo que creíste posible adentro. Si querés cambiar el mundo, cambiá primero el que llevás en la mente.",a:null},
   {t:"Neville Goddard lo dijo con precisión quirúrgica: no imaginés hacia lo que querés, imaginá desde el lugar donde ya lo tenés.",a:"N. Goddard"},
@@ -26,9 +23,6 @@ export const FRASES = [
   {t:"La diferencia entre el que sueña y el que logra no es el talento. Es la disposición a vivir emocionalmente en el resultado antes de que aparezca físicamente.",a:null},
   {t:"Cada vez que imaginás tu vida como la querés y sentís eso real en tu cuerpo, estás sembrando con la herramienta más poderosa que existe.",a:null},
   {t:"El pasado solo tiene el poder que le das en este momento. La mente que lo revive constantemente está eligiendo que siga siendo presente.",a:null},
-
-  // ─── FE, DESEO Y PERSISTENCIA ───────────────────────────────────────────────
-
   {t:"Napoleon Hill lo pasó a todos: el deseo ardiente y definido no es un punto de partida bonito. Es el combustible sin el cual ningún motor arranca.",a:"N. Hill"},
   {t:"La fe no es creer que todo saldrá bien. Es saber que tenés la capacidad de responder a todo lo que no salga bien.",a:null},
   {t:"El universo no premia el esfuerzo vacío. Premia el esfuerzo que viene respaldado por una convicción que no negocia.",a:null},
@@ -48,15 +42,11 @@ export const FRASES = [
   {t:"La fe activa no es pasiva. Es la que se levanta a las 6 de la mañana y trabaja como si el resultado ya estuviera garantizado.",a:null},
   {t:"El deseo genuino tiene una característica que lo diferencia del capricho: no se agota con la primera dificultad.",a:null},
   {t:"Cada vez que elegís intentarlo con pocas chances, le enviás a tu sistema nervioso el mensaje más poderoso que existe: 'Soy alguien que no se rinde.'",a:null},
-  {t:"La diferencia entre la persona que logra lo que quiere y la que no, raras veces está en los recursos. Casi siempre está en cuánto estaba dispuesta a perder por intentarlo.",a:null},
   {t:"Una idea sostenida con emoción real durante el tiempo suficiente es físicamente imposible que no se materialice de alguna forma.",a:null},
   {t:"No todo esfuerzo produce resultados inmediatos. Pero todo esfuerzo produce algo: la persona que sos capaz de ser.",a:null},
   {t:"Hay semillas que tardan años en brotar. Lo que parece inactividad desde afuera puede ser preparación profunda desde adentro.",a:null},
   {t:"La voluntad no es la ausencia de deseo de rendirse. Es el hábito de elegir seguir a pesar de ese deseo.",a:null},
   {t:"Todo logro extraordinario tiene raíces ordinarias: una decisión hecha en un momento ordinario, sostenida de forma extraordinaria.",a:null},
-
-  // ─── DISEÑO DE VIDA Y DISCIPLINA ───────────────────────────────────────────
-
   {t:"Jim Rohn lo observó con frialdad: no diseñar tu vida es diseñarla igual. Solo que el diseño lo hacen otros.",a:"J. Rohn"},
   {t:"La disciplina no es fuerza de voluntad. Es el sistema que construís para que la voluntad no tenga que trabajar tanto.",a:null},
   {t:"El tipo de persona que querés ser en cinco años se construye en las decisiones pequeñas de hoy que nadie ve y nadie premia.",a:null},
@@ -77,37 +67,23 @@ export const FRASES = [
   {t:"No subestimés el poder de una sola hora diaria dedicada a crecer. En un año son más de 300 horas de ventaja que la mayoría nunca tendrá.",a:null},
   {t:"El crecimiento real casi nunca se siente como crecimiento mientras ocurre. Se parece más al esfuerzo, la incomodidad y la duda.",a:null},
   {t:"Lo que llamás 'no tener tiempo' casi siempre es 'no haber decidido que eso es una prioridad todavía'.",a:null},
-
-  // ─── SUBCONSCIENTE Y ABUNDANCIA ────────────────────────────────────────────
-
-  {t:"Joseph Murphy pasó décadas documentando casos de personas que cambiaron condiciones físicas reales modificando únicamente sus patrones de pensamiento.",a:"J. Murphy"},
   {t:"Tu mente subconsciente no razona ni argumenta. Acepta como verdadero lo que le repetís con emoción y consistencia.",a:null},
   {t:"La abundancia no es una condición económica. Es primero un estado de conciencia, y solo después una realidad material.",a:null},
   {t:"Lo que experimentás como 'mala suerte' o 'mala racha' tiene casi siempre raíces en un patrón de pensamiento que podés identificar y modificar.",a:null},
   {t:"El límite real de lo que podés recibir en esta vida es casi siempre el límite de lo que creés que merecés.",a:null},
   {t:"Hay personas que trabajan incansablemente y no logran abundancia, y personas que trabajan con inteligencia emocional y la atraen. La diferencia está en el estado interno desde el que actúan.",a:null},
-  {t:"Bob Proctor lo repetía: la mayoría no tiene problema de capacidad. Tiene un problema de paradigma, una imagen de sí mismo que no se actualiza aunque los logros lo hagan.",a:"B. Proctor"},
   {t:"Lo que repetís mentalmente antes de dormir y después de despertar es lo que programás con más fuerza. Elegilo con cuidado.",a:null},
   {t:"La prosperidad no es lo que acumulás. Es la capacidad de crear valor donde vas y de reconocer las oportunidades que otros no ven.",a:null},
   {t:"Cuando la mente consciente y la subconsciente apuntan en la misma dirección, el esfuerzo se vuelve flujo y el trabajo se parece menos a una carga.",a:null},
   {t:"Las creencias sobre el dinero, el éxito y el mérito que absorbiste antes de los siete años todavía gobiernan tus decisiones adultas a menos que las hayas revisado conscientemente.",a:null},
   {t:"No podés recibir lo que internamente creés que no te corresponde. El rechazo más frecuente no viene de afuera.",a:null},
   {t:"La gratitud genuina no es una práctica espiritual opcional. Es el estado emocional que sintoniza tu sistema con la posibilidad de recibir más.",a:null},
-  {t:"Cada vez que te quejás de lo que no tenés, le enviás a tu mente la instrucción de seguir registrando carencia. Es un ciclo que solo vos podés interrumpir.",a:null},
-  {t:"La mente que sabe recibir es tan importante como la que sabe producir. Muchas personas bloquean su prosperidad sin darse cuenta porque no saben recibir.",a:null},
   {t:"Tu relación con el dinero es la misma que tenés con vos mismo. Cambiá una y cambiás la otra.",a:null},
   {t:"El flujo de oportunidades en tu vida es proporcional al flujo de valor que generás sin calcular el retorno en cada momento.",a:null},
-  {t:"Hay una diferencia entre querer salir de la escasez y querer entrar en la abundancia. Son energías opuestas y producen resultados opuestos.",a:null},
   {t:"Lo que considerás como techo de lo que podés lograr es, casi siempre, el piso de lo que alguien más ya logró con menos recursos que vos.",a:null},
-
-  // ─── REFLEXIONES PROFUNDAS ──────────────────────────────────────────────────
-
   {t:"Viktor Frankl sobrevivió campos de concentración y llegó a esta conclusión: lo único que no te pueden quitar es la actitud que elegís ante lo que te pasa.",a:"V. Frankl"},
   {t:"Entre lo que te ocurre y lo que hacés con ello hay un espacio. En ese espacio está toda tu libertad.",a:null},
-  {t:"El sufrimiento sin significado destruye. El sufrimiento con propósito transforma. La diferencia no está en lo que sufrís sino en el marco desde el que lo mirás.",a:null},
-  {t:"No hay experiencia que no te enseñe algo si estás dispuesto a preguntarle qué vino a mostrarte.",a:null},
   {t:"La persona que eras hace cinco años tomó decisiones con la información que tenía. Juzgarla desde la perspectiva de hoy no es sabiduría. Es crueldad disfrazada de reflexión.",a:null},
-  {t:"El pasado es inamovible. Lo que es completamente moldeable es el significado que le das a ese pasado.",a:null},
   {t:"Hay una diferencia entre aceptar lo que es y resignarse a lo que será. La aceptación es el punto de partida del cambio real. La resignación es su final.",a:null},
   {t:"Nadie llega a ningún destino importante sin haber dudado profundamente de si podía llegar. La duda es parte del camino, no una señal de que estás en el camino equivocado.",a:null},
   {t:"Lo que te molesta profundamente de otros suele ser el espejo de algo que todavía no integraste en vos mismo.",a:null},
@@ -115,11 +91,9 @@ export const FRASES = [
   {t:"La madurez no es la ausencia de emociones difíciles. Es la capacidad de sentirlas sin que te dicten las decisiones.",a:null},
   {t:"Cada persona que encontrás lleva una carga que no siempre se ve. Eso no justifica todo lo que hacen, pero hace más fácil no tomarlo personal.",a:null},
   {t:"Hay momentos en la vida que solo se entienden en retrospectiva. Mientras los vivís, parecen obstáculos. Después se revelan como preparación.",a:null},
-  {t:"La comparación con otros casi siempre es injusta: estás viendo el resultado de ellos contra el proceso tuyo.",a:null},
   {t:"El confort no es el enemigo. El confort que se confunde con destino sí lo es.",a:null},
   {t:"Hay personas que tienen 40 años de experiencia y personas que tienen un año de experiencia repetido 40 veces. La diferencia está en si aprendieron de lo que vivieron.",a:null},
   {t:"Lo que evitás enfrentar no desaparece. Espera en silencio y crece.",a:null},
-  {t:"La soledad bien habitada es distinta del aislamiento. Una construye. La otra destruye.",a:null},
   {t:"No todo lo que tardó fue tiempo perdido. Algunas cosas necesitan madurar antes de poder aparecer.",a:null},
   {t:"El cambio real no ocurre cuando el ambiente cambia. Ocurre cuando la persona que habitaba ese ambiente deja de ser la misma.",a:null},
   {t:"Hay preguntas que no tienen respuesta todavía. Aprender a vivir cómodamente con esa incertidumbre es una de las habilidades más valiosas que existe.",a:null},
@@ -131,17 +105,12 @@ export const FRASES = [
   {t:"Hay personas que no cambian no porque no puedan, sino porque cambiar implica admitir que estuvieron equivocadas, y eso les parece más caro que seguir igual.",a:null},
   {t:"El tiempo que pasás sintiéndote víctima de tu historia es tiempo que no estás usando para escribir el siguiente capítulo.",a:null},
   {t:"La vida rara vez es justa en la distribución de las cargas. Sí lo es, con frecuencia sorprendente, en la distribución de las oportunidades para quienes las saben ver.",a:null},
-  {t:"Hay cosas que solo podés saber sobre vos mismo cuando estás en el límite. Por eso el límite, aunque duela, siempre revela algo valioso.",a:null},
-
-  // ─── PREGUNTAS TRANSFORMADORAS ─────────────────────────────────────────────
-
   {t:"¿Cuántos años llevas posponiendo algo que, si lo hicieras, cambiaría todo lo demás?",a:null},
   {t:"¿Qué estarías haciendo hoy si no tuvieras que demostrarle nada a nadie?",a:null},
   {t:"¿La historia que te contás sobre por qué no podés, es una descripción de la realidad o una decisión disfrazada de descripción?",a:null},
   {t:"¿Qué consejo le darías a alguien en tu situación exacta? ¿Por qué no te lo das a vos?",a:null},
   {t:"¿Qué tiene que pasar para que dejes de esperar el momento perfecto y empieces?",a:null},
   {t:"¿Cuántas veces ese miedo que tenés ahora ya resultó ser más grande de lo que era en realidad?",a:null},
-  {t:"Si la versión de vos de dentro de diez años pudiera enviarte un mensaje hoy, ¿qué te diría que no estás haciendo?",a:null},
   {t:"¿Qué parte de tu vida actual construiste vos conscientemente y qué parte simplemente pasó mientras mirabas?",a:null},
   {t:"¿Estás ocupado con lo urgente o avanzando en lo importante? ¿Cuándo fue la última vez que revisaste esa diferencia?",a:null},
   {t:"¿Qué seguirías haciendo si supieras con certeza que nadie te va a aplaudir ni a reconocer?",a:null},
@@ -159,38 +128,26 @@ export const FRASES = [
   {t:"¿Qué estás esperando que cambie afuera para empezar a hacer lo que sabés que tenés que hacer adentro?",a:null},
   {t:"Si el trabajo que estás haciendo hoy fuera el último que pudieras hacer, ¿cambiaría la forma en que lo hacés?",a:null},
   {t:"¿Le estás pidiendo permiso a alguien que nunca te lo va a dar para ser quien querés ser?",a:null},
-  {t:"¿Qué sacrificio estás dispuesto a hacer que la mayoría de la gente no está dispuesta a hacer?",a:null},
-
-  // ─── PROPÓSITO Y SENTIDO ────────────────────────────────────────────────────
-
   {t:"El propósito no se encuentra. Se construye en la intersección entre lo que te importa profundamente y lo que el mundo necesita.",a:null},
   {t:"Wayne Dyer lo resumía así: no morís cuando el corazón se detiene. Morís el día que dejás de creer que tu presencia aquí tiene sentido.",a:"W. Dyer"},
   {t:"Vivir sin dirección no es libertad. Es la forma más cara de existir porque gastás energía sin producir movimiento.",a:null},
   {t:"Hay una diferencia entre lo que hacés para sobrevivir y lo que hacés para sentir que valió la pena haber pasado por aquí.",a:null},
-  {t:"El sentido no siempre viene antes del trabajo. A veces aparece después de haber trabajado con honestidad durante el tiempo suficiente.",a:null},
   {t:"No todo el mundo nace sabiendo para qué está. Pero todos tienen la capacidad de construir ese para qué con las herramientas que la vida ya les dio.",a:null},
   {t:"La indiferencia es más peligrosa que el fracaso. Al menos el fracaso implica que intentaste algo que te importaba.",a:null},
   {t:"Vivir en función de la aprobación ajena es elegir que otros escriban tu historia.",a:null},
   {t:"Hay personas que llegan al final de su vida con logros que no eran suyos. Lograron lo que otros esperaban de ellos, no lo que ellos necesitaban para sentirse enteros.",a:null},
-  {t:"El trabajo que viene de un propósito genuino tiene una calidad diferente. No necesita esfuerzo constante porque la energía fluye desde adentro.",a:null},
   {t:"Paulo Coelho lo dijo de una forma que pocos olvidan: cuando querés algo de verdad, todo el universo conspira para que lo logres. Pero 'querer de verdad' implica estar dispuesto a pagar el costo.",a:"P. Coelho"},
   {t:"No hay nada más honroso que saber lo que querés, ser transparente al respecto y trabajar en esa dirección sin disculparte.",a:null},
   {t:"El legado no es lo que dejás cuando te vas. Es lo que cambiaste en las personas que tuvieron el privilegio de conocerte.",a:null},
-  {t:"Hay contribuciones que solo vos podés hacer, en la forma en que solo vos podés hacerlas. Eso no es soberbia. Es responsabilidad.",a:null},
   {t:"La vida que querés es posible. La pregunta es si estás dispuesto a ser la persona que esa vida requiere.",a:null},
   {t:"Hacer lo que amás con excelencia es al mismo tiempo el acto más generoso que podés hacer por el mundo.",a:null},
   {t:"El vacío que sentís cuando nada tiene sentido no es una señal de que estás roto. Es la presión que precede a la claridad.",a:null},
-  {t:"Rumi lo escribió hace siglos: lo que buscás te está buscando a vos. La pregunta es si estás quieto el tiempo suficiente para reconocerlo cuando llega.",a:"Rumi"},
   {t:"No estás aquí para encajar. Estás aquí para aportar lo que nadie más puede aportar de la misma manera.",a:null},
   {t:"Hay momentos en que la vida te pregunta quién sos de verdad. La forma en que respondés en esos momentos define todo lo demás.",a:null},
-
-  // ─── SABIDURÍA ESTOICA ──────────────────────────────────────────────────────
-
   {t:"Marco Aurelio escribía todas las mañanas para recordarse a sí mismo quién quería ser. El día que dejemos de necesitar ese recordatorio somos perfectos. Ese día no llega.",a:"M. Aurelio"},
   {t:"Hay una sola distinción que Epicteto consideraba fundamental: lo que depende de vos y lo que no. Confundirlas es la fuente de casi todo el sufrimiento innecesario.",a:"Epicteto"},
   {t:"Séneca lo dejó escrito con una claridad que incomoda: no es que tengamos poco tiempo. Es que desperdiciamos mucho.",a:"Séneca"},
   {t:"El estoicismo no enseña a no sentir. Enseña a no dejar que lo que sentís determine lo que hacés.",a:null},
-  {t:"Ninguna circunstancia exterior puede hacerte bueno o malo. Solo tus elecciones tienen ese poder.",a:null},
   {t:"Marco Aurelio fue emperador del mundo conocido y seguía recordándose cada mañana: haz lo que la naturaleza requiere. Hoy. Sin excusas.",a:"M. Aurelio"},
   {t:"La adversidad no construye el carácter. Lo revela. Y si no te gusta lo que revela, esa es la información más valiosa que podías recibir.",a:null},
   {t:"El dolor que evitás hoy suele encontrarte mañana con el interés acumulado.",a:null},
@@ -206,12 +163,8 @@ export const FRASES = [
   {t:"El estoico no pretende que el dolor no existe. Pretende que el dolor no es el árbitro final de sus decisiones.",a:null},
   {t:"Hay más poder en elegir tu respuesta que en tener el control de lo que te ocurre.",a:null},
   {t:"Lo que otros piensen de vos es su trabajo. Lo que pensés de vos mismo es el tuyo.",a:null},
-
-  // ─── OPORTUNIDAD Y MOMENTO PRESENTE ────────────────────────────────────────
-
   {t:"Las oportunidades no desaparecen. Se desplazan hacia las personas que están listas para verlas.",a:null},
   {t:"El momento que esperabas que llegara lleva tiempo siendo el momento en que estás.",a:null},
-  {t:"Cada día que abrís los ojos es una oportunidad que otra persona en algún lugar del mundo no tuvo. Eso no es frase de motivación. Es aritmética.",a:null},
   {t:"La ventana para hacer algo importante no se cierra cuando decidís que no estás listo. Se cierra cuando dejás de estar vivo.",a:null},
   {t:"Hay personas que miran la misma realidad que vos y ven una oportunidad donde vos ves un obstáculo. No tienen más información. Tienen una perspectiva diferente.",a:null},
   {t:"No toda oportunidad llega con un cartel que dice 'oportunidad'. La mayoría llegan disfrazadas de trabajo duro, problema sin resolver o conversación incómoda.",a:null},
@@ -224,26 +177,15 @@ export const FRASES = [
   {t:"Las oportunidades que aprovechaste en el pasado te parecieron riesgosas antes de aprovecharlas. Las que evitaste también.",a:null},
   {t:"Eckhart Tolle lo enseñó de formas distintas toda su vida: el poder está en el ahora porque el ahora es lo único que realmente existe.",a:"E. Tolle"},
   {t:"La persona que sos hoy tomó decisiones que la persona que eras no imaginaba poder tomar. La persona de mañana necesita que la de hoy haga lo mismo.",a:null},
-
-  // ─── AMOR PROPIO Y MERECIMIENTO ─────────────────────────────────────────────
-
   {t:"No podés construir nada duradero sobre la base de que no merecés lo que estás construyendo.",a:null},
-  {t:"La autocompasión genuina no es debilidad. Es la condición que necesitás para levantarte con dignidad.",a:null},
   {t:"Tratarte bien no es un privilegio que ganás cuando lo lográs todo. Es el punto de partida para poder lograr algo.",a:null},
-  {t:"Hay personas que aceptarían de un amigo lo que no se permiten aceptar de sí mismas. Esa asimetría tiene un costo enorme.",a:null},
   {t:"El nivel de trato que aceptás de los demás es, casi siempre, el reflejo del trato que te dás a vos mismo en privado.",a:null},
   {t:"La relación que tenés con vos mismo es la plantilla desde la que construís todo lo demás. Por eso el trabajo interior no es separado del trabajo exterior.",a:null},
   {t:"No tenés que merecerte el descanso. No tenés que ganarte la paz. Son condiciones de base, no recompensas.",a:null},
-  {t:"Exigirte más de lo que te permitís reconocer es una receta para el agotamiento crónico sin propósito claro.",a:null},
   {t:"Podés ser exigente con vos mismo y amable al mismo tiempo. No son opuestos. Son la combinación más productiva que existe.",a:null},
   {t:"El perfeccionismo que te paraliza no es un estándar de excelencia. Es miedo al juicio disfrazado de rigor.",a:null},
   {t:"Reconocer lo que lograste no es conformismo. Es el combustible que hace sostenible el esfuerzo de seguir creciendo.",a:null},
-  {t:"Hay una diferencia entre la autocrítica que construye y la que destruye. Una pregunta sirve para distinguirlas: '¿esto me hace mejor o solo me hace sentir peor?'",a:null},
   {t:"Nadie puede darte la validación que necesitás porque la necesitás de la única fuente que no te la puede dar: vos mismo.",a:null},
-  {t:"Crecer no requiere destruirte en el proceso. La dureza sin autocompasión produce resultados rápidos y costos tardíos.",a:null},
-
-  // ─── TRABAJO, CREACIÓN Y VALOR ─────────────────────────────────────────────
-
   {t:"El trabajo que amás y el trabajo que hacés bien no siempre son el mismo al principio. Pero la excelencia en cualquier trabajo abre puertas que la mediocridad apasionada no puede abrir.",a:null},
   {t:"Hay una dignidad en el trabajo honesto que ningún cheque puede comprar ni ninguna dificultad puede quitarte.",a:null},
   {t:"El valor que creás para otros es la única moneda que el universo nunca devalúa.",a:null},
@@ -252,13 +194,7 @@ export const FRASES = [
   {t:"Hay personas que trabajan para ganarse la vida y personas que trabajan para construir algo. La diferencia no está en el oficio. Está en la intención.",a:null},
   {t:"La excelencia no es perfección. Es el compromiso de hacer cada vez mejor lo que ya hacés bien.",a:null},
   {t:"Cada habilidad que desarrollaste con esfuerzo es tuya para siempre. Nadie te la puede quitar. Esa es la forma más real de seguridad que existe.",a:null},
-  {t:"El trabajo creativo tiene una característica que el trabajo mecánico no tiene: deja algo de vos en el mundo que permanece.",a:null},
   {t:"No hay trabajo insignificante cuando lo hacés con la conciencia de que le cambiás el día a alguien.",a:null},
-  {t:"El talento sin trabajo es potencial desperdiciado. El trabajo sin talento desarrollado es esfuerzo sin palanca. La combinación de ambos es la que mueve mundos.",a:null},
-  {t:"La persona que sabe hacer algo bien tiene siempre una forma de generar valor, independientemente de las condiciones externas.",a:null},
-
-  // ─── RELACIONES Y COMUNIDAD ─────────────────────────────────────────────────
-
   {t:"Las cinco personas con quienes pasás más tiempo no solo influyen en tu ánimo. Influyen en tu techo.",a:null},
   {t:"Hay personas que te expanden y personas que te contraen. Con el tiempo, elegir con quién pasás el tiempo es una de las decisiones más importantes de tu vida.",a:null},
   {t:"Dar generosamente no es un riesgo. Es la inversión con el retorno más impredecible y el más real al mismo tiempo.",a:null},
@@ -267,14 +203,10 @@ export const FRASES = [
   {t:"Ayudar a alguien a crecer no te quita nada. Al contrario, te ubica en el tipo de mundo en el que querés vivir.",a:null},
   {t:"Las personas que elevan tu estándar merecen tu tiempo y tu energía. Las que lo bajan merecen tu compasión pero no tu agenda.",a:null},
   {t:"El impacto que tenés en la vida de otros rara vez es el que calculaste. A veces una sola conversación cambia la trayectoria de alguien.",a:null},
-
-  // ─── CAMBIO Y TRANSFORMACIÓN ────────────────────────────────────────────────
-
   {t:"El cambio que buscás siempre requiere que la persona que tenés que dejar de ser esté dispuesta a soltarse.",a:null},
   {t:"Transformarse no es reemplazar lo que sos. Es integrar lo que necesitás ser sin destruir lo que ya construiste.",a:null},
   {t:"Hay un momento en toda transformación real donde parece que retrocedés. Ese momento no es el final del proceso. Es la parte más profunda de él.",a:null},
   {t:"El cambio que hacés hoy en privado es el que se va a notar en público dentro de un año.",a:null},
-  {t:"No podés volver a ser el que eras antes de ver lo que ya viste. Una vez que la conciencia se expande, no se contrae.",a:null},
   {t:"El crecimiento real casi nunca avisa que está llegando. Aparece como incomodidad, fricción, y solo después, como claridad.",a:null},
   {t:"Cambiar de opinión cuando tenés nueva información no es inconsistencia. Es inteligencia.",a:null},
   {t:"La persona que fuiste hizo lo que pudo con lo que tenía. La persona que sos puede hacer más. Eso es todo lo que implica crecer.",a:null},
@@ -282,22 +214,13 @@ export const FRASES = [
   {t:"El miedo al cambio y el deseo de cambiar pueden coexistir. No tenés que esperar a que el miedo desaparezca para empezar.",a:null},
   {t:"Hay algo que solo podés ver desde el otro lado del cambio. Por eso quien todavía no lo hizo no puede darte el mapa.",a:null},
   {t:"La identidad que más te cuesta soltar suele ser la que más te limita.",a:null},
-
-  // ─── TIEMPO Y LEGADO ────────────────────────────────────────────────────────
-
-  {t:"Séneca tenía razón: el tiempo es el único recurso que, una vez gastado, no tiene forma de recuperarse. Todo lo demás sí.",a:"Séneca"},
   {t:"El mejor uso del pasado no es habitarlo. Es aprender de él lo suficiente como para no repetirlo.",a:null},
   {t:"No hay urgencia que justifique vivir de prisa una vida que solo pasa una vez.",a:null},
-  {t:"El presente es el único tiempo real que existe. El pasado es memoria y el futuro es expectativa. Todo lo que podés cambiar está aquí.",a:null},
   {t:"Dentro de veinte años, las cosas que lamentés no van a ser principalmente las que hiciste. Van a ser las que no te atreviste a hacer.",a:null},
   {t:"El legado no se construye al final de la vida. Se construye en la suma de cómo trataste a cada persona que se cruzó en tu camino.",a:null},
   {t:"Hay personas que mueren a los 30 y son enterradas a los 80. La diferencia entre vivir y existir está en si elegís activamente o solo esperás.",a:null},
   {t:"Cada año que pasa sin dirección es un año que no podés recuperar. Eso no es para asustarte. Es para que valores lo que todavía tenés.",a:null},
   {t:"El tiempo que invertís en conocerte a vos mismo nunca es tiempo perdido. Es el mapa sin el cual cualquier destino se alcanza por azar.",a:null},
-  {t:"No todas las preguntas tienen urgencia de respuesta. Pero hay algunas que, si no las respondés a tiempo, las responde la vida por vos.",a:null},
-
-  // ─── CONFIANZA EN EL PROCESO ────────────────────────────────────────────────
-
   {t:"Las semillas no se disculpan por tardar en brotar. El proceso que no se ve desde afuera es el que hace posible lo que se ve después.",a:null},
   {t:"Hay un tipo de confianza que no depende de tener certeza sobre el resultado. Depende de tener certeza sobre quién sos mientras lo buscás.",a:null},
   {t:"No todo lo que parece un desvío es un error. A veces el camino más largo es el que te deja listo para llegar.",a:null},
@@ -308,35 +231,24 @@ export const FRASES = [
   {t:"Hay etapas en la vida que se parecen a inviernos. No son el final del ciclo. Son la preparación para lo que viene después.",a:null},
   {t:"La confianza en el proceso es más difícil de sostener que la confianza en el resultado. Y también es más honesta.",a:null},
   {t:"No tenés que verlo todo para dar el próximo paso. Solo necesitás ver lo suficiente como para que ese paso sea posible.",a:null},
-
-  // ─── ESPERANZA REAL ─────────────────────────────────────────────────────────
-
   {t:"La esperanza no es la certeza de que todo va a salir bien. Es la convicción de que tenés lo que necesitás para responder a lo que salga.",a:null},
   {t:"El hecho de que estés buscando algo mejor es ya la señal de que en algún lugar de vos sabés que es posible.",a:null},
   {t:"No toda la gente que llegó donde vos querés llegar empezó con más ventajas que vos. Muchos empezaron con menos.",a:null},
   {t:"Mientras sigas eligiendo, el juego no terminó.",a:null},
   {t:"Cada historia de superación que te conmueve te conmueve porque reconocés en ella algo que también es posible para vos.",a:null},
   {t:"La esperanza que vale no es la que espera que las cosas mejoren solas. Es la que actúa como si las cosas pudieran mejorar y trabaja en consecuencia.",a:null},
-  {t:"No necesitás ver el camino completo. Solo necesitás suficiente luz para el próximo paso, y esa luz casi siempre está disponible.",a:null},
   {t:"Hay personas que cambiaron su vida a los 50. Hay personas que lo hicieron a los 60. El único momento que se pierde es el que se deja pasar sin decidir.",a:null},
   {t:"El optimismo que vale no niega la dificultad. La acepta y elige actuar de todas formas.",a:null},
   {t:"La versión de tu vida que todavía no viviste no es solo un sueño. Es una posibilidad real esperando que te muevas en su dirección.",a:null},
-
-  // ─── AUTENTICIDAD ───────────────────────────────────────────────────────────
-
   {t:"Vivir para la aprobación de otros no es vivir. Es actuar en una obra que otros escribieron y esperar que el aplauso llene el vacío.",a:null},
   {t:"La autenticidad no siempre es cómoda para los que te rodean. Pero es la única base sobre la que podés construir algo que dure.",a:null},
   {t:"Hay una fatiga específica que produce pretender ser lo que no sos. Es más costosa que cualquier otro esfuerzo.",a:null},
   {t:"No todos van a entender lo que querés construir. Eso no es una señal de que está mal. A veces es una señal de que es tuyo.",a:null},
   {t:"La persona que sos cuando nadie mira es la persona real. Todo lo demás es presentación.",a:null},
-  {t:"No tenés que justificar lo que querés. Querés lo que querés. Eso es suficiente punto de partida.",a:null},
   {t:"La vida que construís en función de lo que se supone que deberías querer rara vez te satisface aunque lo consigas.",a:null},
   {t:"Hay algo liberador en dejar de intentar gustarle a todos y empezar a ser honesto sobre quién sos y hacia dónde vas.",a:null},
   {t:"La voz que te dice que no podés ser vos mismo y también ser exitoso está equivocada. Y hay miles de personas que lo prueban.",a:null},
   {t:"Ser reconocido por lo que realmente sos vale infinitamente más que ser admirado por lo que pretendés ser.",a:null},
-
-  // ─── MÁS REFLEXIONES ────────────────────────────────────────────────────────
-
   {t:"¿Qué tan diferente sería tu vida si creyeras que sos digno de exactamente lo que deseás?",a:null},
   {t:"La diferencia entre quien tiene mucho y quien tiene poco no siempre está en el trabajo. A veces está en qué tan profundamente cree cada uno que merece lo que busca.",a:null},
   {t:"Nadie te va a dar permiso de ser quien sos. Esa autorización solo existe dentro de vos.",a:null},
@@ -351,7 +263,6 @@ export const FRASES = [
   {t:"Hay una diferencia entre rendirse y saber cuándo cambiar de estrategia. La primera cierra puertas. La segunda las abre.",a:null},
   {t:"Lo que te costó más trabajo aprender es lo que más te pertenece y lo que con más generosidad podés dar.",a:null},
   {t:"Hay una dignidad en seguir intentando que ningún resultado puede quitarte.",a:null},
-  {t:"El mundo no cambia cuando cambian los sistemas. Cambia cuando cambia la conciencia de las personas que habitan esos sistemas.",a:null},
   {t:"Cada obstáculo que enfrentás hoy tiene exactamente el tamaño que necesitás para crecer al nivel siguiente.",a:null},
   {t:"La fortaleza real no es no tener miedo. Es tener miedo y actuar de todas formas, una y otra vez hasta que se vuelva hábito.",a:null},
   {t:"El proyecto que no se inició, la idea que no se ejecutó, la conversación que no se tuvo: esas son las deudas más costosas que existen.",a:null},
@@ -361,94 +272,63 @@ export const FRASES = [
   {t:"Cada vez que elegís la gratitud sobre la queja, le das vuelta a una palanca que mueve más cosas de las que podés ver.",a:null},
   {t:"El universo no responde a lo que decís. Responde a lo que creés con suficiente profundidad como para que cambie tu comportamiento.",a:null},
   {t:"Las personas más influyentes que conocés tienen en común una cosa: decidieron que su historia no terminaba donde otros pensaban que terminaba.",a:null},
-  {t:"El presente siempre fue el único lugar desde el que el cambio es posible. Siempre lo fue. Y hoy también lo es.",a:null},
   {t:"Lo que te parece imposible hoy es lo que alguien en algún lugar del mundo está terminando de lograr con menos que vos.",a:null},
   {t:"Vivir con intención no garantiza que todo salga bien. Garantiza que cuando algo salga mal, habrá valido la pena intentarlo.",a:null},
   {t:"La vida que querés no está esperando que seas perfecto. Está esperando que empieces.",a:null},
-
-  // ─── VALENTÍA Y VULNERABILIDAD ──────────────────────────────────────────────
-
   {t:"La vulnerabilidad no es debilidad. Es el estado desde el que se hacen las cosas más verdaderas y más valientes.",a:null},
   {t:"Hay una forma de valentía que nadie aplaude: la de seguir creyendo en privado cuando todo lo externo dice que estás equivocado.",a:null},
   {t:"Admitir que no sabés es el primer paso hacia saber. Pretender que sabés es el primer paso hacia el estancamiento.",a:null},
   {t:"El coraje no es un rasgo de personalidad. Es una decisión que se toma en un momento específico y que se vuelve hábito con la práctica.",a:null},
   {t:"Hay una diferencia entre arriesgar desde el miedo y arriesgar desde la convicción. Los resultados son distintos aunque la acción parezca igual.",a:null},
   {t:"Pedir ayuda no es señal de que no podés. Es señal de que sabés cuándo el problema es más grande que tu ego.",a:null},
-  {t:"La persona que se permite ser vista en su proceso, no solo en sus logros, genera una conexión que los resultados solos nunca producen.",a:null},
   {t:"Hay una valentía específica que se necesita para empezar algo nuevo a una edad en que todos esperan que ya tengas todo resuelto.",a:null},
   {t:"Decir la verdad cuando es incómoda es más honroso que mentir cuando es conveniente. Y a largo plazo, más rentable.",a:null},
   {t:"El que nunca falla nunca intentó nada que valiera la pena. Las cicatrices son el precio de haber estado en el campo.",a:null},
-
-  // ─── CREATIVIDAD Y EXPRESIÓN ────────────────────────────────────────────────
-
   {t:"Cada persona tiene una forma única de ver el mundo. Expresarla con honestidad es el acto creativo más importante que puede hacer.",a:null},
   {t:"La creatividad no es un don que algunos tienen y otros no. Es una capacidad que se atrofia cuando no se usa y florece cuando se ejercita.",a:null},
   {t:"El miedo a hacer algo imperfecto mata más proyectos que la falta de talento.",a:null},
   {t:"Crear algo, aunque sea pequeño, es una declaración de que creés que podés aportar algo al mundo que no existía antes.",a:null},
   {t:"Hay una satisfacción que solo produce el trabajo propio, el que lleva tu firma aunque nadie más lo reconozca todavía.",a:null},
   {t:"Las ideas que no se ejecutan no existen. Son solo posibilidades flotando en un espacio donde la realidad no puede alcanzarlas.",a:null},
-  {t:"La expresión auténtica siempre encuentra a alguien que la necesitaba exactamente así. No necesitás una audiencia masiva para tener impacto real.",a:null},
   {t:"El trabajo creativo tiene miedo como compañero permanente. La diferencia entre el que crea y el que no es que uno eligió hacerlo igual.",a:null},
   {t:"Hay algo que solo aparece cuando empezás a hacer. Nunca aparece mientras seguís planeando.",a:null},
   {t:"Tu perspectiva única sobre el mundo, la que a veces te parece rara o fuera de lugar, es exactamente lo que alguien en algún lugar necesita escuchar.",a:null},
-
-  // ─── APRENDIZAJE Y ERRORES ──────────────────────────────────────────────────
-
   {t:"El error que reconocés y entendés te costó algo valioso pero te dejó algo más valioso todavía.",a:null},
   {t:"No aprender de un error es cometerlo dos veces. Aprender de él es convertir el costo en inversión.",a:null},
   {t:"Hay personas que aprenden de su experiencia y personas que aprenden de la experiencia de otros. Las segundas pagan menos en el proceso.",a:null},
   {t:"La crítica que duele tiene a veces más verdad que el elogio que reconforta.",a:null},
   {t:"Equivocarse en dirección al objetivo es radicalmente distinto de no moverse por miedo a equivocarse.",a:null},
-  {t:"El estudiante que pregunta lo que no entiende avanza. El que finge entender se queda donde está.",a:null},
   {t:"Cada habilidad que hoy te parece natural fue alguna vez algo que no sabías hacer y decidiste aprender.",a:null},
   {t:"El conocimiento sin aplicación es información. El conocimiento aplicado, incluso imperfectamente, es sabiduría en desarrollo.",a:null},
   {t:"Nadie llega a dominar algo sin pasar por el período embarazoso de hacerlo mal mientras aprende a hacerlo bien.",a:null},
   {t:"La humildad intelectual, la disposición a cambiar de opinión cuando tenés mejores datos, es una de las capacidades más raras y más valiosas.",a:null},
   {t:"Hay una diferencia entre procesar un error y rumiar sobre él. Una te lleva hacia adelante. La otra te mantiene en el mismo punto.",a:null},
   {t:"Lo que te costó más trabajo entender es lo que con más profundidad podés enseñar.",a:null},
-
-  // ─── NATURALEZA Y METÁFORAS PROFUNDAS ──────────────────────────────────────
-
   {t:"El árbol que soporta el viento más fuerte tiene las raíces más profundas. No es coincidencia.",a:null},
-  {t:"La marea no pide permiso para subir ni se disculpa por bajar. Su ritmo no depende de la opinión de la orilla.",a:null},
   {t:"El diamante no sabe que es valioso. Su valor no depende de su autoconciencia. Pero el ser humano sí puede elegir saber cuánto vale.",a:null},
   {t:"El río no duda del camino porque encuentre una piedra. La rodea, la pule, y sigue.",a:null},
   {t:"Hay semillas que germinan en condiciones que parecen imposibles. El desierto también florece después de la lluvia correcta.",a:null},
   {t:"La luna no desaparece cuando no podés verla. La oscuridad no cancela lo que existe.",a:null},
-  {t:"El sol no negocia su salida. No pregunta si el mundo está listo. Aparece igual, todos los días.",a:null},
   {t:"El vuelo de las aves no requiere que entiendan la aerodinámica. Requiere que confíen en lo que naturalmente saben hacer.",a:null},
   {t:"Una sola chispa, en las condiciones correctas, puede cambiar todo el paisaje. No subestimes el momento pequeño que estás viviendo.",a:null},
   {t:"El océano no está quieto en la superficie ni en el fondo. Pero en el fondo la calma es más profunda. Buscá tu fondo.",a:null},
-
-  // ─── DINERO, TRABAJO Y PROSPERIDAD ─────────────────────────────────────────
-
   {t:"El dinero es un amplificador. Amplifica lo que ya sos. Por eso construir el carácter antes que la riqueza no es idealismo, es estrategia.",a:null},
   {t:"Hay personas que trabajan duro para ganar dinero y personas que trabajan duro para crear valor. La segunda categoría casi siempre termina ganando más dinero.",a:null},
   {t:"La prosperidad que no es sostenible desde adentro es temporal sin excepción.",a:null},
-  {t:"No podés atraer lo que inconscientemente creés que no merecés, sin importar cuánto trabajes para conseguirlo.",a:null},
   {t:"Hay una diferencia entre tener dinero y tener una relación sana con el dinero. La segunda produce la primera de forma duradera.",a:null},
   {t:"El miedo a perder dinero produce decisiones más costosas que perder dinero.",a:null},
   {t:"La riqueza real incluye salud, relaciones, tiempo, paz y dinero. Sacrificar las primeras cuatro por la última es un mal negocio a largo plazo.",a:null},
   {t:"El hábito de gastar más de lo que ganás no es un problema financiero. Es una relación con la insatisfacción que tiene raíces más profundas.",a:null},
-  {t:"Generar valor genuino para otros es la única estrategia de prosperidad que no tiene fecha de vencimiento.",a:null},
   {t:"Lo que podés crear con tus manos, tu mente y tu carácter es la base de cualquier seguridad real.",a:null},
-
-  // ─── LIDERAZGO Y SERVICIO ───────────────────────────────────────────────────
-
   {t:"El liderazgo real no es tener seguidores. Es crear las condiciones para que otros encuentren lo mejor de sí mismos.",a:null},
   {t:"La persona que se lidera a sí misma con consistencia eventualmente lidera algo más grande sin buscarlo.",a:null},
   {t:"Servir no es subordinarse. Es elegir que el bienestar de otros sea parte de tu propio propósito.",a:null},
   {t:"El mentor más valioso no es el que tiene todas las respuestas. Es el que sabe qué preguntas hacerte.",a:null},
   {t:"Hay una forma de influir en el mundo que no requiere poder formal: vivir con tal coherencia entre lo que decís y lo que hacés que otros no puedan ignorarlo.",a:null},
-  {t:"El liderazgo que dura no se construye con autoridad. Se construye con credibilidad ganada a lo largo del tiempo.",a:null},
   {t:"Lo que hacés cuando nadie te obliga determina si algún día podés liderar algo cuando la responsabilidad sí te lo exija.",a:null},
   {t:"El impacto más duradero que podés tener en la vida de alguien es ayudarlo a verse a sí mismo de forma más poderosa de lo que se veía antes.",a:null},
-
-  // ─── MÁS PREGUNTAS QUE TRANSFORMAN ─────────────────────────────────────────
-
   {t:"¿Qué parte de tu vida seguís dejando para cuando 'esté todo resuelto', sabiendo que ese momento no llega solo?",a:null},
   {t:"¿Cuántas veces en el pasado tuviste miedo de algo que, una vez que pasó, resultó menos terrible de lo que imaginabas?",a:null},
-  {t:"¿Qué decisión estás evitando tomar que, si la tomás hoy, simplificaría todo lo demás?",a:null},
   {t:"¿Qué es lo que más admirás en otros y te negás a reconocer que también existe en vos?",a:null},
   {t:"¿Qué le pedirías a la vida si supieras con certeza que puede dártelo?",a:null},
   {t:"¿Hay algo que dejaste de intentar no porque fracasaste, sino porque tuviste miedo de fracasar?",a:null},
@@ -461,9 +341,6 @@ export const FRASES = [
   {t:"¿Cuándo fue la última vez que te comprometiste con algo sin tener una salida de emergencia planeada?",a:null},
   {t:"¿Qué necesitás soltar para poder recibir lo que decís que querés?",a:null},
   {t:"Si tu vida fuera una historia que alguien más estuviera leyendo, ¿en qué parte del arco estarías ahora?",a:null},
-
-  // ─── MENTALIDAD Y PERSPECTIVA ───────────────────────────────────────────────
-
   {t:"La forma en que interpretás lo que te pasa es, a menudo, más determinante que lo que te pasa.",a:null},
   {t:"Dos personas pueden vivir el mismo evento y uno salir fortalecido y el otro destruido. La diferencia no está en el evento.",a:null},
   {t:"El marco desde el que mirás un problema determina las soluciones que podés ver. Cambiar el marco es la primera herramienta.",a:null},
@@ -476,37 +353,24 @@ export const FRASES = [
   {t:"Hay una diferencia entre ver la realidad como es y verla como podrías transformarla. Ambas visiones son necesarias. La segunda, más escasa.",a:null},
   {t:"El optimismo inteligente no ignora los problemas. Los ve y además ve lo que podría haber del otro lado.",a:null},
   {t:"Cuando cambiás la pregunta que te hacés sobre una situación, la situación misma cambia de significado.",a:null},
-
-  // ─── IDENTIDAD Y POSIBILIDAD ────────────────────────────────────────────────
-
   {t:"La persona que querés llegar a ser no está esperando que resuelvas todo lo que sos ahora. Está esperando que empieces a actuar como si ya fuera posible.",a:null},
   {t:"Tu identidad actual es el resultado de decisiones pasadas. Lo que decide el futuro son las identidades que elegís habitar hoy.",a:null},
   {t:"Hay personas que esperan que el éxito cambie quiénes son. Los que logran cosas durables cambian quiénes son primero.",a:null},
-  {t:"No podés actuar de forma sostenida de una manera que contradiga profundamente cómo te ves a vos mismo.",a:null},
   {t:"La historia que te contás sobre quién sos es la más influyente de las historias que escuchás.",a:null},
   {t:"Decirte 'soy alguien que hace X' es más poderoso que decirte 'voy a intentar hacer X'. La identidad precede al comportamiento.",a:null},
   {t:"Hay una versión de vos que ya sabe cómo vivir la vida que querés. El trabajo es cerrar la brecha entre la versión actual y esa.",a:null},
   {t:"Lo que creés que sos con más profundidad es lo que demostrás bajo presión.",a:null},
   {t:"La identidad no es un hecho fijo. Es una narrativa en construcción que podés revisar con evidencia y decisión.",a:null},
-  {t:"Cada vez que actués como la persona que querés ser antes de serlo completamente, acortás la distancia.",a:null},
-
-  // ─── MÁS NEVILLE GODDARD Y CONCIENCIA ──────────────────────────────────────
-
   {t:"Lo que asumís sobre el futuro en el momento presente está siendo registrado por una inteligencia que no discute. Solo ejecuta.",a:"N. Goddard"},
   {t:"No necesitás entender el mecanismo para usarlo. No entendés cómo funciona el corazón y late igual. La mente opera bajo las mismas reglas.",a:"N. Goddard"},
-  {t:"Dios, para Goddard, no era una entidad separada. Era la conciencia misma. La tuya. Y esa conciencia crea.",a:"N. Goddard"},
   {t:"El estado que asumís como real en tu imaginación es más poderoso que el estado que observás en el mundo físico.",a:"N. Goddard"},
   {t:"Vivir en el resultado antes de tenerlo no es mentirse. Es ejercer la única herramienta que cambia el mundo de afuera desde adentro.",a:"N. Goddard"},
-  {t:"La oración efectiva no describe lo que querés. Asume lo que ya es. Esa diferencia lo cambia todo.",a:"N. Goddard"},
   {t:"Cada vez que reaccionás emocionalmente al mundo como si no pudieras cambiarlo, confirmás ese mundo.",a:"N. Goddard"},
   {t:"Cuando imaginás desde la certeza en lugar del miedo, el mundo que construís tiene una arquitectura completamente diferente.",a:"N. Goddard"},
   {t:"La conciencia que observa el problema y la conciencia que lo creó son la misma. Por eso la misma puede disolverlo.",a:"N. Goddard"},
   {t:"El nivel de conciencia desde el que mirás tu vida determina qué tan grande parece el espacio de lo posible.",a:"N. Goddard"},
   {t:"Goddard decía: no te imagines haciendo el viaje. Imaginate ya en el destino contándole a alguien cómo fue.",a:"N. Goddard"},
   {t:"Hay un estado de ser donde las cosas que querés se sienten naturales, no aspiracionales. Encontrar ese estado y habitarlo es el trabajo.",a:"N. Goddard"},
-
-  // ─── PACIENCIA Y TIMING ─────────────────────────────────────────────────────
-
   {t:"Hay cosas que tardan el tiempo que tienen que tardar. Apresurarse no las acelera. Solo cambia la calidad de la espera.",a:null},
   {t:"El árbol que crece rápido en tierra pobre cae con el primer viento. El que crece despacio en tierra fértil dura generaciones.",a:null},
   {t:"Hay momentos en que la acción más inteligente es esperar con atención total, sin pasividad.",a:null},
@@ -517,22 +381,13 @@ export const FRASES = [
   {t:"La paciencia activa es distinta de la espera pasiva. Una construye. La otra consume.",a:null},
   {t:"No toda la velocidad es progreso. No toda la lentitud es pérdida.",a:null},
   {t:"A veces lo más productivo que podés hacer es no hacer nada precipitado.",a:null},
-
-  // ─── SALUD MENTAL Y EQUILIBRIO ──────────────────────────────────────────────
-
-  {t:"El cuerpo que ignorás hoy te va a pedir la atención que le negaste con intereses en algún momento que no vas a poder ignorar.",a:null},
   {t:"Descansar no es perder tiempo. Es parte del proceso de producir algo que valga la pena.",a:null},
   {t:"El agotamiento crónico no produce resultados de alta calidad. Produce errores caros y decisiones reactivas.",a:null},
-  {t:"Hay un tipo de actividad constante que se parece al progreso pero es en realidad una forma de no tener que pensar en lo que realmente importa.",a:null},
   {t:"La paz mental no es la ausencia de problemas. Es la capacidad de estar con los problemas sin que te disuelvan.",a:null},
   {t:"Pedirle a tu mente que trabaje sin descanso es como pedirle a un músculo que rinda sin recuperación. Funciona hasta que no funciona más.",a:null},
   {t:"Hay una diferencia entre la quietud productiva y la evitación. Una carga. La otra descarga.",a:null},
   {t:"Cuidar tu energía no es egoísmo. Es la única forma de tener algo genuino para dar.",a:null},
-  {t:"La ansiedad sobre el futuro y la tristeza sobre el pasado comparten un origen: no estar completamente presente en el ahora.",a:null},
   {t:"El silencio que evitás a toda costa suele contener la información que más necesitás escuchar.",a:null},
-
-  // ─── FRASES DE CIERRE Y SÍNTESIS ────────────────────────────────────────────
-
   {t:"Al final, la vida no te va a preguntar cuántas veces tuviste miedo. Te va a preguntar cuántas veces actuaste a pesar de él.",a:null},
   {t:"Lo que construís en silencio, con paciencia y sin garantías, tiene una solidez que nada construido apresuradamente puede igualar.",a:null},
   {t:"Cada día que elegís ser mejor que ayer en algo que importa, estás ganando una guerra que la mayoría ni sabe que se está peleando.",a:null},
@@ -542,49 +397,30 @@ export const FRASES = [
   {t:"Lo más revolucionario que podés hacer es creer profundamente, cuando todo conspira para que no creas, que todavía es posible.",a:null},
   {t:"Hay una versión de tu vida donde tomaste la decisión que siempre supiste que tenías que tomar. Esa versión empieza cuando vos decidís que empieza.",a:null},
   {t:"El mundo necesita lo que tenés para dar. No tu versión perfecta. Tu versión honesta.",a:null},
-  {t:"Mientras estés respirando, la posibilidad de que algo cambie es exactamente del cien por ciento.",a:null},
-
-  // ─── EL EXTRAÑO SECRETO — EARL NIGHTINGALE ──────────────────────────────────
-
   {t:"Earl Nightingale pasó años buscando la diferencia entre los que triunfan y los que no. La encontró en seis palabras: nos convertimos en lo que pensamos.",a:"E. Nightingale"},
   {t:"Si plantás maíz, obtenés maíz. Si plantás trigo, obtenés trigo. La mente funciona igual: devuelve con exactitud lo que sembrás en ella.",a:"E. Nightingale"},
   {t:"El problema de la mayoría no es que tenga metas imposibles. Es que no tiene metas en absoluto y se sorprende de llegar a ningún lado.",a:"E. Nightingale"},
   {t:"Una persona con un objetivo claro avanza aunque el camino sea difícil. Una sin objetivo se pierde aunque el camino sea llano.",a:"E. Nightingale"},
   {t:"El éxito es la realización progresiva de un ideal que vale la pena. No es un destino. Es una dirección sostenida en el tiempo.",a:"E. Nightingale"},
-  {t:"Nightingale observó que el cinco por ciento de las personas que llega a los 65 años sin depender de otros tiene en común una sola cosa: nunca dejaron de tener dirección.",a:"E. Nightingale"},
   {t:"Trabajar sin un propósito definido es lo más parecido a remar sin saber en qué orilla querés llegar.",a:"E. Nightingale"},
   {t:"La conformidad mata el potencial con más eficiencia que cualquier obstáculo externo.",a:"E. Nightingale"},
   {t:"Hacer lo que todos hacen y esperar un resultado diferente no es fe. Es confusión.",a:"E. Nightingale"},
   {t:"El ser humano es el único ser del planeta que puede elegir conscientemente en qué se convierte. Esa es la mayor libertad que existe y la que menos se ejerce.",a:"E. Nightingale"},
-
-  // ─── ALAN WATTS Y LA PARADOJA DEL ESFUERZO ──────────────────────────────────
-
   {t:"Hay una paradoja que pocos atraviesan: cuando dejás de aferrarte desesperadamente al resultado, el resultado llega con menos resistencia.",a:"A. Watts"},
   {t:"El que necesita urgentemente el dinero toma las peores decisiones financieras. La desesperación tiene el efecto opuesto al que promete. La calma es la ventaja competitiva más subestimada.",a:"A. Watts"},
   {t:"Vivir completamente en el presente no es ignorar el futuro. Es entender que la única acción real siempre ocurre en el ahora.",a:"A. Watts"},
   {t:"La mente que no puede estar quieta no puede escuchar lo que importa.",a:"A. Watts"},
   {t:"Hay una diferencia entre hacer porque amás lo que hacés y hacer para llegar a algún lado. La segunda casi nunca lleva donde prometía.",a:"A. Watts"},
-  {t:"El esfuerzo que viene de la escasez se parece físicamente al esfuerzo que viene de la abundancia. Pero uno agota y el otro energiza.",a:"A. Watts"},
-  {t:"No podés llegar a la paz buscando la paz. La paz es lo que queda cuando dejás de huir de lo que es.",a:"A. Watts"},
   {t:"Alan Watts preguntaba: ¿qué harías si el dinero no fuera el problema? Esa respuesta suele ser más cercana a tu propósito que todo lo que calculaste.",a:"A. Watts"},
   {t:"El juego más importante que podés jugar es el que elegirías jugar aunque nadie te estuviera mirando.",a:"A. Watts"},
   {t:"Hay personas que viven corriendo hacia algo y personas que viven corriendo de algo. La dirección es opuesta aunque la velocidad sea igual.",a:"A. Watts"},
-
-  // ─── CARL JUNG Y EL AUTOCONOCIMIENTO ────────────────────────────────────────
-
   {t:"Jung lo formuló de una manera que no envejece: hasta que lo inconsciente no se vuelva consciente, seguirá dirigiendo tu vida y llamándolo destino.",a:"C. Jung"},
   {t:"Lo que más rechazás de otros es casi siempre lo que más rechazás de vos mismo. El otro es un espejo que no pediste.",a:"C. Jung"},
   {t:"La sombra no es lo malo de vos. Es todo lo que exilaste de tu conciencia porque no te parecía aceptable. Integrarlo es madurar.",a:"C. Jung"},
-  {t:"El autoconocimiento no es un lujo espiritual. Es el mapa sin el cual cualquier éxito externo tiene fundamentos inestables.",a:"C. Jung"},
   {t:"No podés cambiar lo que no reconocés. Y no podés reconocer lo que deliberadamente evitás ver.",a:"C. Jung"},
   {t:"Hay una diferencia entre la máscara que mostrás al mundo y quien sos en privado. Cuando esa brecha es muy grande, el costo psíquico es enorme.",a:"C. Jung"},
-  {t:"Jung creía que la segunda mitad de la vida debería estar dedicada a la profundización, no a la acumulación. Pocas culturas lo entienden así.",a:"C. Jung"},
   {t:"El conflicto interno que sentís a veces no es un síntoma de que algo está mal. Es la señal de que algo importante está tratando de emerger.",a:"C. Jung"},
   {t:"Conocerse a uno mismo no lleva a la comodidad. Lleva a la responsabilidad. Y la responsabilidad, bien asumida, lleva a la libertad.",a:"C. Jung"},
-  {t:"Lo que niegas en vos mismo buscará expresarse de alguna forma. Preferiblemente bajo tu elección consciente.",a:"C. Jung"},
-
-  // ─── DEEPAK CHOPRA Y LA INTENCIÓN ──────────────────────────────────────────
-
   {t:"La intención es la semilla del deseo en el campo de la conciencia pura. Plantarla con claridad y soltarla sin ansiedad es la práctica.",a:"D. Chopra"},
   {t:"El universo opera a través de ti, no para ti. Eso cambia la relación con lo que pedís y con cómo lo pedís.",a:"D. Chopra"},
   {t:"La sincronicidad no es magia. Es el resultado de estar lo suficientemente presente como para reconocer conexiones que siempre estuvieron ahí.",a:"D. Chopra"},
@@ -595,9 +431,6 @@ export const FRASES = [
   {t:"No podés dar desde la escasez sin agotarte. No podés dar desde la abundancia sin enriquecerte.",a:"D. Chopra"},
   {t:"La conciencia que expandes al buscar crecer impacta en todo lo que te rodea de maneras que nunca podés rastrear completamente.",a:"D. Chopra"},
   {t:"Cada decisión que tomás desde la convicción amplía tu mundo. Cada decisión desde el miedo lo contrae.",a:"D. Chopra"},
-
-  // ─── LIBERTAD ECONÓMICA Y CARRERA ──────────────────────────────────────────
-
   {t:"La relación más honesta que podés tener es la que empezás con vos mismo a la hora de dormir, cuando no hay nadie más en la sala.",a:null},
   {t:"Hay personas que entran a tu vida para quedarse, personas que entran para enseñarte y personas que entran para mostrarte qué no querés. Las tres son necesarias.",a:null},
   {t:"Elegir bien con quién compartís tu tiempo es una decisión de diseño de vida tan importante como cualquier objetivo profesional.",a:null},
@@ -606,46 +439,27 @@ export const FRASES = [
   {t:"Perdonar no es aprobar lo que pasó. Es liberarte del peso de cargarlo.",a:null},
   {t:"La libertad económica no es un número en una cuenta. Es no tener que aceptar condiciones que van contra tus valores por necesidad.",a:null},
   {t:"Hay una diferencia entre tener un empleo y construir una carrera. Una te da seguridad temporal. La otra te construye a vos.",a:null},
-  {t:"El trabajo que elegís hacer dice quién querés ser. El trabajo que aceptás porque no quedó otra dice quién creés que sos. Cambiá la segunda.",a:null},
   {t:"Cada habilidad que desarrollás hoy es un activo que ninguna crisis económica puede confiscar.",a:null},
   {t:"La persona que diversifica lo que sabe hacer tiene más opciones que la que depende de un solo conocimiento.",a:null},
   {t:"Hay personas que esperan que el mercado les ofrezca oportunidades y personas que crean las condiciones para que el mercado las busque a ellas.",a:null},
   {t:"El ingreso que tenés hoy es el resultado de decisiones pasadas. El que tendrás en cinco años depende de las que tomás ahora.",a:null},
   {t:"Trabajar para otros puede ser parte del camino. Pero si es todo el camino, estás construyendo el sueño de otro.",a:null},
   {t:"La independencia económica no se logra de golpe. Se construye con cada decisión consciente sobre en qué invertís tu tiempo y energía.",a:null},
-  {t:"Hay personas que tienen miedo de pedir lo que valen. Ese miedo le cuesta, en promedio, años de ingresos que les correspondían.",a:null},
-  {t:"El trabajo que hacés con excelencia constante eventualmente busca quien lo haga. La mediocridad tiene que salir a convencer.",a:null},
-  {t:"Perdonar no es una virtud espiritual lejana. Es la decisión práctica de dejar de pagar con energía presente por algo que ya ocurrió.",a:null},
-
-  // ─── LA REVISIÓN — CONCEPTO DE GODDARD ─────────────────────────────────────
-
-  {t:"Goddard enseñó la revisión: antes de dormir, revisá el día y reescribilo mentalmente como querías que hubiera sido. Le estás dando nuevas instrucciones al futuro.",a:"N. Goddard"},
-  {t:"El pasado que revisás con intención cambia el futuro que experimentás. No es magia. Es la forma en que la mente construye expectativas.",a:"N. Goddard"},
   {t:"No estás atado al pasado por lo que pasó. Estás atado por el significado que le diste y que seguís eligiendo sostener.",a:"N. Goddard"},
   {t:"La revisión no niega el dolor. Lo transforma en información y libera la energía que ese dolor consumía.",a:"N. Goddard"},
-  {t:"Reescribir mentalmente un momento difícil con el resultado que querías no es escapismo. Es reprogramación.",a:"N. Goddard"},
   {t:"Cada noche que terminás en un estado emocional elevado, independientemente de cómo fue el día, le dás a tu mente una instrucción diferente para mañana.",a:"N. Goddard"},
   {t:"La mente no vive en el presente de la misma manera que el cuerpo. Puede habituar el futuro antes de que llegue. Usá eso a tu favor.",a:"N. Goddard"},
   {t:"Lo que sentís justo antes de dormir es el último mensaje que le das a tu subconsciente antes de que trabaje sin tu interferencia.",a:"N. Goddard"},
-
-  // ─── VIKTOR FRANKL MÁS PROFUNDO ─────────────────────────────────────────────
-
   {t:"Frankl sobrevivió lo inimaginable y llegó a esto: quien tiene un porqué puede soportar casi cualquier cómo.",a:"V. Frankl"},
   {t:"El sufrimiento que tiene nombre y dirección es completamente diferente del que no sabe para qué está.",a:"V. Frankl"},
   {t:"Hay una libertad última que nada ni nadie puede quitarte: la de decidir qué postura interior adoptás ante lo que vivís.",a:"V. Frankl"},
   {t:"La búsqueda de placer, cuando se convierte en el objetivo principal, produce exactamente lo opuesto. El placer es consecuencia, no meta.",a:"V. Frankl"},
   {t:"El vacío existencial que muchas personas sienten no es patología. Es la señal de que el ser humano fue diseñado para algo más que sobrevivir.",a:"V. Frankl"},
-  {t:"Frankl veía la conciencia como el órgano del sentido. Y como todo órgano, se atrofia sin uso.",a:"V. Frankl"},
   {t:"No toda la tensión es mala. La tensión entre lo que sos y lo que podés llegar a ser es la que produce crecimiento.",a:"V. Frankl"},
-  {t:"El ser humano no es determinado por sus condiciones. Las condiciones son el material sobre el que decide su postura.",a:"V. Frankl"},
   {t:"Hay una responsabilidad implícita en tener talentos. No usarlos no es humildad. Es evasión.",a:"V. Frankl"},
   {t:"El sentido no siempre se encuentra. A veces se crea en el mismo acto de elegir cómo responder a lo que la vida presenta.",a:"V. Frankl"},
-
-  // ─── EPICTETO MÁS PROFUNDO ──────────────────────────────────────────────────
-
   {t:"Epicteto nació esclavo y enseñó la libertad más profunda que existe: la que nadie puede quitarte porque vive en tu interior.",a:"Epicteto"},
   {t:"No te turbes por lo que no depende de vos. Trabaja sin pausa en lo que sí depende. Esa distinción es la base de la paz.",a:"Epicteto"},
-  {t:"El filósofo que no vive lo que enseña es un actor, no un sabio.",a:"Epicteto"},
   {t:"Pedir que las cosas sean distintas de como son es pelearte con la realidad. La realidad siempre gana ese round.",a:"Epicteto"},
   {t:"La opinión que otros tienen de vos es de ellos. Lo que hacés con tu vida es tuyo. No mezcles esas jurisdicciones.",a:"Epicteto"},
   {t:"Epicteto preguntaba a sus alumnos: ¿qué es lo que realmente querés? Porque lo que hacés todos los días ya está respondiendo esa pregunta.",a:"Epicteto"},
@@ -653,23 +467,13 @@ export const FRASES = [
   {t:"El enfermo que se queja de la enfermedad gasta la energía que podría usar para sanar. El mismo principio aplica a cualquier adversidad.",a:"Epicteto"},
   {t:"No podés controlar los eventos. Sí podés controlar la interpretación que les dás y la acción que tomás en consecuencia.",a:"Epicteto"},
   {t:"Hay una dignidad específica en no necesitar la aprobación de nadie para saber que estás haciendo lo correcto.",a:"Epicteto"},
-
-  // ─── ECKHART TOLLE MÁS PROFUNDO ─────────────────────────────────────────────
-
-  {t:"El ego necesita el drama para existir. La conciencia que observa el drama no lo necesita.",a:"E. Tolle"},
-  {t:"La mayoría vive en el tiempo. Muy pocos viven en el presente. Esa diferencia determina la calidad de la experiencia más que cualquier circunstancia externa.",a:"E. Tolle"},
   {t:"El pensamiento que te dice que no sos suficiente no es la verdad. Es un pensamiento. Hay una diferencia enorme.",a:"E. Tolle"},
   {t:"Observar tus pensamientos sin identificarte completamente con ellos es el inicio de la libertad interior.",a:"E. Tolle"},
   {t:"El ruido mental constante no es la condición natural de la mente. Es un hábito. Y los hábitos se cambian.",a:"E. Tolle"},
-  {t:"Hay un silencio debajo de todo el ruido que siempre estuvo ahí. Encontrarlo no requiere condiciones perfectas. Requiere atención.",a:"E. Tolle"},
   {t:"La presencia plena en lo que hacés es, al mismo tiempo, la forma más productiva y la más sagrada de trabajar.",a:"E. Tolle"},
-  {t:"El pasado como pensamiento y el futuro como pensamiento son ambos ahora. Solo el ahora es real en cualquier sentido práctico.",a:"E. Tolle"},
   {t:"Reaccionar desde el ego siempre tiene costo. Responder desde la presencia casi nunca lo tiene.",a:"E. Tolle"},
   {t:"La aceptación profunda de lo que es no impide cambiarlo. Es, paradójicamente, el punto de partida más sólido para el cambio.",a:"E. Tolle"},
   {t:"Tolle observaba que la mayoría no experimenta lo que le pasa. Experimenta sus pensamientos sobre lo que le pasa. Esa capa extra es donde vive el sufrimiento innecesario.",a:"E. Tolle"},
-
-  // ─── CREENCIAS LIMITANTES Y SU RAÍZ ────────────────────────────────────────
-
   {t:"Una creencia no es un hecho. Es una hipótesis que repetiste tantas veces que empezó a parecerte un hecho.",a:null},
   {t:"Las creencias más limitantes son las que no sabés que tenés porque nunca las cuestionaste.",a:null},
   {t:"Preguntarte '¿de dónde viene esta convicción?' puede ser más transformador que cualquier técnica de motivación.",a:null},
@@ -680,9 +484,6 @@ export const FRASES = [
   {t:"Lo que creés que es posible para vos filtra la realidad antes de que la experiencies. Solo ves lo que tu sistema de creencias te permite ver.",a:null},
   {t:"Cambiar una creencia profunda no requiere años de terapia necesariamente. A veces requiere una sola experiencia lo suficientemente poderosa como para reemplazarla.",a:null},
   {t:"El primer paso no es actuar diferente. Es pensar diferente. El segundo es actuar diferente para confirmar el nuevo pensamiento.",a:null},
-
-  // ─── GRATITUD COMO PRÁCTICA REAL ───────────────────────────────────────────
-
   {t:"La gratitud que se practica activamente no es una actitud positiva superficial. Es una reprogramación de lo que la mente registra como prioritario.",a:null},
   {t:"La mente entrenada en la gratitud encuentra recursos donde la mente no entrenada solo encuentra carencias.",a:null},
   {t:"Agradecer lo que tenés mientras trabajás por más no es contradicción. Es la forma más eficiente de avanzar.",a:null},
@@ -691,9 +492,6 @@ export const FRASES = [
   {t:"La queja habitual entrena la mente para buscar lo que falta. La gratitud habitual la entrena para ver lo que está. Elegís cuál músculo fortalecer.",a:null},
   {t:"No necesitás que todo sea perfecto para encontrar algo genuino por lo que agradecer. Incluso en el día más difícil, algo funcionó.",a:null},
   {t:"El agradecimiento que se siente en el cuerpo, no solo se piensa con la cabeza, es el que tiene efectos reales sobre el estado emocional.",a:null},
-
-  // ─── MIEDOS ESPECÍFICOS Y TRANSFORMACIÓN ───────────────────────────────────
-
   {t:"El miedo al éxito es más común que el miedo al fracaso. Porque el éxito implica responsabilidades que el fracaso no tiene.",a:null},
   {t:"Hay personas que sabotean lo bueno justo cuando llega porque inconscientemente esperan que algo salga mal. Reconocer ese patrón es el primer acto de liberación.",a:null},
   {t:"El miedo al rechazo lleva a personas a no presentar sus mejores ideas para no exponerse. El mundo pierde lo que esas ideas podrían haber aportado.",a:null},
@@ -702,10 +500,6 @@ export const FRASES = [
   {t:"El miedo al juicio ajeno es inversamente proporcional a la claridad sobre quién sos y hacia dónde vas.",a:null},
   {t:"Nada hace más pequeño a un miedo que enfrentarlo. Nada lo hace más grande que evitarlo.",a:null},
   {t:"El miedo que más te paraliza rara vez es el que nombrás. Suele ser uno más profundo que ese que cubre.",a:null},
-
-  // ─── TRABAJO INTERIOR ───────────────────────────────────────────────────────
-
-  {t:"El trabajo interior no es el opuesto del trabajo exterior. Es su fundamento.",a:null},
   {t:"Cambiar afuera sin cambiar adentro produce resultados que no duran.",a:null},
   {t:"La persona que resuelve su relación con el fracaso no fracasa menos. Aprende más rápido.",a:null},
   {t:"No podés construir algo que no rompas con lo que ya no sirve. La demolición es parte de la construcción.",a:null},
@@ -713,47 +507,25 @@ export const FRASES = [
   {t:"El crecimiento interior rara vez se anuncia. Se nota en cómo reaccionás en los momentos donde antes reaccionabas de forma que te avergonzaba.",a:null},
   {t:"Toda la sabiduría del mundo no sirve de nada si no se aplica en la vida concreta de cada día.",a:null},
   {t:"Invertir en conocerte a vos mismo es la única inversión que mejora el retorno de todas las otras.",a:null},
-  {t:"El que trabaja en sí mismo con honestidad y constancia se convierte en alguien con quien cualquier entorno tiene que lidiar.",a:null},
   {t:"Hay un punto en el crecimiento personal donde dejás de buscar que el mundo cambie para vos y empezás a cambiar vos para poder navegar mejor el mundo.",a:null},
-
-  // ─── LO QUE EL TRABAJO ENSEÑA ──────────────────────────────────────────────
-
   {t:"El trabajo sostenido en algo que importa enseña sobre la vida más que cualquier libro, aunque los libros ayuden.",a:null},
   {t:"Hay una sabiduría que solo se obtiene con las manos en la masa. La teoría es el mapa, pero el territorio se conoce caminando.",a:null},
-  {t:"Cada oficio practicado con conciencia es una meditación. Cada tarea hecha con presencia es un acto sagrado aunque nadie lo sepa.",a:null},
-  {t:"El artesano que ama su trabajo no le escapa al detalle difícil. Lo busca porque sabe que ahí está la diferencia.",a:null},
   {t:"Hay algo que solo el trabajo honesto puede enseñarte sobre vos mismo: hasta dónde llegás cuando nadie te empuja.",a:null},
   {t:"La excelencia en cualquier área siempre empieza por negarse a aceptar lo bueno cuando lo excelente es posible.",a:null},
-  {t:"El trabajo que nadie pide pero que sabés que corresponde hacer es el que define el carácter.",a:null},
-  {t:"Hay personas que hacen lo mínimo necesario y personas que hacen lo que saben que está bien. Las segundas duermen mejor.",a:null},
   {t:"La dedicación que ponés en lo que hacés es la forma más honesta de comunicarle al mundo qué tan en serio te tomás a vos mismo.",a:null},
   {t:"No todo trabajo produce resultados inmediatos. Pero todo trabajo hecho con honestidad produce carácter. Y el carácter produce resultados tarde o temprano.",a:null},
-
-  // ─── INTUICIÓN Y SABIDURÍA INTERNA ─────────────────────────────────────────
-
-  {t:"La intuición no es magia. Es el resultado de toda la información que procesaste de forma no consciente hablándote a través del cuerpo.",a:null},
   {t:"Hay una voz interna que sabe antes de que la mente razone. Silenciarla constantemente tiene un costo que se acumula.",a:null},
-  {t:"No toda buena decisión puede explicarse lógicamente en el momento. A veces sabés y no sabés por qué sabés.",a:null},
   {t:"El cuerpo dice la verdad antes que la mente. Aprender a escucharlo es una habilidad que salva de muchos errores.",a:null},
   {t:"Hay momentos donde el análisis excesivo es una forma de evitar lo que ya sabés que tenés que hacer.",a:null},
   {t:"La intuición entrenada y la intuición sin educación son cosas distintas. La primera viene de experiencia procesada. La segunda puede ser simplemente miedo o deseo disfrazado.",a:null},
   {t:"Confiar en tu criterio no requiere que tengas siempre razón. Requiere que estés dispuesto a aprender cuando te equivocás.",a:null},
   {t:"Hay respuestas que aparecen en el silencio y nunca en el ruido. Por eso los momentos de quietud son parte del proceso de decisión.",a:null},
-
-  // ─── SOBRE EL DINERO Y EL VALOR REAL ───────────────────────────────────────
-
-  {t:"El valor que creás es siempre mayor que el dinero que recibís por él. Si no es así, algo en el intercambio está mal.",a:null},
   {t:"Hay personas que trabajan para ganarse la vida y no saben bien para qué quieren esa vida. La pregunta de para qué es más importante que la de cuánto.",a:null},
   {t:"El dinero sin propósito es ruido. El dinero al servicio de algo que importa es amplificador.",a:null},
   {t:"Dar más de lo que te pagan no es ingenuidad. Es la estrategia de largo plazo que casi nadie tiene la paciencia de ejecutar.",a:null},
   {t:"La reputación que construís haciendo un trabajo excepcional de forma consistente vale más que cualquier campaña de marketing.",a:null},
-  {t:"Hay personas que negocian por miedo a pedir demasiado y terminan recibiendo menos de lo que valen. Conocer tu valor no es arrogancia.",a:null},
   {t:"El precio que aceptás por tu trabajo es la primera señal que le dás al mercado sobre cómo valorás lo que hacés.",a:null},
   {t:"Trabajar con integridad cuando es más fácil no hacerlo es la definición más práctica de carácter profesional.",a:null},
-
-  // ─── MÁS PREGUNTAS PROFUNDAS ────────────────────────────────────────────────
-
-  {t:"¿Cuántas versiones de vos mismo dejaste de ser para encajar en espacios que en realidad nunca te correspondían?",a:null},
   {t:"¿Qué es lo que más te gustaría haber hecho si mirás tu vida dentro de veinte años?",a:null},
   {t:"¿Cuándo fue la última vez que hiciste algo por primera vez?",a:null},
   {t:"¿De qué conversación interna vivís? ¿Esa conversación te impulsa o te detiene?",a:null},
@@ -763,15 +535,9 @@ export const FRASES = [
   {t:"¿A quién le entregarías la dirección de tu vida si pudieras? Y si la respuesta no sos vos, ¿por qué no?",a:null},
   {t:"¿Qué es lo que genuinamente te importa cuando sacás todo lo que se supone que debería importarte?",a:null},
   {t:"¿Qué tan diferente sería tu vida si asumieras que mereces exactamente lo que deseás?",a:null},
-  {t:"¿Cuándo fue la última vez que dijiste que sí a algo que te asustó y te alegró haberlo hecho?",a:null},
-  {t:"¿Qué parte de vos mismo todavía no te diste permiso de mostrar?",a:null},
   {t:"¿Qué dejarías de hacer hoy si supieras que no tiene ningún futuro posible?",a:null},
   {t:"¿Cuál es la diferencia entre la vida que describís cuando alguien te pregunta cómo estás y la que realmente estás viviendo?",a:null},
   {t:"¿Qué necesitás perdonarte para poder avanzar sin ese peso?",a:null},
-
-  // ─── SOBRE EL FRACASO REDEFINIDO ───────────────────────────────────────────
-
-  {t:"El fracaso solo es definitivo cuando decidís que lo es. Antes de esa decisión, es información.",a:null},
   {t:"Hay una diferencia entre fallar en algo y ser un fracaso. Una es un evento. La otra es una identidad que elegís adoptar.",a:null},
   {t:"Cada persona que lograste admirar tiene un catálogo de fracasos que rara vez muestran. El éxito visible descansa sobre fracasos invisibles.",a:null},
   {t:"El fracaso que no publicás en redes también cuenta. A veces más, porque lo procesaste en privado y sin audiencia.",a:null},
@@ -780,20 +546,13 @@ export const FRASES = [
   {t:"El fracaso que te hace preguntarte qué podés hacer diferente es valioso. El que solo te hace preguntar qué tiene de malo el mundo no lo es.",a:null},
   {t:"La tolerancia al fracaso no significa no importarte el resultado. Significa que el resultado no define tu valor como persona.",a:null},
   {t:"Hay personas que usan el fracaso pasado como razón para no intentar en el presente. Eso es darle al pasado un poder sobre el futuro que no le corresponde.",a:null},
-
-  // ─── SOBRE LA ABUNDANCIA VERDADERA ─────────────────────────────────────────
-
   {t:"La abundancia no es acumular sin límite. Es tener más que suficiente de lo que realmente importa.",a:null},
   {t:"Hay personas que tienen mucho y viven en escasez interna. Hay personas que tienen poco y viven en abundancia de espíritu. El estado interno no espera condiciones externas.",a:null},
   {t:"La mentalidad de escasez compite por recursos que cree limitados. La de abundancia los crea donde antes no existían.",a:null},
   {t:"Lo que dás genuinamente sin calcular el retorno regresa de formas que no podés predecir y que superan el cálculo original.",a:null},
-  {t:"La generosidad que nace del miedo a perder no es generosidad. Es inversión disfrazada.",a:null},
   {t:"Hay un tipo de riqueza que no figura en ningún balance: la paz de saber que vivís de acuerdo a tus valores.",a:null},
   {t:"La persona que sabe que puede crear valor dondequiera que vaya nunca está realmente sin recursos.",a:null},
   {t:"La escasez de tiempo, dinero o energía casi siempre tiene en su raíz una escasez de claridad sobre lo que realmente importa.",a:null},
-
-  // ─── SÍNTESIS FINAL ─────────────────────────────────────────────────────────
-
   {t:"Todo lo que buscás afuera es una versión proyectada de algo que ya existe adentro.",a:null},
   {t:"El momento que define una vida rara vez avisa que es ese momento. Por eso cada decisión merece seriedad.",a:null},
   {t:"La sabiduría no es acumular conocimiento. Es saber cuándo y cómo aplicar lo poco que realmente entendiste.",a:null},
@@ -803,20 +562,5 @@ export const FRASES = [
   {t:"Toda transformación real empieza en un momento que desde afuera parece ordinario.",a:null},
   {t:"No hay atajos para las cosas que valen la pena. Hay caminos más inteligentes, pero todos requieren atravesarlos.",a:null},
   {t:"Hoy puede ser exactamente el tipo de día que en el futuro defina todo lo que vino después. No lo subestimes.",a:null},
-  {t:"Elegir seguir creyendo cuando la evidencia todavía no llegó es la definición más honesta de fe.",a:null},
+  {t:"Elegir seguir creyendo cuando la evidencia todavía no llegó es la definición más honesta de fe.",a:null}
 ];
-
-export function getIdxDelDia() {
-  const d = new Date();
-  const hoy = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  let hash = 0;
-  for (let i = 0; i < hoy.length; i++) {
-    hash = Math.imul(31, hash) + hoy.charCodeAt(i) | 0;
-  }
-  return Math.abs(hash) % FRASES.length;
-}
-
-// Devuelve {t: frase, a: autor|null} — misma frase para todos los usuarios en el mismo día
-export function getFraseDelDia() {
-  return FRASES[getIdxDelDia()];
-}
