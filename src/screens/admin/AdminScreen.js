@@ -2579,6 +2579,109 @@ function TabWaitlist() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Tab Scraper
+// ─────────────────────────────────────────────────────────────────────────────
+const PAISES_SCRAPER = [
+  'UY','AR','BR','CL','CO','PE','PY','BO','EC','MX','VE',
+  'CU','CR','GT','SV','HN','NI','PA','DO',
+  'ES','PT','IT','FR','DE','GB',
+  'US','CA','AU','SE','NO','JP','IN',
+];
+
+function TabScraper() {
+  const [corriendo, setCorriendo] = useState(false);
+  const [log,       setLog]       = useState([]);
+  const [paisSel,   setPaisSel]   = useState('');
+
+  async function correrScraper() {
+    setCorriendo(true);
+    setLog([]);
+    const inicio = Date.now();
+    try {
+      const body = paisSel ? { pais: paisSel } : {};
+      const { data, error } = await supabase.functions.invoke('scraper-concursos', { body });
+      const seg = ((Date.now() - inicio) / 1000).toFixed(1);
+      if (error) {
+        setLog([`❌ Error: ${error.message}`, `Tiempo: ${seg}s`]);
+      } else {
+        const lineas = [`✅ Scraper completado en ${seg}s`];
+        if (data?.insertados !== undefined) lineas.push(`📥 Insertados: ${data.insertados}`);
+        if (data?.paises)  lineas.push(`🌍 Países: ${data.paises.join(', ')}`);
+        if (data?.errores?.length) {
+          lineas.push(`⚠️ Advertencias (${data.errores.length}):`);
+          data.errores.slice(0, 10).forEach(e => lineas.push(`  · ${e}`));
+        }
+        setLog(lineas);
+      }
+    } catch (e) {
+      setLog([`❌ ${e.message}`]);
+    } finally {
+      setCorriendo(false);
+    }
+  }
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+      <Text style={{ fontSize: 18, fontWeight: '800', color: '#1A3A5C', marginBottom: 4 }}>Scraper manual</Text>
+      <Text style={{ fontSize: 13, color: '#64748B', marginBottom: 20 }}>
+        Corre el scraper de empleos ahora mismo. Sin país = todos los países.
+      </Text>
+
+      {/* Selector de país */}
+      <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 8, textTransform: 'uppercase' }}>País (opcional)</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => setPaisSel('')}
+            style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: paisSel === '' ? '#1A3A5C' : '#E2E8F0' }}
+          >
+            <Text style={{ fontSize: 12, fontWeight: '700', color: paisSel === '' ? '#fff' : '#475569' }}>Todos</Text>
+          </TouchableOpacity>
+          {PAISES_SCRAPER.map(p => (
+            <TouchableOpacity
+              key={p}
+              onPress={() => setPaisSel(p)}
+              style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: paisSel === p ? '#1A3A5C' : '#E2E8F0' }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '700', color: paisSel === p ? '#fff' : '#475569' }}>
+                {BANDERAS[p]} {p}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+
+      {/* Botón */}
+      <TouchableOpacity
+        onPress={correrScraper}
+        disabled={corriendo}
+        style={{
+          backgroundColor: corriendo ? '#94A3B8' : '#0F766E',
+          borderRadius: 14, paddingVertical: 16,
+          alignItems: 'center', marginBottom: 24,
+        }}
+      >
+        {corriendo
+          ? <ActivityIndicator color="#fff" />
+          : <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+              ▶ Correr scraper{paisSel ? ` — ${BANDERAS[paisSel]} ${paisSel}` : ' — todos'}
+            </Text>
+        }
+      </TouchableOpacity>
+
+      {/* Log */}
+      {log.length > 0 && (
+        <View style={{ backgroundColor: '#0D1117', borderRadius: 12, padding: 16, gap: 6 }}>
+          {log.map((l, i) => (
+            <Text key={i} style={{ color: '#E2E8F0', fontSize: 13, fontFamily: 'monospace' }}>{l}</Text>
+          ))}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main screen
 // ─────────────────────────────────────────────────────────────────────────────
 export default function AdminScreen({ navigation }) {
@@ -2602,6 +2705,7 @@ export default function AdminScreen({ navigation }) {
     { id: 'waitlist',  emoji: '🚀', label: 'Waitlist' },
     { id: 'moderacion',emoji: '🚨', label: 'Reportes' },
     { id: 'campanas',  emoji: '📣', label: 'Campañas' },
+    { id: 'scraper',   emoji: '⚙️', label: 'Scraper' },
   ];
 
   useEffect(() => {
@@ -2693,6 +2797,7 @@ export default function AdminScreen({ navigation }) {
         {tabActiva === 'waitlist'   && <TabWaitlist />}
         {tabActiva === 'moderacion' && <TabModeracion onDetalleUsuario={setDetalleUser} />}
         {tabActiva === 'campanas'   && <TabCampanas />}
+        {tabActiva === 'scraper'    && <TabScraper />}
       </View>
 
       <DetalleModal visible={!!detalleUser} usuario={detalleUser} onClose={() => setDetalleUser(null)} />
