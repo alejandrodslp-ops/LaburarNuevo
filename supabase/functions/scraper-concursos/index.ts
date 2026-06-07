@@ -361,7 +361,7 @@ async function scrapeIndeed(
         numero_llamado: null, titulo, cargo, organismo,
         descripcion: desc.slice(0, 600) || null, requisitos: null,
         tipo_tarea: null, tipo_vinculo: "privado", lugar: lugar || null,
-        fecha_inicio: null, fecha_cierre: parseFecha(pubDate) ?? sumarDias(null, 45), puestos: 1,
+        fecha_inicio: null, fecha_cierre: sumarDias(parseFecha(pubDate), 45), puestos: 1,
         url_detalle: link || null, url_postulacion: link || null,
         keywords: extraerKeywords(titulo + " " + desc), activo: true,
       });
@@ -1149,13 +1149,12 @@ async function scrapeParaguay(): Promise<{ rows: ConcursoRow[]; errores: string[
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ind1, ind2, jb1, jb2] = await Promise.all([
-    scrapeIndeed("py", "empleo trabajo vacante", "PY", "paraguay_indeed"),
-    scrapeIndeed("py", "convocatoria gobierno público", "PY", "paraguay_indeed2"),
-    scrapeJooble("empleo público convocatoria gobierno Paraguay", "Paraguay", "PY", "paraguay_jooble"),
-    scrapeJooble("trabajo vacante empresa Paraguay Asunción", "Paraguay", "PY", "paraguay_jooble2"),
+  const [ct, ctPriv, ind] = await Promise.all([
+    scrapeComputrabajoPaginado("py", "PY", "paraguay_concursar", 5),
+    scrapeComputrabajoPrivado("py", "PY", "paraguay_privado", 3),
+    scrapeIndeed("py", "empleo trabajo vacante Paraguay", "PY", "paraguay_indeed"),
   ]);
-  for (const r of [ind1, ind2, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
   return { rows, errores };
 }
 
@@ -1165,13 +1164,12 @@ async function scrapeBolivia(): Promise<{ rows: ConcursoRow[]; errores: string[]
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ind1, ind2, jb1, jb2] = await Promise.all([
-    scrapeIndeed("bo", "empleo trabajo vacante", "BO", "bolivia_indeed"),
-    scrapeIndeed("bo", "convocatoria gobierno público", "BO", "bolivia_indeed2"),
-    scrapeJooble("empleo público convocatoria gobierno Bolivia", "Bolivia", "BO", "bolivia_jooble"),
-    scrapeJooble("trabajo vacante empresa Bolivia Cochabamba Santa Cruz", "Bolivia", "BO", "bolivia_jooble2"),
+  const [ct, ctPriv, ind] = await Promise.all([
+    scrapeComputrabajoPaginado("bo", "BO", "bolivia_concursar", 5),
+    scrapeComputrabajoPrivado("bo", "BO", "bolivia_privado", 3),
+    scrapeIndeed("bo", "empleo trabajo vacante Bolivia", "BO", "bolivia_indeed"),
   ]);
-  for (const r of [ind1, ind2, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
   return { rows, errores };
 }
 
@@ -1181,13 +1179,12 @@ async function scrapeEcuador(): Promise<{ rows: ConcursoRow[]; errores: string[]
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ind1, ind2, jb1, jb2] = await Promise.all([
-    scrapeIndeed("ec", "empleo trabajo vacante", "EC", "ecuador_indeed"),
-    scrapeIndeed("ec", "convocatoria gobierno sector público", "EC", "ecuador_indeed2"),
-    scrapeJooble("empleo público convocatoria gobierno Ecuador", "Ecuador", "EC", "ecuador_jooble"),
-    scrapeJooble("trabajo vacante empresa Ecuador Quito Guayaquil", "Ecuador", "EC", "ecuador_jooble2"),
+  const [ct, ctPriv, ind] = await Promise.all([
+    scrapeComputrabajoPaginado("ec", "EC", "ecuador_concursar", 5),
+    scrapeComputrabajoPrivado("ec", "EC", "ecuador_privado", 3),
+    scrapeIndeed("ec", "empleo trabajo vacante Ecuador", "EC", "ecuador_indeed"),
   ]);
-  for (const r of [ind1, ind2, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
   return { rows, errores };
 }
 
@@ -1278,13 +1275,12 @@ async function scrapeVenezuela(): Promise<{ rows: ConcursoRow[]; errores: string
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ind1, ind2, jb1, jb2] = await Promise.all([
-    scrapeIndeed("ve", "empleo trabajo vacante", "VE", "venezuela_indeed"),
-    scrapeIndeed("ve", "convocatoria trabajo empresa", "VE", "venezuela_indeed2"),
-    scrapeJooble("empleo trabajo vacante Venezuela Caracas", "Venezuela", "VE", "venezuela_jooble"),
-    scrapeJooble("trabajo oferta empleo Venezuela Maracaibo Valencia", "Venezuela", "VE", "venezuela_jooble2"),
+  const [ct, ctPriv, ind] = await Promise.all([
+    scrapeComputrabajoPaginado("ve", "VE", "venezuela_concursar", 5),
+    scrapeComputrabajoPrivado("ve", "VE", "venezuela_privado", 3),
+    scrapeIndeed("ve", "empleo trabajo vacante Venezuela", "VE", "venezuela_indeed"),
   ]);
-  for (const r of [ind1, ind2, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
   return { rows, errores };
 }
 
@@ -1297,13 +1293,12 @@ async function scrapCostaRica(): Promise<{ rows: ConcursoRow[]; errores: string[
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ind1, ind2, jb1, jb2] = await Promise.all([
-    scrapeIndeed("cr", "empleo trabajo vacante", "CR", "costarica_indeed"),
-    scrapeIndeed("cr", "gobierno servicio civil concurso", "CR", "costarica_indeed2"),
-    scrapeJooble("empleo público servicio civil Costa Rica San José", "Costa Rica", "CR", "costarica_jooble"),
-    scrapeJooble("trabajo vacante empresa Costa Rica", "Costa Rica", "CR", "costarica_jooble2"),
+  const [ct, ctPriv, ind] = await Promise.all([
+    scrapeComputrabajoPaginado("cr", "CR", "costarica_concursar", 5),
+    scrapeComputrabajoPrivado("cr", "CR", "costarica_privado", 3),
+    scrapeIndeed("cr", "empleo trabajo vacante Costa Rica", "CR", "costarica_indeed"),
   ]);
-  for (const r of [ind1, ind2, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
   return { rows, errores };
 }
 
@@ -1332,12 +1327,12 @@ async function scrapeElSalvador(): Promise<{ rows: ConcursoRow[]; errores: strin
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ind1, jb1, jb2] = await Promise.all([
-    scrapeIndeed("sv", "empleo trabajo vacante", "SV", "elsalvador_indeed"),
-    scrapeJooble("empleo trabajo vacante El Salvador San Salvador", "El Salvador", "SV", "elsalvador_jooble"),
-    scrapeJooble("trabajo empresa gobierno empleo El Salvador", "El Salvador", "SV", "elsalvador_jooble2"),
+  const [ct, ctPriv, ind] = await Promise.all([
+    scrapeComputrabajoPaginado("sv", "SV", "elsalvador_concursar", 5),
+    scrapeComputrabajoPrivado("sv", "SV", "elsalvador_privado", 3),
+    scrapeIndeed("sv", "empleo trabajo vacante El Salvador", "SV", "elsalvador_indeed"),
   ]);
-  for (const r of [ind1, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
   return { rows, errores };
 }
 
@@ -1366,12 +1361,12 @@ async function scrapeNicaragua(): Promise<{ rows: ConcursoRow[]; errores: string
   const seen = new Set<string>();
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ind1, jb1, jb2] = await Promise.all([
-    scrapeIndeed("ni", "empleo trabajo vacante", "NI", "nicaragua_indeed"),
-    scrapeJooble("empleo trabajo vacante Nicaragua Managua", "Nicaragua", "NI", "nicaragua_jooble"),
-    scrapeJooble("trabajo empresa gobierno empleo Nicaragua", "Nicaragua", "NI", "nicaragua_jooble2"),
+  const [ct, ctPriv, ind] = await Promise.all([
+    scrapeComputrabajoPaginado("ni", "NI", "nicaragua_concursar", 6),
+    scrapeComputrabajoPrivado("ni", "NI", "nicaragua_privado", 4),
+    scrapeIndeed("ni", "empleo trabajo vacante Nicaragua", "NI", "nicaragua_indeed"),
   ]);
-  for (const r of [ind1, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
   return { rows, errores };
 }
 
@@ -1381,12 +1376,12 @@ async function scraperPanama(): Promise<{ rows: ConcursoRow[]; errores: string[]
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ind1, jb1, jb2] = await Promise.all([
-    scrapeIndeed("pa", "empleo trabajo vacante", "PA", "panama_indeed"),
-    scrapeJooble("empleo trabajo vacante Panamá Ciudad de Panamá", "Panamá", "PA", "panama_jooble"),
-    scrapeJooble("trabajo empresa gobierno empleo Panamá", "Panamá", "PA", "panama_jooble2"),
+  const [ct, ctPriv, ind] = await Promise.all([
+    scrapeComputrabajoPaginado("pa", "PA", "panama_concursar", 5),
+    scrapeComputrabajoPrivado("pa", "PA", "panama_privado", 3),
+    scrapeIndeed("pa", "empleo trabajo vacante Panamá", "PA", "panama_indeed"),
   ]);
-  for (const r of [ind1, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
   return { rows, errores };
 }
 
@@ -1396,12 +1391,12 @@ async function scrapeRepDominicana(): Promise<{ rows: ConcursoRow[]; errores: st
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ind1, jb1, jb2] = await Promise.all([
-    scrapeIndeed("do", "empleo trabajo vacante", "DO", "dominicana_indeed"),
-    scrapeJooble("empleo trabajo vacante República Dominicana Santo Domingo", "República Dominicana", "DO", "dominicana_jooble"),
-    scrapeJooble("trabajo empresa gobierno empleo Dominicana", "República Dominicana", "DO", "dominicana_jooble2"),
+  const [ct, ctPriv, ind] = await Promise.all([
+    scrapeComputrabajoPaginado("do", "DO", "dominicana_concursar", 5),
+    scrapeComputrabajoPrivado("do", "DO", "dominicana_privado", 3),
+    scrapeIndeed("do", "empleo trabajo vacante República Dominicana", "DO", "dominicana_indeed"),
   ]);
-  for (const r of [ind1, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
   return { rows, errores };
 }
 
