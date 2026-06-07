@@ -2615,23 +2615,37 @@ function TabScraper() {
     cargarConteos();
   }, []);
 
-  async function correrScraper() {
+  async function correrScraper(intensivo = false) {
     setCorriendo(true);
-    setLog([]);
+    setLog([`${intensivo ? '🔥 Búsqueda intensiva' : '▶ Scraper normal'} iniciado...`]);
     const inicio = Date.now();
     try {
-      const body = paisSel ? { pais: paisSel } : {};
+      const body = intensivo
+        ? { modo: 'intensivo', ...(paisSel ? { pais: paisSel } : {}) }
+        : { ...(paisSel ? { pais: paisSel } : {}) };
       const { data, error } = await supabase.functions.invoke('scraper-concursos', { body });
       const seg = ((Date.now() - inicio) / 1000).toFixed(1);
       if (error) {
         setLog([`❌ Error: ${error.message}`, `Tiempo: ${seg}s`]);
+      } else if (intensivo && data?.resumen) {
+        const lineas = [`✅ Búsqueda intensiva completada en ${seg}s`];
+        Object.entries(data.resumen).forEach(([p, r]) => {
+          lineas.push(`  ${p}: ${r.total_scrapeados} scrapeados → ${r.insertados} insertados`);
+        });
+        setLog(lineas);
+        // Recargar conteos
+        const nuevos = { ...conteos };
+        for (const [p, r] of Object.entries(data.resumen)) {
+          if (r.insertados > 0) nuevos[p] = (nuevos[p] || 0) + r.insertados;
+        }
+        setConteos(nuevos);
       } else {
-        const lineas = [`✅ Scraper completado en ${seg}s`];
+        const lineas = [`✅ Completado en ${seg}s`];
         if (data?.insertados !== undefined) lineas.push(`📥 Insertados: ${data.insertados}`);
-        if (data?.paises)  lineas.push(`🌍 Países: ${data.paises.join(', ')}`);
+        if (data?.paises) lineas.push(`🌍 Países: ${data.paises.join(', ')}`);
         if (data?.errores?.length) {
-          lineas.push(`⚠️ Advertencias (${data.errores.length}):`);
-          data.errores.slice(0, 10).forEach(e => lineas.push(`  · ${e}`));
+          lineas.push(`⚠️ Advertencias:`);
+          data.errores.slice(0, 8).forEach(e => lineas.push(`  · ${e}`));
         }
         setLog(lineas);
       }
@@ -2685,23 +2699,34 @@ function TabScraper() {
         </View>
       </ScrollView>
 
-      {/* Botón */}
-      <TouchableOpacity
-        onPress={correrScraper}
-        disabled={corriendo}
-        style={{
-          backgroundColor: corriendo ? '#94A3B8' : '#0F766E',
-          borderRadius: 14, paddingVertical: 16,
-          alignItems: 'center', marginBottom: 24,
-        }}
-      >
-        {corriendo
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
-              ▶ Correr scraper{paisSel ? ` — ${BANDERAS[paisSel]} ${paisSel}` : ' — todos'}
-            </Text>
-        }
-      </TouchableOpacity>
+      {/* Botones */}
+      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
+        <TouchableOpacity
+          onPress={() => correrScraper(false)}
+          disabled={corriendo}
+          style={{ flex: 1, backgroundColor: corriendo ? '#94A3B8' : '#0F766E', borderRadius: 14, paddingVertical: 16, alignItems: 'center' }}
+        >
+          {corriendo
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>▶ Normal</Text>
+          }
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => correrScraper(true)}
+          disabled={corriendo}
+          style={{ flex: 1, backgroundColor: corriendo ? '#94A3B8' : '#B45309', borderRadius: 14, paddingVertical: 16, alignItems: 'center' }}
+        >
+          {corriendo
+            ? <ActivityIndicator color="#fff" />
+            : <>
+                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '800' }}>🔥 Intensivo</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, marginTop: 2 }}>
+                  {paisSel ? `${BANDERAS[paisSel]} ${paisSel}` : 'LatAm débil'}
+                </Text>
+              </>
+          }
+        </TouchableOpacity>
+      </View>
 
       {/* Log */}
       {log.length > 0 && (

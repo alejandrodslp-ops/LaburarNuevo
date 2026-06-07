@@ -2555,6 +2555,68 @@ async function enviarAlertaAdmin(pais: string, antes: number, despues: number): 
 }
 
 // ─────────────────────────────────────────────────────────────
+// MODO INTENSIVO — LatAm débil
+// Computrabajo paginado (público + privado, 10 págs c/u) +
+// múltiples términos de búsqueda para países con pocos resultados
+// ─────────────────────────────────────────────────────────────
+const LATAM_INTENSIVO: Record<string, string> = {
+  CL: "cl", CO: "co", PE: "pe", PY: "py", BO: "bo",
+  EC: "ec", VE: "ve", CR: "cr", GT: "gt", SV: "sv",
+  HN: "hn", NI: "ni", PA: "pa", DO: "do", CU: "cu",
+};
+
+const CT_TERMINOS = [
+  "gobierno", "administracion", "salud", "educacion", "ingenieria",
+  "ventas", "tecnologia", "logistica", "construccion", "servicios",
+  "enfermero", "docente", "contador", "abogado", "sistemas",
+];
+
+async function scrapeLatamIntensivo(pais: string): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const subdomain = LATAM_INTENSIVO[pais];
+  if (!subdomain) return { rows: [], errores: [`${pais}: no tiene modo intensivo`] };
+
+  const errores: string[] = [];
+  const seen = new Set<string>();
+  const rows: ConcursoRow[] = [];
+  const base = `https://${subdomain}.computrabajo.com`;
+
+  const addRows = (newRows: ConcursoRow[]) => {
+    for (const r of newRows) {
+      if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); }
+    }
+  };
+
+  // 1. Sector público paginado — 10 páginas
+  const pub = await scrapeComputrabajoPaginado(subdomain, pais, `${pais.toLowerCase()}_ct_pub`, 10);
+  addRows(pub.rows); errores.push(...pub.errores);
+
+  // 2. Sector privado paginado — 10 páginas
+  const priv = await scrapeComputrabajoPrivado(subdomain, pais, `${pais.toLowerCase()}_ct_priv`, 10);
+  addRows(priv.rows); errores.push(...priv.errores);
+
+  // 3. Búsquedas por término — hasta 15 términos × 3 páginas
+  for (let t = 0; t < CT_TERMINOS.length; t += 3) {
+    const lote = CT_TERMINOS.slice(t, t + 3);
+    await Promise.all(lote.map(async (term) => {
+      for (let pg = 1; pg <= 3; pg++) {
+        const url = pg === 1
+          ? `${base}/trabajos?q=${encodeURIComponent(term)}&orden=fecha`
+          : `${base}/trabajos?q=${encodeURIComponent(term)}&orden=fecha&p=${pg}`;
+        const html = await fetchUrl(url, 8000);
+        if (!html) return;
+        const pageRows: ConcursoRow[] = [];
+        parseComputrabajo(html, pais, `${pais.toLowerCase()}_ct_${term.slice(0,6)}`, base, pageRows);
+        addRows(pageRows);
+      }
+    }));
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  console.log(`${pais} intensivo: ${rows.length} ofertas encontradas`);
+  return { rows, errores };
+}
+
+// ─────────────────────────────────────────────────────────────
 // RESUMEN DIARIO
 // ─────────────────────────────────────────────────────────────
 const PAISES_NOMBRES: Record<string, string> = {
@@ -2815,6 +2877,23 @@ serve(async (req: Request) => {
     if (body.modo === "resumen" || url.searchParams.get("modo") === "resumen") {
       await enviarResumenDiario();
       return new Response(JSON.stringify({ ok: true, mensaje: "Resumen enviado" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Modo intensivo LatAm — Computrabajo multi-término multi-página
+    if (body.modo === "intensivo") {
+      const paisesObj = body.pais
+        ? [body.pais]
+        : Object.keys(LATAM_INTENSIVO);
+      const resumen: Record<string, { insertados: number; total_scrapeados: number }> = {};
+      for (const p of paisesObj) {
+        const { rows, errores } = await scrapeLatamIntensivo(p);
+        const insertados = await upsertRows(rows);
+        resumen[p] = { insertados, total_scrapeados: rows.length };
+        console.log(`Intensivo ${p}: ${rows.length} scrapeados → ${insertados} insertados`);
+      }
+      return new Response(JSON.stringify({ ok: true, modo: "intensivo", resumen }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
