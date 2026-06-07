@@ -581,12 +581,14 @@ function parseComputrabajo(
   }
 }
 
-// Fetch Computrabajo: timeout muy corto para no bloquear. Si CT está
-// bloqueado por Cloudflare desde AWS, falla en 3s y deja que otras
-// fuentes (Indeed) corran. ScraperAPI sólo si CT devuelve algo.
-async function fetchCT(url: string, countryCode: string, timeoutMs = 3000): Promise<string | null> {
-  const direct = await fetchUrl(url, timeoutMs);
+// Fetch Computrabajo: intento directo (falla rápido ante Cloudflare), luego
+// ScraperAPI con proxy residencial del país que sí bypass CF desde AWS.
+async function fetchCT(url: string, countryCode: string, _timeoutMs = 3000): Promise<string | null> {
+  const direct = await fetchUrl(url, 2000);
   if (direct && direct.includes("<article")) return direct;
+  // Cloudflare bloqueó → ScraperAPI con proxy del país (residencial)
+  const viaProxy = await fetchViaScraperAPI(url, countryCode.toLowerCase(), 25000);
+  if (viaProxy && viaProxy.includes("<article")) return viaProxy;
   return null;
 }
 
