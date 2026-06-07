@@ -2592,6 +2592,28 @@ function TabScraper() {
   const [corriendo, setCorriendo] = useState(false);
   const [log,       setLog]       = useState([]);
   const [paisSel,   setPaisSel]   = useState('');
+  const [conteos,   setConteos]   = useState({});
+  const [cargando,  setCargando]  = useState(true);
+
+  useEffect(() => {
+    async function cargarConteos() {
+      setCargando(true);
+      try {
+        const resultados = {};
+        await Promise.all(PAISES_SCRAPER.map(async (p) => {
+          const { count } = await supabase
+            .from('concursos')
+            .select('*', { count: 'exact', head: true })
+            .eq('pais', p)
+            .eq('activo', true);
+          resultados[p] = count ?? 0;
+        }));
+        setConteos(resultados);
+      } catch {}
+      setCargando(false);
+    }
+    cargarConteos();
+  }, []);
 
   async function correrScraper() {
     setCorriendo(true);
@@ -2628,7 +2650,9 @@ function TabScraper() {
       </Text>
 
       {/* Selector de país */}
-      <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 8, textTransform: 'uppercase' }}>País (opcional)</Text>
+      <Text style={{ fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 8, textTransform: 'uppercase' }}>
+        País (opcional) {cargando ? '— cargando...' : ''}
+      </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity
@@ -2637,17 +2661,27 @@ function TabScraper() {
           >
             <Text style={{ fontSize: 12, fontWeight: '700', color: paisSel === '' ? '#fff' : '#475569' }}>Todos</Text>
           </TouchableOpacity>
-          {PAISES_SCRAPER.map(p => (
-            <TouchableOpacity
-              key={p}
-              onPress={() => setPaisSel(p)}
-              style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: paisSel === p ? '#1A3A5C' : '#E2E8F0' }}
-            >
-              <Text style={{ fontSize: 12, fontWeight: '700', color: paisSel === p ? '#fff' : '#475569' }}>
-                {BANDERAS[p]} {p}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {PAISES_SCRAPER.map(p => {
+            const n = conteos[p];
+            const color = n === 0 ? '#FEE2E2' : paisSel === p ? '#1A3A5C' : '#E2E8F0';
+            const txtColor = n === 0 ? '#DC2626' : paisSel === p ? '#fff' : '#475569';
+            return (
+              <TouchableOpacity
+                key={p}
+                onPress={() => setPaisSel(p)}
+                style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: color, alignItems: 'center' }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '700', color: txtColor }}>
+                  {BANDERAS[p]} {p}
+                </Text>
+                {!cargando && (
+                  <Text style={{ fontSize: 10, fontWeight: '600', color: txtColor, opacity: 0.8 }}>
+                    {n?.toLocaleString('es') ?? '—'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </ScrollView>
 
