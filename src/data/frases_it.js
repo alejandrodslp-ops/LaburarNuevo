@@ -561,5 +561,3 @@ export const FRASES_IT = [
   {t:"Oggi potrebbe essere esattamente il tipo di giornata che in futuro definirà tutto ciò che verrà dopo. Non sottovalutarlo.", a:null},
   {t:"Scegliere di continuare a credere quando le prove non sono ancora arrivate è la definizione di fede più onesta.", a:null}
 ];
-efinizione di fede più onesta.", a:null}
-];
