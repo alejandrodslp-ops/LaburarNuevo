@@ -359,9 +359,9 @@ async function scrapeIndeed(
       rows.push({
         fuente_id, fuente, pais,
         numero_llamado: null, titulo, cargo, organismo,
-        descripcion: desc.slice(0, 600), requisitos: null,
-        tipo_tarea: null, tipo_vinculo: null, lugar: lugar || null,
-        fecha_inicio: null, fecha_cierre: parseFecha(pubDate), puestos: 1,
+        descripcion: desc.slice(0, 600) || null, requisitos: null,
+        tipo_tarea: null, tipo_vinculo: "privado", lugar: lugar || null,
+        fecha_inicio: null, fecha_cierre: parseFecha(pubDate) ?? sumarDias(null, 45), puestos: 1,
         url_detalle: link || null, url_postulacion: link || null,
         keywords: extraerKeywords(titulo + " " + desc), activo: true,
       });
@@ -582,15 +582,14 @@ function parseComputrabajo(
 }
 
 // Fetch Computrabajo con fallback a ScraperAPI cuando Cloudflare bloquea.
-// ScraperAPI usa proxy del país indicado → bypasea geo-bloqueos.
-async function fetchCT(url: string, countryCode: string, timeoutMs = 12000): Promise<string | null> {
+// Timeouts cortos para no bloquear la función en lotes grandes.
+async function fetchCT(url: string, countryCode: string, timeoutMs = 8000): Promise<string | null> {
   const direct = await fetchUrl(url, timeoutMs);
   if (direct && direct.includes("<article")) return direct;
-  // Directo falló o no tiene artículos → ScraperAPI con proxy local
-  const viaProxy = await fetchViaScraperAPI(url, countryCode.toLowerCase(), 20000);
+  // Directo falló → ScraperAPI con proxy del país (timeout 10s, falla rápido)
+  const viaProxy = await fetchViaScraperAPI(url, countryCode.toLowerCase(), 10000);
   if (viaProxy && viaProxy.includes("<article")) return viaProxy;
-  // Último intento: ScraperAPI sin country_code (proxy US)
-  return await fetchViaScraperAPI(url, "", 18000);
+  return null;
 }
 
 // Scraper genérico para cualquier país en computrabajo.com
@@ -1600,60 +1599,7 @@ async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[
   const seen = new Set<string>();
   const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  // 1. IEFP BEP — Bolsa de Emprego Público (portal oficial do Estado)
-  const bepUrls = [
-    "https://www.bep.gov.pt/pages/home.aspx",
-    "https://www.iefp.pt/en/job-seekers",
-  ];
-  for (const bepUrl of bepUrls) {
-    const html = await fetchViaScraperAPI(bepUrl, "pt", 18000) ?? await fetchUrl(bepUrl, 12000);
-    if (!html) { errores.push(`PT: BEP ${bepUrl} inaccesible`); continue; }
-    const re = /href="([^"]{10,200})"[^>]*>([^<]{8,120})<\/a>/gi;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(html)) !== null && rows.length < 60) {
-      const titulo = stripHtml(m[2]).trim();
-      if (titulo.length < 8 || /menu|nav|login|regist|ajuda|cookie/i.test(titulo)) continue;
-      const href = m[1].startsWith("http") ? m[1] : `https://www.bep.gov.pt${m[1]}`;
-      const fuente_id = href.replace(/\W/g, "_").slice(-48);
-      if (seen.has(fuente_id)) continue;
-      seen.add(fuente_id);
-      rows.push({
-        fuente_id, fuente: "portugal_bep", pais: "PT",
-        numero_llamado: null, titulo, cargo: titulo, organismo: null,
-        descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: "Portugal", fecha_inicio: null, fecha_cierre: sumarDias(null, 60), puestos: 1,
-        url_detalle: href, url_postulacion: href,
-        keywords: extraerKeywords(titulo), activo: true,
-      });
-    }
-    if (rows.length > 5) break;
-  }
-
-  // 2. DGAEP — concursos sector público (Direção-Geral Administração e Emprego Público)
-  const dgaepHtml = await fetchViaScraperAPI("https://www.dgaep.gov.pt/index.cfm?OBJID=c4a04050-9c12-4dc0-bdb1-c4b7c31a66b1", "pt", 18000)
-    ?? await fetchUrl("https://www.dgaep.gov.pt/", 12000);
-  if (dgaepHtml) {
-    const re2 = /href="([^"]{10,200}concurso[^"]{0,100})"[^>]*>([^<]{8,120})<\/a>/gi;
-    let m2: RegExpExecArray | null;
-    while ((m2 = re2.exec(dgaepHtml)) !== null && rows.length < 80) {
-      const titulo = stripHtml(m2[2]).trim();
-      if (titulo.length < 8) continue;
-      const href = m2[1].startsWith("http") ? m2[1] : `https://www.dgaep.gov.pt${m2[1]}`;
-      const fuente_id = href.replace(/\W/g, "_").slice(-48);
-      if (seen.has(fuente_id)) continue;
-      seen.add(fuente_id);
-      rows.push({
-        fuente_id, fuente: "portugal_dgaep", pais: "PT",
-        numero_llamado: null, titulo, cargo: titulo, organismo: "DGAEP",
-        descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: "Portugal", fecha_inicio: null, fecha_cierre: sumarDias(null, 60), puestos: 1,
-        url_detalle: href, url_postulacion: href,
-        keywords: extraerKeywords(titulo), activo: true,
-      });
-    }
-  }
-
-  // 3. Indeed PT + Jooble en paralelo
+  // 1. Indeed PT + Jooble en paralelo
   const [ind1, ind2, jb1, jb2] = await Promise.all([
     scrapeIndeed("pt", "emprego trabalho vaga", "PT", "portugal_indeed"),
     scrapeIndeed("pt", "concurso público governo administração", "PT", "portugal_indeed2"),
@@ -1662,7 +1608,7 @@ async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[
   ]);
   for (const r of [ind1, ind2, jb1, jb2]) { addRows(r.rows); errores.push(...r.errores); }
 
-  // 4. Adzuna multi-búsqueda Portugal — 10 ciudades × 8 categorías = 80 queries
+  // 2. Adzuna multi-búsqueda Portugal — 10 ciudades × 8 categorías = 80 queries
   const PT_CIDADES = ["Lisboa","Porto","Braga","Setubal","Coimbra","Almada","Funchal","Aveiro","Loures","Sintra"];
   const PT_CATS    = ["tecnologia","vendas","engenharia","saude","logistica","construcao","hotelaria","administracao"];
   const azPT = await adzunaMultiSearch("PT","pt", PT_CIDADES, PT_CATS, "pt-PT,pt;q=0.9,en;q=0.8", seen);
@@ -2835,33 +2781,23 @@ async function scrapeLatamIntensivo(pais: string): Promise<{ rows: ConcursoRow[]
   const joobleResults = await Promise.all(joobleSearches);
   for (const r of joobleResults) { addRows(r.rows); errores.push(...r.errores); }
 
-  // 3. Computrabajo como complemento (puede estar bloqueado, pero se intenta igual)
+  // 3. Computrabajo — solo intento directo rápido (sin ScraperAPI para no timeout)
   const base = `https://${subdomain}.computrabajo.com`;
-  const [pub, priv] = await Promise.all([
-    scrapeComputrabajoPaginado(subdomain, pais, `${pais.toLowerCase()}_ct_pub`, 5),
-    scrapeComputrabajoPrivado(subdomain, pais, `${pais.toLowerCase()}_ct_priv`, 5),
+  const ctPubUrl = `${base}/trabajo-de-gobierno`;
+  const ctPrivUrl = `${base}/empleos`;
+  const [ctPubHtml, ctPrivHtml] = await Promise.all([
+    fetchUrl(ctPubUrl, 6000),
+    fetchUrl(ctPrivUrl, 6000),
   ]);
-  addRows(pub.rows); errores.push(...pub.errores);
-  addRows(priv.rows); errores.push(...priv.errores);
-
-  // 4. Computrabajo por términos (si no está bloqueado)
-  if (pub.rows.length + priv.rows.length > 0) {
-    for (let t = 0; t < CT_TERMINOS.length; t += 3) {
-      const lote = CT_TERMINOS.slice(t, t + 3);
-      await Promise.all(lote.map(async (term) => {
-        for (let pg = 1; pg <= 2; pg++) {
-          const url = pg === 1
-            ? `${base}/trabajos?q=${encodeURIComponent(term)}&orden=fecha`
-            : `${base}/trabajos?q=${encodeURIComponent(term)}&orden=fecha&p=${pg}`;
-          const html = await fetchUrl(url, 8000);
-          if (!html) return;
-          const pageRows: ConcursoRow[] = [];
-          parseComputrabajo(html, pais, `${pais.toLowerCase()}_ct_${term.slice(0,6)}`, base, pageRows);
-          addRows(pageRows);
-        }
-      }));
-      await new Promise(r => setTimeout(r, 150));
-    }
+  if (ctPubHtml && ctPubHtml.includes("<article")) {
+    const ctRows: ConcursoRow[] = [];
+    parseComputrabajo(ctPubHtml, pais, `${pais.toLowerCase()}_ct_pub`, base, ctRows);
+    addRows(ctRows);
+  }
+  if (ctPrivHtml && ctPrivHtml.includes("<article")) {
+    const ctRows: ConcursoRow[] = [];
+    parseComputrabajo(ctPrivHtml, pais, `${pais.toLowerCase()}_ct_priv`, base, ctRows);
+    addRows(ctRows);
   }
 
   console.log(`${pais} intensivo: ${rows.length} ofertas (Indeed+Jooble+CT)`);
