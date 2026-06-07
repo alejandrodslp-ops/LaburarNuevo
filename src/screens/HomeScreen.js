@@ -16,6 +16,11 @@ import { IdiomaBoton } from '../components/IdiomaModal';
 import ModalPerfilInactivo from '../components/ModalPerfilInactivo';
 import { FRASES } from '../data/frases';
 import { FRASES_PT } from '../data/frases_pt';
+import { FRASES_EN } from '../data/frases_en';
+import { FRASES_DE } from '../data/frases_de';
+import { FRASES_FR } from '../data/frases_fr';
+import { FRASES_IT } from '../data/frases_it';
+import { FRASES_SV } from '../data/frases_sv';
 
 const PRECIO_LOCAL = {
   UY:{usd:1},AR:{usd:1},BR:{usd:1},CL:{usd:1},CO:{usd:1},PE:{usd:1},
@@ -183,7 +188,8 @@ function FraseDiaria() {
     return () => { sub.remove(); clearInterval(interval); };
   }, []);
   const fecha = getFechaHoy();
-  const banco = idioma === 'pt' ? FRASES_PT : FRASES;
+  const bancoPorIdioma = { pt: FRASES_PT, en: FRASES_EN, de: FRASES_DE, fr: FRASES_FR, it: FRASES_IT, sv: FRASES_SV };
+  const banco = bancoPorIdioma[idioma] ?? FRASES;
   const { t: texto, a: autor } = banco[idxDesdeFecha(fecha, banco.length)];
   const label = FRASE_LABEL[idioma] ?? FRASE_LABEL.es;
   const fallback = FRASE_ANONIMO[idioma] ?? FRASE_ANONIMO.es;

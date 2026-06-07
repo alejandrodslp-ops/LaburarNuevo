@@ -665,6 +665,10 @@ async function scrapeParaguay() {
     });
     if (rows.length > 0) { const n = await upsert(rows,'paraguay_sfp'); console.log(`  ✓ ${n}`); return n; }
   }
+  const jb = await joobleSearch('empleo trabajo vacante Paraguay Asunción', 'Paraguay', 'PY', 'paraguay_jooble');
+  if (jb.length > 0) { const n = await upsert(jb,'paraguay_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
+  const jb2 = await joobleSearch('empleo público convocatoria gobierno Paraguay', 'Paraguay', 'PY', 'paraguay_jooble2');
+  if (jb2.length > 0) { const n = await upsert(jb2,'paraguay_jooble2'); console.log(`  ✓ ${n} (Jooble2)`); return n; }
   console.log('  ⚠ sin resultados'); return 0;
 }
 

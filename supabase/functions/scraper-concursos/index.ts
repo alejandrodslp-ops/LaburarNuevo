@@ -373,6 +373,75 @@ async function scrapeIndeed(
 }
 
 // ─────────────────────────────────────────────────────────────
+// HELPER: Jooble API — agrega múltiples búsquedas por keywords
+// Cubre ~70 países incluyendo toda LatAm. Requiere JOOBLE_API_KEY.
+// ─────────────────────────────────────────────────────────────
+async function scrapeJooble(
+  keywords: string, location: string, pais: string, fuente: string
+): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const rows: ConcursoRow[] = [];
+  const errores: string[] = [];
+
+  const JOOBLE_KEY = Deno.env.get("JOOBLE_API_KEY") ?? "";
+  if (!JOOBLE_KEY) {
+    errores.push(`${pais}: JOOBLE_API_KEY no configurada`);
+    return { rows, errores };
+  }
+
+  try {
+    const body = JSON.stringify({ keywords, location, resultsOnPage: 50 });
+    const res = await fetch(`https://jooble.org/api/${JOOBLE_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      signal: AbortSignal.timeout(16000),
+    });
+    if (!res.ok) { errores.push(`${pais}: Jooble HTTP ${res.status}`); return { rows, errores }; }
+
+    const json = await res.json() as { jobs?: Record<string, unknown>[] };
+    const jobs = json.jobs ?? [];
+
+    for (const j of jobs.slice(0, 50)) {
+      const titulo  = String(j.title ?? "").trim();
+      const empresa = String(j.company ?? "").trim();
+      if (!titulo || titulo.length < 4) continue;
+
+      const jId = String(j.id ?? "").replace(/\W/g, "").slice(0, 48);
+      const fuente_id = jId || (titulo + empresa).replace(/\W/g, "").slice(0, 48);
+      if (rows.some(r => r.fuente_id === fuente_id)) continue;
+
+      const desc = String(j.snippet ?? "").replace(/<[^>]+>/g, " ").trim().slice(0, 600);
+      const link = String(j.link ?? "");
+
+      rows.push({
+        fuente_id, fuente, pais,
+        numero_llamado: null,
+        titulo: empresa ? `${titulo} — ${empresa}` : titulo,
+        cargo: titulo,
+        organismo: empresa || null,
+        descripcion: desc || null,
+        requisitos: null,
+        tipo_tarea: null,
+        tipo_vinculo: "privado",
+        lugar: String(j.location ?? location),
+        fecha_inicio: null,
+        fecha_cierre: j.updated ? String(j.updated).slice(0, 10) : sumarDias(null, 30),
+        puestos: 1,
+        url_detalle:    link || null,
+        url_postulacion: link || null,
+        keywords: extraerKeywords(`${titulo} ${desc}`),
+        activo: true,
+      });
+    }
+    console.log(`Jooble ${pais} [${keywords.slice(0, 30)}]: ${rows.length} resultados`);
+  } catch (e) {
+    errores.push(`${pais}: Jooble error ${(e as Error).message.slice(0, 60)}`);
+  }
+
+  return { rows, errores };
+}
+
+// ─────────────────────────────────────────────────────────────
 // HELPER: Google News RSS — siempre accesible desde cualquier región
 // Retorna noticias de concursos/convocatorias para el país dado
 // ─────────────────────────────────────────────────────────────
@@ -1065,34 +1134,50 @@ async function scrapePerú(): Promise<{ rows: ConcursoRow[]; errores: string[] }
 
 async function scrapeParaguay(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const errores: string[] = [];
-  const seen = new Set<string>();
+  const seen  = new Set<string>();
   const rows: ConcursoRow[] = [];
-  const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+  const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  // Sector público + sector privado en paralelo
-  const [ct, ctPriv] = await Promise.all([
-    scrapeComputrabajo("py", "PY", "paraguay_concursar"),
-    scrapeComputrabajoPrivado("py", "PY", "paraguay_privado", 3),
+  const [ind1, ind2, jb1, jb2] = await Promise.all([
+    scrapeIndeed("py", "empleo trabajo vacante", "PY", "paraguay_indeed"),
+    scrapeIndeed("py", "convocatoria gobierno público", "PY", "paraguay_indeed2"),
+    scrapeJooble("empleo público convocatoria gobierno Paraguay", "Paraguay", "PY", "paraguay_jooble"),
+    scrapeJooble("trabajo vacante empresa Paraguay Asunción", "Paraguay", "PY", "paraguay_jooble2"),
   ]);
-  addRows(ct.rows); errores.push(...ct.errores);
-  addRows(ctPriv.rows); errores.push(...ctPriv.errores);
-
-  if (rows.length > 0) return { rows, errores };
-
-  const gn = await scrapeGoogleNews("US", "Paraguay empleo convocatoria cargo público vacante", "paraguay_googlenews", "PY");
-  return { rows: gn.rows, errores: [...errores, ...gn.errores] };
+  for (const r of [ind1, ind2, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  return { rows, errores };
 }
 
 async function scrapeBolivia(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ct = await scrapeComputrabajo("bo", "BO", "bolivia_concursar");
-  if (ct.rows.length > 0) return ct;
-  return scrapeGoogleNews("BO", "Bolivia empleo convocatoria cargo público vacante", "bolivia_googlenews");
+  const errores: string[] = [];
+  const seen  = new Set<string>();
+  const rows: ConcursoRow[] = [];
+  const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+
+  const [ind1, ind2, jb1, jb2] = await Promise.all([
+    scrapeIndeed("bo", "empleo trabajo vacante", "BO", "bolivia_indeed"),
+    scrapeIndeed("bo", "convocatoria gobierno público", "BO", "bolivia_indeed2"),
+    scrapeJooble("empleo público convocatoria gobierno Bolivia", "Bolivia", "BO", "bolivia_jooble"),
+    scrapeJooble("trabajo vacante empresa Bolivia Cochabamba Santa Cruz", "Bolivia", "BO", "bolivia_jooble2"),
+  ]);
+  for (const r of [ind1, ind2, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  return { rows, errores };
 }
 
 async function scrapeEcuador(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ct = await scrapeComputrabajo("ec", "EC", "ecuador_concursar");
-  if (ct.rows.length > 0) return ct;
-  return scrapeGoogleNews("EC", "Ecuador empleo convocatoria cargo público vacante", "ecuador_googlenews");
+  const errores: string[] = [];
+  const seen  = new Set<string>();
+  const rows: ConcursoRow[] = [];
+  const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+
+  const [ind1, ind2, jb1, jb2] = await Promise.all([
+    scrapeIndeed("ec", "empleo trabajo vacante", "EC", "ecuador_indeed"),
+    scrapeIndeed("ec", "convocatoria gobierno sector público", "EC", "ecuador_indeed2"),
+    scrapeJooble("empleo público convocatoria gobierno Ecuador", "Ecuador", "EC", "ecuador_jooble"),
+    scrapeJooble("trabajo vacante empresa Ecuador Quito Guayaquil", "Ecuador", "EC", "ecuador_jooble2"),
+  ]);
+  for (const r of [ind1, ind2, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1177,18 +1262,38 @@ async function scrapeMexico(): Promise<{ rows: ConcursoRow[]; errores: string[] 
 }
 
 async function scrapeVenezuela(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ct = await scrapeComputrabajo("ve", "VE", "venezuela_concursar");
-  if (ct.rows.length > 0) return ct;
-  return scrapeGoogleNews("US", "Venezuela empleo vacante convocatoria trabajo cargo", "venezuela_googlenews", "VE");
+  const errores: string[] = [];
+  const seen  = new Set<string>();
+  const rows: ConcursoRow[] = [];
+  const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+
+  const [ind1, ind2, jb1, jb2] = await Promise.all([
+    scrapeIndeed("ve", "empleo trabajo vacante", "VE", "venezuela_indeed"),
+    scrapeIndeed("ve", "convocatoria trabajo empresa", "VE", "venezuela_indeed2"),
+    scrapeJooble("empleo trabajo vacante Venezuela Caracas", "Venezuela", "VE", "venezuela_jooble"),
+    scrapeJooble("trabajo oferta empleo Venezuela Maracaibo Valencia", "Venezuela", "VE", "venezuela_jooble2"),
+  ]);
+  for (const r of [ind1, ind2, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
 // PARSER: Costa Rica — Indeed + Google News fallback
 // ─────────────────────────────────────────────────────────────
 async function scrapCostaRica(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ct = await scrapeComputrabajo("cr", "CR", "costarica_concursar");
-  if (ct.rows.length > 0) return ct;
-  return scrapeGoogleNews("CR", "Costa Rica empleo convocatoria concurso servicio civil cargo público", "costarica_googlenews");
+  const errores: string[] = [];
+  const seen  = new Set<string>();
+  const rows: ConcursoRow[] = [];
+  const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+
+  const [ind1, ind2, jb1, jb2] = await Promise.all([
+    scrapeIndeed("cr", "empleo trabajo vacante", "CR", "costarica_indeed"),
+    scrapeIndeed("cr", "gobierno servicio civil concurso", "CR", "costarica_indeed2"),
+    scrapeJooble("empleo público servicio civil Costa Rica San José", "Costa Rica", "CR", "costarica_jooble"),
+    scrapeJooble("trabajo vacante empresa Costa Rica", "Costa Rica", "CR", "costarica_jooble2"),
+  ]);
+  for (const r of [ind1, ind2, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  return { rows, errores };
 }
 
 async function scrapeGuatemala(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
@@ -1211,9 +1316,18 @@ async function scrapeGuatemala(): Promise<{ rows: ConcursoRow[]; errores: string
 }
 
 async function scrapeElSalvador(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ct = await scrapeComputrabajo("sv", "SV", "elsalvador_concursar");
-  if (ct.rows.length > 0) return ct;
-  return scrapeGoogleNews("US", "\"El Salvador\" empleo vacante trabajo convocatoria cargo", "elsalvador_googlenews", "SV");
+  const errores: string[] = [];
+  const seen  = new Set<string>();
+  const rows: ConcursoRow[] = [];
+  const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+
+  const [ind1, jb1, jb2] = await Promise.all([
+    scrapeIndeed("sv", "empleo trabajo vacante", "SV", "elsalvador_indeed"),
+    scrapeJooble("empleo trabajo vacante El Salvador San Salvador", "El Salvador", "SV", "elsalvador_jooble"),
+    scrapeJooble("trabajo empresa gobierno empleo El Salvador", "El Salvador", "SV", "elsalvador_jooble2"),
+  ]);
+  for (const r of [ind1, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  return { rows, errores };
 }
 
 async function scrapeHonduras(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
@@ -1239,31 +1353,45 @@ async function scrapeNicaragua(): Promise<{ rows: ConcursoRow[]; errores: string
   const errores: string[] = [];
   const rows: ConcursoRow[] = [];
   const seen = new Set<string>();
-  const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+  const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const ct = await scrapeComputrabajoPaginado("ni", "NI", "nicaragua_concursar", 6);
-  addRows(ct.rows); errores.push(...ct.errores);
-
-  const [gn1, gn2] = await Promise.all([
-    scrapeGoogleNews("GT", "Nicaragua empleo convocatoria cargo público vacante gobierno 2026", "nicaragua_googlenews", "NI", "es", 25),
-    scrapeGoogleNews("GT", "Nicaragua concurso público estado empleo oportunidad vacante 2026", "nicaragua_googlenews2", "NI", "es", 20),
+  const [ind1, jb1, jb2] = await Promise.all([
+    scrapeIndeed("ni", "empleo trabajo vacante", "NI", "nicaragua_indeed"),
+    scrapeJooble("empleo trabajo vacante Nicaragua Managua", "Nicaragua", "NI", "nicaragua_jooble"),
+    scrapeJooble("trabajo empresa gobierno empleo Nicaragua", "Nicaragua", "NI", "nicaragua_jooble2"),
   ]);
-  addRows(gn1.rows); errores.push(...gn1.errores);
-  addRows(gn2.rows); errores.push(...gn2.errores);
-
+  for (const r of [ind1, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
   return { rows, errores };
 }
 
 async function scraperPanama(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ct = await scrapeComputrabajo("pa", "PA", "panama_concursar");
-  if (ct.rows.length > 0) return ct;
-  return scrapeGoogleNews("US", "Panamá empleo vacante trabajo convocatoria cargo público", "panama_googlenews", "PA");
+  const errores: string[] = [];
+  const seen  = new Set<string>();
+  const rows: ConcursoRow[] = [];
+  const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+
+  const [ind1, jb1, jb2] = await Promise.all([
+    scrapeIndeed("pa", "empleo trabajo vacante", "PA", "panama_indeed"),
+    scrapeJooble("empleo trabajo vacante Panamá Ciudad de Panamá", "Panamá", "PA", "panama_jooble"),
+    scrapeJooble("trabajo empresa gobierno empleo Panamá", "Panamá", "PA", "panama_jooble2"),
+  ]);
+  for (const r of [ind1, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  return { rows, errores };
 }
 
 async function scrapeRepDominicana(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ct = await scrapeComputrabajo("do", "DO", "dominicana_concursar");
-  if (ct.rows.length > 0) return ct;
-  return scrapeGoogleNews("US", "\"República Dominicana\" empleo vacante trabajo convocatoria", "dominicana_googlenews", "DO");
+  const errores: string[] = [];
+  const seen  = new Set<string>();
+  const rows: ConcursoRow[] = [];
+  const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
+
+  const [ind1, jb1, jb2] = await Promise.all([
+    scrapeIndeed("do", "empleo trabajo vacante", "DO", "dominicana_indeed"),
+    scrapeJooble("empleo trabajo vacante República Dominicana Santo Domingo", "República Dominicana", "DO", "dominicana_jooble"),
+    scrapeJooble("trabajo empresa gobierno empleo Dominicana", "República Dominicana", "DO", "dominicana_jooble2"),
+  ]);
+  for (const r of [ind1, jb1, jb2]) { add(r.rows); errores.push(...r.errores); }
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -2571,6 +2699,34 @@ const CT_TERMINOS = [
   "enfermero", "docente", "contador", "abogado", "sistemas",
 ];
 
+// Mapa de ciudades principales por país para búsquedas Jooble intensivas
+const LATAM_CIUDADES: Record<string, string[]> = {
+  CL: ["Santiago","Valparaíso","Concepción","Antofagasta","Viña del Mar"],
+  CO: ["Bogotá","Medellín","Cali","Barranquilla","Bucaramanga","Cartagena"],
+  PE: ["Lima","Arequipa","Trujillo","Chiclayo","Cusco","Piura"],
+  PY: ["Asunción","Ciudad del Este","Encarnación","San Lorenzo"],
+  BO: ["La Paz","Santa Cruz","Cochabamba","Sucre","Oruro"],
+  EC: ["Quito","Guayaquil","Cuenca","Ambato","Manta"],
+  VE: ["Caracas","Maracaibo","Valencia","Barquisimeto","Maracay"],
+  CR: ["San José","Cartago","Heredia","Alajuela"],
+  GT: ["Ciudad de Guatemala","Quetzaltenango","Escuintla"],
+  SV: ["San Salvador","Santa Ana","San Miguel"],
+  HN: ["Tegucigalpa","San Pedro Sula","La Ceiba"],
+  NI: ["Managua","León","Masaya"],
+  PA: ["Ciudad de Panamá","Colón","Santiago","David"],
+  DO: ["Santo Domingo","Santiago","La Romana","San Cristóbal"],
+  CU: ["La Habana","Santiago de Cuba","Camagüey"],
+};
+
+const JOOBLE_TERMINOS = [
+  "trabajo empleo vacante",
+  "convocatoria gobierno público",
+  "ingeniería sistemas tecnología",
+  "salud médico enfermería",
+  "ventas administración finanzas",
+  "construcción logística operaciones",
+];
+
 async function scrapeLatamIntensivo(pais: string): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const subdomain = LATAM_INTENSIVO[pais];
   if (!subdomain) return { rows: [], errores: [`${pais}: no tiene modo intensivo`] };
@@ -2578,7 +2734,6 @@ async function scrapeLatamIntensivo(pais: string): Promise<{ rows: ConcursoRow[]
   const errores: string[] = [];
   const seen = new Set<string>();
   const rows: ConcursoRow[] = [];
-  const base = `https://${subdomain}.computrabajo.com`;
 
   const addRows = (newRows: ConcursoRow[]) => {
     for (const r of newRows) {
@@ -2586,33 +2741,65 @@ async function scrapeLatamIntensivo(pais: string): Promise<{ rows: ConcursoRow[]
     }
   };
 
-  // 1. Sector público paginado — 10 páginas
-  const pub = await scrapeComputrabajoPaginado(subdomain, pais, `${pais.toLowerCase()}_ct_pub`, 10);
-  addRows(pub.rows); errores.push(...pub.errores);
+  // 1. Indeed RSS — múltiples términos en paralelo
+  const ciudades = LATAM_CIUDADES[pais] ?? [];
+  const indeedSearches = [
+    scrapeIndeed(subdomain, "empleo trabajo", pais, `${pais.toLowerCase()}_indeed_int1`),
+    scrapeIndeed(subdomain, "vacante empresa gobierno", pais, `${pais.toLowerCase()}_indeed_int2`),
+    scrapeIndeed(subdomain, "convocatoria cargo profesional", pais, `${pais.toLowerCase()}_indeed_int3`),
+    ...(ciudades.slice(0, 2).map(ciudad =>
+      scrapeIndeed(subdomain, "trabajo empleo", pais, `${pais.toLowerCase()}_indeed_${ciudad.slice(0,4).toLowerCase()}`, ciudad)
+    )),
+  ];
+  const indeedResults = await Promise.all(indeedSearches);
+  for (const r of indeedResults) { addRows(r.rows); errores.push(...r.errores); }
 
-  // 2. Sector privado paginado — 10 páginas
-  const priv = await scrapeComputrabajoPrivado(subdomain, pais, `${pais.toLowerCase()}_ct_priv`, 10);
+  // 2. Jooble API — múltiples términos × ciudades
+  const nombrePais = { CL:"Chile",CO:"Colombia",PE:"Peru",PY:"Paraguay",BO:"Bolivia",
+    EC:"Ecuador",VE:"Venezuela",CR:"Costa Rica",GT:"Guatemala",SV:"El Salvador",
+    HN:"Honduras",NI:"Nicaragua",PA:"Panamá",DO:"República Dominicana",CU:"Cuba" }[pais] ?? pais;
+
+  const joobleSearches = [
+    ...JOOBLE_TERMINOS.map((term, i) =>
+      scrapeJooble(term, nombrePais, pais, `${pais.toLowerCase()}_jooble_int${i+1}`)
+    ),
+    ...(ciudades.slice(0, 3).map(ciudad =>
+      scrapeJooble("trabajo empleo vacante", ciudad, pais, `${pais.toLowerCase()}_jooble_${ciudad.slice(0,4).toLowerCase()}`)
+    )),
+  ];
+  const joobleResults = await Promise.all(joobleSearches);
+  for (const r of joobleResults) { addRows(r.rows); errores.push(...r.errores); }
+
+  // 3. Computrabajo como complemento (puede estar bloqueado, pero se intenta igual)
+  const base = `https://${subdomain}.computrabajo.com`;
+  const [pub, priv] = await Promise.all([
+    scrapeComputrabajoPaginado(subdomain, pais, `${pais.toLowerCase()}_ct_pub`, 5),
+    scrapeComputrabajoPrivado(subdomain, pais, `${pais.toLowerCase()}_ct_priv`, 5),
+  ]);
+  addRows(pub.rows); errores.push(...pub.errores);
   addRows(priv.rows); errores.push(...priv.errores);
 
-  // 3. Búsquedas por término — hasta 15 términos × 3 páginas
-  for (let t = 0; t < CT_TERMINOS.length; t += 3) {
-    const lote = CT_TERMINOS.slice(t, t + 3);
-    await Promise.all(lote.map(async (term) => {
-      for (let pg = 1; pg <= 3; pg++) {
-        const url = pg === 1
-          ? `${base}/trabajos?q=${encodeURIComponent(term)}&orden=fecha`
-          : `${base}/trabajos?q=${encodeURIComponent(term)}&orden=fecha&p=${pg}`;
-        const html = await fetchUrl(url, 8000);
-        if (!html) return;
-        const pageRows: ConcursoRow[] = [];
-        parseComputrabajo(html, pais, `${pais.toLowerCase()}_ct_${term.slice(0,6)}`, base, pageRows);
-        addRows(pageRows);
-      }
-    }));
-    await new Promise(r => setTimeout(r, 200));
+  // 4. Computrabajo por términos (si no está bloqueado)
+  if (pub.rows.length + priv.rows.length > 0) {
+    for (let t = 0; t < CT_TERMINOS.length; t += 3) {
+      const lote = CT_TERMINOS.slice(t, t + 3);
+      await Promise.all(lote.map(async (term) => {
+        for (let pg = 1; pg <= 2; pg++) {
+          const url = pg === 1
+            ? `${base}/trabajos?q=${encodeURIComponent(term)}&orden=fecha`
+            : `${base}/trabajos?q=${encodeURIComponent(term)}&orden=fecha&p=${pg}`;
+          const html = await fetchUrl(url, 8000);
+          if (!html) return;
+          const pageRows: ConcursoRow[] = [];
+          parseComputrabajo(html, pais, `${pais.toLowerCase()}_ct_${term.slice(0,6)}`, base, pageRows);
+          addRows(pageRows);
+        }
+      }));
+      await new Promise(r => setTimeout(r, 150));
+    }
   }
 
-  console.log(`${pais} intensivo: ${rows.length} ofertas encontradas`);
+  console.log(`${pais} intensivo: ${rows.length} ofertas (Indeed+Jooble+CT)`);
   return { rows, errores };
 }
 
