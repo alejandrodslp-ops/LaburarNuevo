@@ -225,9 +225,10 @@ function rssToRows(items, pais, fuente, opts = {}) {
       fuente_id: id, fuente, pais,
       titulo, cargo: titulo, organismo: opts.organismo || null,
       descripcion: item.desc?.slice(0, 600) || null,
-      fecha_inicio: parseFecha(item.pubDate) || null, // fecha de publicación de la noticia
-      fecha_cierre: null, // noticias no tienen fecha de cierre — frescura via DELETE-before-upsert
+      fecha_inicio: parseFecha(item.pubDate) || null,
+      fecha_cierre: opts.fecha_cierre || null,
       lugar: opts.lugar || null,
+      tipo_vinculo: opts.tipo_vinculo || null,
       url_detalle: href, url_postulacion: href,
       keywords: extraerKeywords(titulo + ' ' + (item.desc || '')),
     }));
@@ -284,6 +285,49 @@ async function googleNewsRSS(query, gl, hl, pais, fuente) {
   const q   = encodeURIComponent(query);
   const url = `https://news.google.com/rss/search?q=${q}&hl=${hl}&gl=${gl}&ceid=${gl}:${hl}`;
   const rows = await fetchRSS(url, pais, fuente);
+  return rows;
+}
+
+// ─── COMPUTRABAJO ─────────────────────────────────────────────────────────────
+// Principal portal de trabajo en LatAm. Cloudflare bloquea AWS (Supabase)
+// pero no Azure (GitHub Actions) → esta función solo funciona bien desde aquí.
+async function scrapeComputrabajoPaginas(cc, ccUpper, fuente, numPages = 5) {
+  const base = `https://${cc}.computrabajo.com`;
+  const rows = [];
+  const seen = new Set();
+  for (let pg = 1; pg <= numPages; pg++) {
+    const url  = `${base}/trabajo-de-empleo?pg=${pg}`;
+    const html = await fetchUrl(url, { timeout: 15000 });
+    if (!html || !html.includes('<article')) {
+      console.log(`    ⚠ CT ${cc} pg${pg}: sin articles — posible bloqueo`);
+      break;
+    }
+    const $ = cheerio.load(html);
+    $('article').each((_, el) => {
+      const tituloEl = $('h2 a, .title_offer a, a[title]', el).first();
+      const titulo   = tituloEl.attr('title') || tituloEl.text().trim();
+      if (!titulo || titulo.length < 4) return;
+      const href    = tituloEl.attr('href') || '';
+      const link    = href.startsWith('http') ? href : `${base}${href}`;
+      const id      = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      const empresa = $('[class*="name_offer"],[class*="company"],[class*="fs16"]', el).first().text().trim() || null;
+      const ciudad  = $('[class*="detail"] li, [class*="ubic"] span', el).first().text().trim() || null;
+      const cierre  = new Date(Date.now() + 45 * 86400000).toISOString().slice(0, 10);
+      rows.push(makeRow({
+        fuente_id: id, fuente, pais: ccUpper,
+        titulo: empresa ? `${titulo} — ${empresa}` : titulo,
+        cargo: titulo, organismo: empresa || null,
+        lugar: ciudad || null,
+        fecha_cierre: cierre,
+        url_detalle: link, url_postulacion: link,
+        tipo_vinculo: 'privado',
+        keywords: extraerKeywords(`${titulo} ${empresa || ''}`),
+      }));
+    });
+    console.log(`    CT ${cc} pg${pg}: ${rows.length} acumulado`);
+  }
   return rows;
 }
 
@@ -646,94 +690,43 @@ async function scrapePerú() {
 // ─── PARAGUAY ────────────────────────────────────────────────────────────────
 async function scrapeParaguay() {
   console.log('🇵🇾 Paraguay...');
-  // sfp.gov.py tiene cert SSL inválido → insecure:true
-  const html = await fetchUrl('https://www.sfp.gov.py/es/institucional/concursos', { timeout: 12000, insecure: true });
-  if (html) {
-    const $ = cheerio.load(html);
-    const rows = [];
-    $('a[href*="concurso"], a[href*="llamado"], h3 a, h2 a, td a').each((_, el) => {
-      const titulo = $(el).text().trim();
-      const href   = $(el).attr('href') || '';
-      if (titulo.length < 5) return;
-      const link = href.startsWith('http') ? href : `https://www.sfp.gov.py${href}`;
-      const id   = encodeURIComponent(href).slice(-50) || titulo.replace(/\W/g,'').slice(0,48);
-      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'paraguay_sfp', pais: 'PY',
-        titulo, cargo: titulo, organismo: 'SFP',
-        url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
-      }));
-    });
-    if (rows.length > 0) { const n = await upsert(rows,'paraguay_sfp'); console.log(`  ✓ ${n}`); return n; }
-  }
-  const jb = await joobleSearch('empleo trabajo vacante Paraguay Asunción', 'Paraguay', 'PY', 'paraguay_jooble');
-  if (jb.length > 0) { const n = await upsert(jb,'paraguay_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
-  const jb2 = await joobleSearch('empleo público convocatoria gobierno Paraguay', 'Paraguay', 'PY', 'paraguay_jooble2');
-  if (jb2.length > 0) { const n = await upsert(jb2,'paraguay_jooble2'); console.log(`  ✓ ${n} (Jooble2)`); return n; }
-  console.log('  ⚠ sin resultados'); return 0;
+  const [ct, ind] = await Promise.all([
+    scrapeComputrabajoPaginas('py', 'PY', 'paraguay_ct', 6),
+    fetchRSS(`https://py.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'PY', 'paraguay_indeed', { tipo_vinculo: 'privado' }),
+  ]);
+  let total = 0;
+  if (ct.length  > 0) { total += await upsert(ct,  'paraguay_ct');     console.log(`  ✓ ${ct.length} CT`); }
+  if (ind.length > 0) { total += await upsert(ind, 'paraguay_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (total === 0) console.log('  ⚠ sin resultados');
+  return total;
 }
 
 // ─── BOLIVIA ─────────────────────────────────────────────────────────────────
 async function scrapeBolivia() {
   console.log('🇧🇴 Bolivia...');
-  // MTEPS — Ministerio de Trabajo Bolivia (cert inválido → insecure)
-  for (const url of [
-    'https://mteps.gob.bo/convocatorias',
-    'https://www.mintrabajo.gob.bo/index.php/convocatorias',
-    'https://www.empleospublicos.bo/convocatorias',
-  ]) {
-    const html = await fetchUrl(url, { timeout: 10000, insecure: true });
-    if (!html) continue;
-    const $ = cheerio.load(html);
-    const rows = [];
-    $('h3 a, h4 a, td a, .views-row a, article a').each((_, el) => {
-      const titulo = $(el).text().trim();
-      const href   = $(el).attr('href') || '';
-      if (titulo.length < 5) return;
-      const base = new URL(url).origin;
-      const link = href.startsWith('http') ? href : `${base}${href}`;
-      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
-      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'bolivia_mteps', pais: 'BO',
-        titulo, cargo: titulo, url_detalle: link, url_postulacion: link,
-        keywords: extraerKeywords(titulo),
-      }));
-    });
-    if (rows.length > 0) { const n = await upsert(rows,'bolivia_mteps'); console.log(`  ✓ ${n}`); return n; }
-  }
-  const jb = await joobleSearch('empleo público convocatoria gobierno', 'Bolivia', 'BO', 'bolivia_jooble');
-  if (jb.length > 0) { const n = await upsert(jb,'bolivia_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
-  console.log('  ⚠ sin resultados'); return 0;
+  const [ct, ind] = await Promise.all([
+    scrapeComputrabajoPaginas('bo', 'BO', 'bolivia_ct', 6),
+    fetchRSS(`https://bo.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'BO', 'bolivia_indeed', { tipo_vinculo: 'privado' }),
+  ]);
+  let total = 0;
+  if (ct.length  > 0) { total += await upsert(ct,  'bolivia_ct');     console.log(`  ✓ ${ct.length} CT`); }
+  if (ind.length > 0) { total += await upsert(ind, 'bolivia_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (total === 0) console.log('  ⚠ sin resultados');
+  return total;
 }
 
 // ─── ECUADOR ─────────────────────────────────────────────────────────────────
 async function scrapeEcuador() {
   console.log('🇪🇨 Ecuador...');
-  for (const url of [
-    'https://encuentraempleo.trabajo.gob.ec/socioEmpleo-war/paginas/procesos/busquedaOfertaPublica.jsf',
-    'https://www.trabajo.gob.ec/convocatorias-del-sector-publico/',
-    'https://www.trabajo.gob.ec/convocatorias/',
-  ]) {
-    const html = await fetchUrl(url, { timeout: 14000 });
-    if (!html) continue;
-    const $ = cheerio.load(html);
-    const rows = [];
-    $('h3 a, h4 a, .entry-title a, article a, td a').each((_, el) => {
-      const titulo = $(el).text().trim();
-      const href   = $(el).attr('href') || '';
-      if (titulo.length < 5) return;
-      const link = href.startsWith('http') ? href : `https://www.trabajo.gob.ec${href}`;
-      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
-      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'ecuador_trabajo', pais: 'EC',
-        titulo, cargo: titulo, url_detalle: link, url_postulacion: link,
-        keywords: extraerKeywords(titulo),
-      }));
-    });
-    if (rows.length > 0) { const n = await upsert(rows,'ecuador_trabajo'); console.log(`  ✓ ${n}`); return n; }
-  }
-  const jb = await joobleSearch('empleo público concurso gobierno sector', 'Ecuador', 'EC', 'ecuador_jooble');
-  if (jb.length > 0) { const n = await upsert(jb,'ecuador_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
-  console.log('  ⚠ sin resultados'); return 0;
+  const [ct, ind] = await Promise.all([
+    scrapeComputrabajoPaginas('ec', 'EC', 'ecuador_ct', 6),
+    fetchRSS(`https://ec.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'EC', 'ecuador_indeed', { tipo_vinculo: 'privado' }),
+  ]);
+  let total = 0;
+  if (ct.length  > 0) { total += await upsert(ct,  'ecuador_ct');     console.log(`  ✓ ${ct.length} CT`); }
+  if (ind.length > 0) { total += await upsert(ind, 'ecuador_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (total === 0) console.log('  ⚠ sin resultados');
+  return total;
 }
 
 // ─── MÉXICO ──────────────────────────────────────────────────────────────────
@@ -779,27 +772,15 @@ async function scrapeMexico() {
 // ─── VENEZUELA ───────────────────────────────────────────────────────────────
 async function scrapeVenezuela() {
   console.log('🇻🇪 Venezuela...');
-  // ONCAE y ministerios venezolanos tienen acceso muy limitado desde cloud IPs
-  const html = await fetchUrl('https://www.oncae.gob.ve/convocatorias', { timeout: 8000 });
-  if (html) {
-    const $ = cheerio.load(html);
-    const rows = [];
-    $('h3 a, h4 a, td a, article a').each((_, el) => {
-      const titulo = $(el).text().trim();
-      const href   = $(el).attr('href') || '';
-      if (titulo.length < 5) return;
-      const link = href.startsWith('http') ? href : `https://www.oncae.gob.ve${href}`;
-      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
-      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'venezuela_oncae', pais: 'VE',
-        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
-      }));
-    });
-    if (rows.length > 0) { const n = await upsert(rows,'venezuela_oncae'); console.log(`  ✓ ${n}`); return n; }
-  }
-  const jb = await joobleSearch('empleo vacante trabajo', 'Venezuela', 'VE', 'venezuela_jooble');
-  if (jb.length > 0) { const n = await upsert(jb,'venezuela_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
-  console.log('  ⚠ sin resultados'); return 0;
+  const [ct, ind] = await Promise.all([
+    scrapeComputrabajoPaginas('ve', 'VE', 'venezuela_ct', 6),
+    fetchRSS(`https://ve.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'VE', 'venezuela_indeed', { tipo_vinculo: 'privado' }),
+  ]);
+  let total = 0;
+  if (ct.length  > 0) { total += await upsert(ct,  'venezuela_ct');     console.log(`  ✓ ${ct.length} CT`); }
+  if (ind.length > 0) { total += await upsert(ind, 'venezuela_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (total === 0) console.log('  ⚠ sin resultados');
+  return total;
 }
 
 // ─── CUBA ────────────────────────────────────────────────────────────────────
@@ -813,30 +794,15 @@ async function scrapeCuba() {
 // ─── COSTA RICA ──────────────────────────────────────────────────────────────
 async function scrapeCostaRica() {
   console.log('🇨🇷 Costa Rica...');
-  // DGSC — cert SSL inválido (cadena incompleta) → insecure: true
-  const html = await fetchUrl('https://vacantes.dgsc.go.cr/', { timeout: 12000, insecure: true })
-    || await fetchUrl('https://piep.dgsc.go.cr/', { timeout: 12000, insecure: true })
-    || await fetchUrl('https://www.dgsc.go.cr/puestosVacantes.html', { timeout: 12000, insecure: true });
-  if (html) {
-    const $ = cheerio.load(html);
-    const rows = [];
-    $('a[href*="concurso"], a[href*="puesto"], tr td a, h3 a, h4 a').each((_, el) => {
-      const titulo = $(el).text().trim();
-      const href   = $(el).attr('href') || '';
-      if (titulo.length < 5) return;
-      const base = href.startsWith('http') ? '' : 'https://www.dgsc.go.cr';
-      const link = base + href;
-      const id   = encodeURIComponent(href).slice(-50) || titulo.replace(/\W/g,'').slice(0,48);
-      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'costarica_dgsc', pais: 'CR',
-        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
-      }));
-    });
-    if (rows.length > 0) { const n = await upsert(rows,'costarica_dgsc'); console.log(`  ✓ ${n}`); return n; }
-  }
-  const jb = await joobleSearch('empleo gobierno servicio civil', 'Costa Rica', 'CR', 'costarica_jooble');
-  if (jb.length > 0) { const n = await upsert(jb,'costarica_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
-  console.log('  ⚠ sin resultados'); return 0;
+  const [ct, ind] = await Promise.all([
+    scrapeComputrabajoPaginas('cr', 'CR', 'costarica_ct', 6),
+    fetchRSS(`https://cr.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'CR', 'costarica_indeed', { tipo_vinculo: 'privado' }),
+  ]);
+  let total = 0;
+  if (ct.length  > 0) { total += await upsert(ct,  'costarica_ct');     console.log(`  ✓ ${ct.length} CT`); }
+  if (ind.length > 0) { total += await upsert(ind, 'costarica_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (total === 0) console.log('  ⚠ sin resultados');
+  return total;
 }
 
 // ─── GUATEMALA ───────────────────────────────────────────────────────────────
@@ -867,27 +833,15 @@ async function scrapeGuatemala() {
 // ─── EL SALVADOR ─────────────────────────────────────────────────────────────
 async function scrapeElSalvador() {
   console.log('🇸🇻 El Salvador...');
-  const html = await fetchUrl('https://www.rrhh.gob.sv/concursos', { timeout: 10000})
-    || await fetchUrl('https://www.sercop.gob.sv/concursos', { timeout: 10000 });
-  if (html) {
-    const $ = cheerio.load(html);
-    const rows = [];
-    $('h3 a, h4 a, td a, article a').each((_, el) => {
-      const titulo = $(el).text().trim();
-      const href   = $(el).attr('href') || '';
-      if (titulo.length < 5) return;
-      const link = href.startsWith('http') ? href : `https://www.rrhh.gob.sv${href}`;
-      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
-      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'elsalvador_rrhh', pais: 'SV',
-        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
-      }));
-    });
-    if (rows.length > 0) { const n = await upsert(rows,'elsalvador_rrhh'); console.log(`  ✓ ${n}`); return n; }
-  }
-  const jb = await joobleSearch('empleo gobierno trabajo convocatoria', 'El Salvador', 'SV', 'elsalvador_jooble');
-  if (jb.length > 0) { const n = await upsert(jb,'elsalvador_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
-  console.log('  ⚠ sin resultados'); return 0;
+  const [ct, ind] = await Promise.all([
+    scrapeComputrabajoPaginas('sv', 'SV', 'elsalvador_ct', 6),
+    fetchRSS(`https://sv.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'SV', 'elsalvador_indeed', { tipo_vinculo: 'privado' }),
+  ]);
+  let total = 0;
+  if (ct.length  > 0) { total += await upsert(ct,  'elsalvador_ct');     console.log(`  ✓ ${ct.length} CT`); }
+  if (ind.length > 0) { total += await upsert(ind, 'elsalvador_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (total === 0) console.log('  ⚠ sin resultados');
+  return total;
 }
 
 // ─── HONDURAS ────────────────────────────────────────────────────────────────
@@ -919,77 +873,43 @@ async function scrapeHonduras() {
 // ─── NICARAGUA ───────────────────────────────────────────────────────────────
 async function scrapeNicaragua() {
   console.log('🇳🇮 Nicaragua...');
-  const html = await fetchUrl('https://www.mhcp.gob.ni/concursos', { timeout: 10000 });
-  if (html) {
-    const $ = cheerio.load(html);
-    const rows = [];
-    $('h3 a, h4 a, td a, article a').each((_, el) => {
-      const titulo = $(el).text().trim();
-      const href   = $(el).attr('href') || '';
-      if (titulo.length < 5) return;
-      const link = href.startsWith('http') ? href : `https://www.mhcp.gob.ni${href}`;
-      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
-      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'nicaragua_mhcp', pais: 'NI',
-        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
-      }));
-    });
-    if (rows.length > 0) { const n = await upsert(rows,'nicaragua_mhcp'); console.log(`  ✓ ${n}`); return n; }
-  }
-  const jb = await joobleSearch('empleo gobierno trabajo convocatoria', 'Nicaragua', 'NI', 'nicaragua_jooble');
-  if (jb.length > 0) { const n = await upsert(jb,'nicaragua_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
-  console.log('  ⚠ sin resultados'); return 0;
+  const [ct, ind] = await Promise.all([
+    scrapeComputrabajoPaginas('ni', 'NI', 'nicaragua_ct', 6),
+    fetchRSS(`https://ni.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'NI', 'nicaragua_indeed', { tipo_vinculo: 'privado' }),
+  ]);
+  let total = 0;
+  if (ct.length  > 0) { total += await upsert(ct,  'nicaragua_ct');     console.log(`  ✓ ${ct.length} CT`); }
+  if (ind.length > 0) { total += await upsert(ind, 'nicaragua_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (total === 0) console.log('  ⚠ sin resultados');
+  return total;
 }
 
 // ─── PANAMÁ ──────────────────────────────────────────────────────────────────
 async function scrapePanama() {
   console.log('🇵🇦 Panamá...');
-  const html = await fetchUrl('https://www.panama.gob.pa/convocatorias', { timeout: 10000 })
-    || await fetchUrl('https://www.mop.gob.pa/empleos', { timeout: 10000 });
-  if (html) {
-    const $ = cheerio.load(html);
-    const rows = [];
-    $('h3 a, h4 a, td a, article a').each((_, el) => {
-      const titulo = $(el).text().trim();
-      const href   = $(el).attr('href') || '';
-      if (titulo.length < 5) return;
-      const link = href.startsWith('http') ? href : `https://www.mop.gob.pa${href}`;
-      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
-      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'panama_gov', pais: 'PA',
-        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
-      }));
-    });
-    if (rows.length > 0) { const n = await upsert(rows,'panama_gov'); console.log(`  ✓ ${n}`); return n; }
-  }
-  const jb = await joobleSearch('empleo gobierno público convocatoria', 'Panama', 'PA', 'panama_jooble');
-  if (jb.length > 0) { const n = await upsert(jb,'panama_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
-  console.log('  ⚠ sin resultados'); return 0;
+  const [ct, ind] = await Promise.all([
+    scrapeComputrabajoPaginas('pa', 'PA', 'panama_ct', 6),
+    fetchRSS(`https://pa.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'PA', 'panama_indeed', { tipo_vinculo: 'privado' }),
+  ]);
+  let total = 0;
+  if (ct.length  > 0) { total += await upsert(ct,  'panama_ct');     console.log(`  ✓ ${ct.length} CT`); }
+  if (ind.length > 0) { total += await upsert(ind, 'panama_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (total === 0) console.log('  ⚠ sin resultados');
+  return total;
 }
 
 // ─── REPÚBLICA DOMINICANA ────────────────────────────────────────────────────
 async function scrapeRepDominicana() {
   console.log('🇩🇴 Rep. Dominicana...');
-  const html = await fetchUrl('https://www.map.gob.do/concursos-de-oposicion/', { timeout: 10000 });
-  if (html) {
-    const $ = cheerio.load(html);
-    const rows = [];
-    $('h3 a, h4 a, .entry-title a, td a, article a').each((_, el) => {
-      const titulo = $(el).text().trim();
-      const href   = $(el).attr('href') || '';
-      if (titulo.length < 5) return;
-      const link = href.startsWith('http') ? href : `https://www.map.gob.do${href}`;
-      const id   = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
-      if (!rows.some(r => r.fuente_id === id)) rows.push(makeRow({
-        fuente_id: id, fuente: 'dominicana_map', pais: 'DO',
-        titulo, cargo: titulo, url_detalle: link, url_postulacion: link, keywords: extraerKeywords(titulo),
-      }));
-    });
-    if (rows.length > 0) { const n = await upsert(rows,'dominicana_map'); console.log(`  ✓ ${n}`); return n; }
-  }
-  const jb = await joobleSearch('empleo gobierno trabajo convocatoria', 'Republica Dominicana', 'DO', 'dominicana_jooble');
-  if (jb.length > 0) { const n = await upsert(jb,'dominicana_jooble'); console.log(`  ✓ ${n} (Jooble)`); return n; }
-  console.log('  ⚠ sin resultados'); return 0;
+  const [ct, ind] = await Promise.all([
+    scrapeComputrabajoPaginas('do', 'DO', 'dominicana_ct', 6),
+    fetchRSS(`https://do.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'DO', 'dominicana_indeed', { tipo_vinculo: 'privado' }),
+  ]);
+  let total = 0;
+  if (ct.length  > 0) { total += await upsert(ct,  'dominicana_ct');     console.log(`  ✓ ${ct.length} CT`); }
+  if (ind.length > 0) { total += await upsert(ind, 'dominicana_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (total === 0) console.log('  ⚠ sin resultados');
+  return total;
 }
 
 // ─── ESPAÑA ──────────────────────────────────────────────────────────────────
@@ -1452,6 +1372,16 @@ const aCorrer = SOLO_PAIS && SCRAPERS[SOLO_PAIS]
 // Fuentes con nombres viejos que ya no escribe el scraper → acumulan datos rancios
 const FUENTES_OBSOLETAS = [
   'remoto',                   // UY viejo
+  // Fuentes LatAm reemplazadas por CT + Indeed
+  'bolivia_mteps',     'bolivia_jooble',     'bolivia_jooble2',
+  'ecuador_trabajo',   'ecuador_jooble',
+  'paraguay_sfp',      'paraguay_jooble',    'paraguay_jooble2',
+  'venezuela_oncae',   'venezuela_jooble',
+  'costarica_dgsc',    'costarica_jooble',
+  'elsalvador_rrhh',   'elsalvador_jooble',
+  'nicaragua_mhcp',    'nicaragua_jooble',
+  'panama_gov',        'panama_jooble',
+  'dominicana_map',    'dominicana_jooble',
   'bolivia_googlenoticias',   'México_GoogleNoticias',  'Portugal_GoogleNoticias',
   'España Google News',       'italia_googlenews',      'noticias_de_it',
   'uk_googlenews',            'usa_googlenews',         'noticias_us',
