@@ -38,6 +38,41 @@ type ConcursoRow = {
 };
 
 // ─────────────────────────────────────────────────────────────
+// FILTRO: dominios de noticias — se descartan automáticamente
+// ─────────────────────────────────────────────────────────────
+const DOMINIOS_NOTICIAS = new Set([
+  "news.google.com","google.com","googlenews.com",
+  "infobae.com","clarin.com","lanacion.com.ar","pagina12.com.ar","cronista.com","ambito.com",
+  "elpais.com","elmundo.es","lavanguardia.com","abc.es","20minutos.es","expansion.com",
+  "eluniversal.com.mx","milenio.com","reforma.com","excelsior.com.mx","jornada.com.mx",
+  "elcomercio.pe","rpp.pe","larepublica.pe","correo.pe","gestion.pe",
+  "eltiempo.com","semana.com","elespectador.com","portafolio.co","rcnradio.com",
+  "emol.com","latercera.com","elmostrador.cl","biobiochile.cl","cooperativa.cl",
+  "bbc.com","bbc.co.uk","reuters.com","apnews.com","theguardian.com",
+  "cnn.com","cnnenespanol.cnn.com","nbcnews.com","foxnews.com","nytimes.com",
+  "lemonde.fr","lefigaro.fr","liberation.fr","20minutes.fr",
+  "spiegel.de","faz.net","sueddeutsche.de","focus.de","welt.de","zeit.de",
+  "corriere.it","repubblica.it","gazzetta.it","stampa.it","sole24ore.com",
+  "dn.pt","publico.pt","jn.pt","observador.pt","cmjornal.pt",
+  "globo.com","folha.uol.com.br","estadao.com.br","uol.com.br","r7.com","terra.com.br",
+  "telesur.net","actualidad.rt.com","prensa-latina.cu",
+  "elpais.com.uy","elpais.com.co","elobservador.com.uy","republica.com.uy",
+  "yahoo.com","msn.com","bing.com",
+]);
+
+function esUrlNoticias(url: string | null): boolean {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    if (DOMINIOS_NOTICIAS.has(host)) return true;
+    // Patrones de URL típicos de noticias
+    if (/\/\d{4}\/\d{2}\/\d{2}\//.test(url)) return true;
+    if (/\/(noticias?|actualidad|opinion|columna|articulo|nota|redaccion|periodismo)\//.test(url)) return true;
+    return false;
+  } catch { return false; }
+}
+
+// ─────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────
 function extraerTag(xml: string, tag: string): string {
@@ -2704,9 +2739,10 @@ function esOfertaLegitima(r: ConcursoRow): boolean {
   // 3. País identificado
   if (!r.pais || r.pais.length < 2) return false;
 
-  // 4. No es noticia — fuentes de Google News se permiten pero deben tener keywords reales
-  const esGoogleNews = r.fuente?.includes("googlenews") || r.fuente?.includes("gnews");
-  if (esGoogleNews && (!r.keywords || r.keywords.length < 2)) return false;
+  // 4. No es noticia — rechazar si la URL pertenece a un dominio de noticias
+  if (esUrlNoticias(r.url_detalle) || esUrlNoticias(r.url_postulacion)) return false;
+  // Fuentes etiquetadas como Google News se rechazan directamente
+  if (r.fuente?.includes("googlenews") || r.fuente?.includes("gnews")) return false;
 
   // 5. Keywords suficientes para el matching (mínimo 2)
   if (!r.keywords || r.keywords.length < 2) return false;

@@ -145,14 +145,45 @@ function makeRow(fields) {
 
 const _fuentesLimpiadas = new Set();
 
+const DOMINIOS_NOTICIAS = new Set([
+  'news.google.com','google.com','googlenews.com',
+  'infobae.com','clarin.com','lanacion.com.ar','pagina12.com.ar','cronista.com','ambito.com',
+  'elpais.com','elmundo.es','lavanguardia.com','abc.es','20minutos.es','expansion.com',
+  'eluniversal.com.mx','milenio.com','reforma.com','excelsior.com.mx','jornada.com.mx',
+  'elcomercio.pe','rpp.pe','larepublica.pe','correo.pe','gestion.pe',
+  'eltiempo.com','semana.com','elespectador.com','portafolio.co','rcnradio.com',
+  'emol.com','latercera.com','elmostrador.cl','biobiochile.cl','cooperativa.cl',
+  'bbc.com','bbc.co.uk','reuters.com','apnews.com','theguardian.com',
+  'cnn.com','nbcnews.com','foxnews.com','nytimes.com',
+  'lemonde.fr','lefigaro.fr','liberation.fr',
+  'spiegel.de','faz.net','sueddeutsche.de','focus.de','welt.de','zeit.de',
+  'corriere.it','repubblica.it','stampa.it',
+  'dn.pt','publico.pt','jn.pt','observador.pt',
+  'globo.com','folha.uol.com.br','estadao.com.br','uol.com.br','r7.com',
+  'yahoo.com','msn.com',
+]);
+
+function esUrlNoticias(url) {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    if (DOMINIOS_NOTICIAS.has(host)) return true;
+    if (/\/\d{4}\/\d{2}\/\d{2}\//.test(url)) return true;
+    if (/\/(noticias?|actualidad|opinion|articulo|nota|redaccion)\//.test(url)) return true;
+    return false;
+  } catch { return false; }
+}
+
 async function upsert(rows, fuente) {
   if (!rows.length) return 0;
   const hoy = new Date().toISOString().slice(0, 10);
-  // Deduplicar por fuente_id y filtrar vencidos antes de guardar
+  // Deduplicar, filtrar vencidos y descartar URLs de noticias
   const seen = new Set();
   const unique = rows.filter(r => {
     if (!r.fuente_id || seen.has(r.fuente_id)) return false;
     if (r.fecha_cierre && r.fecha_cierre < hoy) return false;
+    if (esUrlNoticias(r.url_detalle) || esUrlNoticias(r.url_postulacion)) return false;
+    if (r.fuente?.includes('googlenews') || r.fuente?.includes('gnews')) return false;
     seen.add(r.fuente_id); return true;
   });
   if (TEST_MODE) {
