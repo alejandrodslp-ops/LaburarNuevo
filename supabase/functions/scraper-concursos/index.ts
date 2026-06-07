@@ -1591,7 +1591,8 @@ async function scrapeEspana(): Promise<{ rows: ConcursoRow[]; errores: string[] 
 }
 
 // ─────────────────────────────────────────────────────────────
-// PARSER: Portugal — BEP (IEFP) + Indeed PT fallback
+// PARSER: Portugal — IEFP BEP + Adzuna + Indeed PT + Jooble
+// IEFP = Instituto do Emprego e Formação Profissional (portal oficial)
 // ─────────────────────────────────────────────────────────────
 async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const errores: string[] = [];
@@ -1599,17 +1600,69 @@ async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[
   const seen = new Set<string>();
   const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  // BEP portal está bloqueado desde cloud — usamos 3 consultas Google News en paralelo
-  const [gn1, gn2, gn3] = await Promise.all([
-    scrapeGoogleNews("PT", "concurso público Portugal emprego trabalho administração recrutamento 2026", "portugal_googlenews", undefined, "pt", 25),
-    scrapeGoogleNews("PT", "Portugal vagas emprego público administração governo concurso abertas 2026", "portugal_googlenews2", undefined, "pt", 25),
-    scrapeGoogleNews("PT", "Portugal emprego público SNS saúde educação governo candidatura 2026", "portugal_googlenews3", undefined, "pt", 20),
-  ]);
-  addRows(gn1.rows); errores.push(...gn1.errores);
-  addRows(gn2.rows); errores.push(...gn2.errores);
-  addRows(gn3.rows); errores.push(...gn3.errores);
+  // 1. IEFP BEP — Bolsa de Emprego Público (portal oficial do Estado)
+  const bepUrls = [
+    "https://www.bep.gov.pt/pages/home.aspx",
+    "https://www.iefp.pt/en/job-seekers",
+  ];
+  for (const bepUrl of bepUrls) {
+    const html = await fetchViaScraperAPI(bepUrl, "pt", 18000) ?? await fetchUrl(bepUrl, 12000);
+    if (!html) { errores.push(`PT: BEP ${bepUrl} inaccesible`); continue; }
+    const re = /href="([^"]{10,200})"[^>]*>([^<]{8,120})<\/a>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(html)) !== null && rows.length < 60) {
+      const titulo = stripHtml(m[2]).trim();
+      if (titulo.length < 8 || /menu|nav|login|regist|ajuda|cookie/i.test(titulo)) continue;
+      const href = m[1].startsWith("http") ? m[1] : `https://www.bep.gov.pt${m[1]}`;
+      const fuente_id = href.replace(/\W/g, "_").slice(-48);
+      if (seen.has(fuente_id)) continue;
+      seen.add(fuente_id);
+      rows.push({
+        fuente_id, fuente: "portugal_bep", pais: "PT",
+        numero_llamado: null, titulo, cargo: titulo, organismo: null,
+        descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+        lugar: "Portugal", fecha_inicio: null, fecha_cierre: sumarDias(null, 60), puestos: 1,
+        url_detalle: href, url_postulacion: href,
+        keywords: extraerKeywords(titulo), activo: true,
+      });
+    }
+    if (rows.length > 5) break;
+  }
 
-  // Adzuna multi-búsqueda Portugal — 10 ciudades × 8 categorías = 80 queries
+  // 2. DGAEP — concursos sector público (Direção-Geral Administração e Emprego Público)
+  const dgaepHtml = await fetchViaScraperAPI("https://www.dgaep.gov.pt/index.cfm?OBJID=c4a04050-9c12-4dc0-bdb1-c4b7c31a66b1", "pt", 18000)
+    ?? await fetchUrl("https://www.dgaep.gov.pt/", 12000);
+  if (dgaepHtml) {
+    const re2 = /href="([^"]{10,200}concurso[^"]{0,100})"[^>]*>([^<]{8,120})<\/a>/gi;
+    let m2: RegExpExecArray | null;
+    while ((m2 = re2.exec(dgaepHtml)) !== null && rows.length < 80) {
+      const titulo = stripHtml(m2[2]).trim();
+      if (titulo.length < 8) continue;
+      const href = m2[1].startsWith("http") ? m2[1] : `https://www.dgaep.gov.pt${m2[1]}`;
+      const fuente_id = href.replace(/\W/g, "_").slice(-48);
+      if (seen.has(fuente_id)) continue;
+      seen.add(fuente_id);
+      rows.push({
+        fuente_id, fuente: "portugal_dgaep", pais: "PT",
+        numero_llamado: null, titulo, cargo: titulo, organismo: "DGAEP",
+        descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+        lugar: "Portugal", fecha_inicio: null, fecha_cierre: sumarDias(null, 60), puestos: 1,
+        url_detalle: href, url_postulacion: href,
+        keywords: extraerKeywords(titulo), activo: true,
+      });
+    }
+  }
+
+  // 3. Indeed PT + Jooble en paralelo
+  const [ind1, ind2, jb1, jb2] = await Promise.all([
+    scrapeIndeed("pt", "emprego trabalho vaga", "PT", "portugal_indeed"),
+    scrapeIndeed("pt", "concurso público governo administração", "PT", "portugal_indeed2"),
+    scrapeJooble("emprego trabalho vaga Portugal Lisboa Porto", "Portugal", "PT", "portugal_jooble"),
+    scrapeJooble("concurso público governo administração Portugal", "Portugal", "PT", "portugal_jooble2"),
+  ]);
+  for (const r of [ind1, ind2, jb1, jb2]) { addRows(r.rows); errores.push(...r.errores); }
+
+  // 4. Adzuna multi-búsqueda Portugal — 10 ciudades × 8 categorías = 80 queries
   const PT_CIDADES = ["Lisboa","Porto","Braga","Setubal","Coimbra","Almada","Funchal","Aveiro","Loures","Sintra"];
   const PT_CATS    = ["tecnologia","vendas","engenharia","saude","logistica","construcao","hotelaria","administracao"];
   const azPT = await adzunaMultiSearch("PT","pt", PT_CIDADES, PT_CATS, "pt-PT,pt;q=0.9,en;q=0.8", seen);
