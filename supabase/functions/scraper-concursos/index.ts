@@ -8,6 +8,7 @@ const supabase = createClient(
 
 const USAJOBS_API_KEY  = Deno.env.get("USAJOBS_API_KEY")  ?? "";
 const CF_PROXY         = Deno.env.get("CF_PROXY_URL")     ?? "";
+const PROXY_SECRET     = Deno.env.get("PROXY_SECRET")     ?? "";
 const SCRAPER_API_KEY  = Deno.env.get("SCRAPER_API_KEY")  ?? "";
 // ADZUNA: leído dentro de la función para evitar problema de módulo-scope en Deno Deploy
 
@@ -157,7 +158,8 @@ function stripHtml(html: string): string {
 async function fetchViaProxy(url: string, timeoutMs = 15000): Promise<string | null> {
   if (!CF_PROXY) return null;
   const proxyUrl = `${CF_PROXY}${encodeURIComponent(url)}`;
-  return fetchUrl(proxyUrl, timeoutMs);
+  const extra = PROXY_SECRET ? { "x-proxy-token": PROXY_SECRET } : {};
+  return fetchUrl(proxyUrl, timeoutMs, extra);
 }
 
 async function fetchViaScraperAPI(url: string, countryCode: string, timeoutMs = 20000): Promise<string | null> {
@@ -581,14 +583,16 @@ function parseComputrabajo(
   }
 }
 
-// Fetch Computrabajo: intento directo (falla rápido ante Cloudflare), luego
-// ScraperAPI con proxy residencial del país que sí bypass CF desde AWS.
+// Fetch Computrabajo: directo → Vercel Edge proxy (corre en Cloudflare) → ScraperAPI.
 async function fetchCT(url: string, countryCode: string, _timeoutMs = 3000): Promise<string | null> {
   const direct = await fetchUrl(url, 2000);
   if (direct && direct.includes("<article")) return direct;
-  // Cloudflare bloqueó → ScraperAPI con proxy del país (residencial)
-  const viaProxy = await fetchViaScraperAPI(url, countryCode.toLowerCase(), 25000);
-  if (viaProxy && viaProxy.includes("<article")) return viaProxy;
+  // Cloudflare bloqueó desde AWS → Vercel Edge proxy (corre en la red de Cloudflare)
+  const viaVercel = await fetchViaProxy(url, 20000);
+  if (viaVercel && viaVercel.includes("<article")) return viaVercel;
+  // Fallback: ScraperAPI con proxy residencial del país
+  const viaScraper = await fetchViaScraperAPI(url, countryCode.toLowerCase(), 25000);
+  if (viaScraper && viaScraper.includes("<article")) return viaScraper;
   return null;
 }
 
