@@ -164,7 +164,7 @@ export default async function PaisPage({ params }) {
       />
 
       <nav className="nav">
-        <Link href="/" className="nav-logo">Nexu<span style={{fontSize:"0.5em",marginLeft:"-2px",verticalAlign:"bottom",lineHeight:1}}>🧩</span></Link>
+        <Link href="/" className="nav-logo"><span>Nexu</span><span style={{fontSize:"0.5em",marginLeft:"-2px",lineHeight:1}}>🧩</span></Link>
         <a href="/download" className="nav-btn">{t(lang, 'nav_download')}</a>
       </nav>
 
