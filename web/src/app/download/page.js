@@ -28,7 +28,7 @@ export default async function DownloadPage() {
         position: 'sticky', top: 0, zIndex: 100,
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
-        <Link href="/" style={{ display:'inline-flex', alignItems:'center', background:'#151c2c', border:'2.5px solid #E8785A', borderRadius:14, padding:'4px 14px', color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-0.5, textDecoration:'none' }}>Nexu<span style={{fontSize:'0.72em',marginLeft:'1px',verticalAlign:'sub'}}>🧩</span></Link>
+        <Link href="/" style={{ display:'inline-flex', alignItems:'flex-end', background:'#151c2c', border:'2.5px solid #E8785A', borderRadius:14, padding:'4px 14px', color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-0.5, textDecoration:'none' }}>Nexu<span style={{fontSize:'0.5em',marginLeft:'-2px',verticalAlign:'bottom',lineHeight:1}}>🧩</span></Link>
         <Link href="/empleos" style={{ color: '#94A3B8', fontSize: 13, fontWeight: 600 }}>Ver empleos →</Link>
       </nav>
 

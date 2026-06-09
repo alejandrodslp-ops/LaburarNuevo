@@ -44,7 +44,7 @@ export default function EmpleadorLayout({ children }) {
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {!isLogin && (
         <nav style={{ background: 'var(--dark)', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', position: 'sticky', top: 0, zIndex: 100 }}>
-          <a href="/empleador" style={{ display:'inline-flex', alignItems:'center', background:'#151c2c', border:'2px solid var(--coral)', borderRadius:12, padding:'4px 13px', color:'var(--coral)', fontWeight:900, fontSize:20, letterSpacing:'-0.5px', textDecoration:'none' }}>Nexu<span style={{fontSize:'0.72em',marginLeft:'1px',verticalAlign:'sub'}}>🧩</span></a>
+          <a href="/empleador" style={{ display:'inline-flex', alignItems:'flex-end', background:'#151c2c', border:'2px solid var(--coral)', borderRadius:12, padding:'4px 13px', color:'var(--coral)', fontWeight:900, fontSize:20, letterSpacing:'-0.5px', textDecoration:'none' }}>Nexu<span style={{fontSize:'0.5em',marginLeft:'-2px',verticalAlign:'bottom',lineHeight:1}}>🧩</span></a>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <NavLink href="/empleador" label="Dashboard" pathname={pathname} />
             <NavLink href="/empleador/ofertas" label="Mis ofertas" pathname={pathname} />

@@ -139,7 +139,7 @@ export default async function CategoriaPage({ params }) {
       />
 
       <nav className="nav">
-        <Link href="/" className="nav-logo">Nexu<span style={{fontSize:"0.72em",marginLeft:"1px",verticalAlign:"sub"}}>🧩</span></Link>
+        <Link href="/" className="nav-logo">Nexu<span style={{fontSize:"0.5em",marginLeft:"-2px",verticalAlign:"bottom",lineHeight:1}}>🧩</span></Link>
         <a href="/download" className="nav-btn">{t(lang, 'nav_download')}</a>
       </nav>
 
