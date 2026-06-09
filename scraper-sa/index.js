@@ -344,6 +344,49 @@ async function scrapeComputrabajoPaginas(cc, ccUpper, fuente, numPages = 5) {
   return rows;
 }
 
+// Sector privado — /empleos (requiere proxy, mismo patrón que gobierno)
+async function scrapeComputrabajoPrivadoPaginas(cc, ccUpper, fuente, numPages = 5) {
+  const base = `https://${cc}.computrabajo.com`;
+  const rows = [];
+  const seen = new Set();
+  for (let pg = 1; pg <= numPages; pg++) {
+    const url  = pg === 1
+      ? `${base}/empleos`
+      : `${base}/empleos?pg=${pg}`;
+    const html = await fetchCT(url, { timeout: 20000 });
+    if (!html || !html.includes('<article')) {
+      console.log(`    ⚠ CT ${cc} privado pg${pg}: sin articles`);
+      break;
+    }
+    const $ = cheerio.load(html);
+    $('article').each((_, el) => {
+      const tituloEl = $('h2 a, .title_offer a, a[title]', el).first();
+      const titulo   = tituloEl.attr('title') || tituloEl.text().trim();
+      if (!titulo || titulo.length < 4) return;
+      const href    = tituloEl.attr('href') || '';
+      const link    = href.startsWith('http') ? href : `${base}${href}`;
+      const id      = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      const empresa = $('[class*="name_offer"],[class*="company"],[class*="fs16"]', el).first().text().trim() || null;
+      const ciudad  = $('[class*="detail"] li, [class*="ubic"] span', el).first().text().trim() || null;
+      const cierre  = new Date(Date.now() + 45 * 86400000).toISOString().slice(0, 10);
+      rows.push(makeRow({
+        fuente_id: id, fuente, pais: ccUpper,
+        titulo: empresa ? `${titulo} — ${empresa}` : titulo,
+        cargo: titulo, organismo: empresa || null,
+        lugar: ciudad || null,
+        fecha_cierre: cierre,
+        url_detalle: link, url_postulacion: link,
+        tipo_vinculo: 'privado',
+        keywords: extraerKeywords(`${titulo} ${empresa || ''}`),
+      }));
+    });
+    console.log(`    CT ${cc} privado pg${pg}: ${rows.length} acumulado`);
+  }
+  return rows;
+}
+
 // ─── JOOBLE API ───────────────────────────────────────────────────────────────
 // Cobertura: ~70 países incluyendo toda LatAm
 // Registro gratis en: https://jooble.org/api/about
@@ -703,13 +746,15 @@ async function scrapePerú() {
 // ─── PARAGUAY ────────────────────────────────────────────────────────────────
 async function scrapeParaguay() {
   console.log('🇵🇾 Paraguay...');
-  const [ct, ind] = await Promise.all([
+  const [ct, ctPriv, ind] = await Promise.all([
     scrapeComputrabajoPaginas('py', 'PY', 'paraguay_ct', 6),
+    scrapeComputrabajoPrivadoPaginas('py', 'PY', 'paraguay_ct_privado', 5),
     fetchRSS(`https://py.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'PY', 'paraguay_indeed', { tipo_vinculo: 'privado' }),
   ]);
   let total = 0;
-  if (ct.length  > 0) { total += await upsert(ct,  'paraguay_ct');     console.log(`  ✓ ${ct.length} CT`); }
-  if (ind.length > 0) { total += await upsert(ind, 'paraguay_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (ct.length     > 0) { total += await upsert(ct,     'paraguay_ct');         console.log(`  ✓ ${ct.length} CT gov`); }
+  if (ctPriv.length > 0) { total += await upsert(ctPriv, 'paraguay_ct_privado'); console.log(`  ✓ ${ctPriv.length} CT priv`); }
+  if (ind.length    > 0) { total += await upsert(ind,    'paraguay_indeed');      console.log(`  ✓ ${ind.length} Indeed`); }
   if (total === 0) console.log('  ⚠ sin resultados');
   return total;
 }
@@ -717,13 +762,15 @@ async function scrapeParaguay() {
 // ─── BOLIVIA ─────────────────────────────────────────────────────────────────
 async function scrapeBolivia() {
   console.log('🇧🇴 Bolivia...');
-  const [ct, ind] = await Promise.all([
+  const [ct, ctPriv, ind] = await Promise.all([
     scrapeComputrabajoPaginas('bo', 'BO', 'bolivia_ct', 6),
+    scrapeComputrabajoPrivadoPaginas('bo', 'BO', 'bolivia_ct_privado', 5),
     fetchRSS(`https://bo.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'BO', 'bolivia_indeed', { tipo_vinculo: 'privado' }),
   ]);
   let total = 0;
-  if (ct.length  > 0) { total += await upsert(ct,  'bolivia_ct');     console.log(`  ✓ ${ct.length} CT`); }
-  if (ind.length > 0) { total += await upsert(ind, 'bolivia_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (ct.length     > 0) { total += await upsert(ct,     'bolivia_ct');         console.log(`  ✓ ${ct.length} CT gov`); }
+  if (ctPriv.length > 0) { total += await upsert(ctPriv, 'bolivia_ct_privado'); console.log(`  ✓ ${ctPriv.length} CT priv`); }
+  if (ind.length    > 0) { total += await upsert(ind,    'bolivia_indeed');      console.log(`  ✓ ${ind.length} Indeed`); }
   if (total === 0) console.log('  ⚠ sin resultados');
   return total;
 }
@@ -731,13 +778,15 @@ async function scrapeBolivia() {
 // ─── ECUADOR ─────────────────────────────────────────────────────────────────
 async function scrapeEcuador() {
   console.log('🇪🇨 Ecuador...');
-  const [ct, ind] = await Promise.all([
+  const [ct, ctPriv, ind] = await Promise.all([
     scrapeComputrabajoPaginas('ec', 'EC', 'ecuador_ct', 6),
+    scrapeComputrabajoPrivadoPaginas('ec', 'EC', 'ecuador_ct_privado', 5),
     fetchRSS(`https://ec.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'EC', 'ecuador_indeed', { tipo_vinculo: 'privado' }),
   ]);
   let total = 0;
-  if (ct.length  > 0) { total += await upsert(ct,  'ecuador_ct');     console.log(`  ✓ ${ct.length} CT`); }
-  if (ind.length > 0) { total += await upsert(ind, 'ecuador_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (ct.length     > 0) { total += await upsert(ct,     'ecuador_ct');         console.log(`  ✓ ${ct.length} CT gov`); }
+  if (ctPriv.length > 0) { total += await upsert(ctPriv, 'ecuador_ct_privado'); console.log(`  ✓ ${ctPriv.length} CT priv`); }
+  if (ind.length    > 0) { total += await upsert(ind,    'ecuador_indeed');      console.log(`  ✓ ${ind.length} Indeed`); }
   if (total === 0) console.log('  ⚠ sin resultados');
   return total;
 }
@@ -785,13 +834,15 @@ async function scrapeMexico() {
 // ─── VENEZUELA ───────────────────────────────────────────────────────────────
 async function scrapeVenezuela() {
   console.log('🇻🇪 Venezuela...');
-  const [ct, ind] = await Promise.all([
+  const [ct, ctPriv, ind] = await Promise.all([
     scrapeComputrabajoPaginas('ve', 'VE', 'venezuela_ct', 6),
+    scrapeComputrabajoPrivadoPaginas('ve', 'VE', 'venezuela_ct_privado', 5),
     fetchRSS(`https://ve.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'VE', 'venezuela_indeed', { tipo_vinculo: 'privado' }),
   ]);
   let total = 0;
-  if (ct.length  > 0) { total += await upsert(ct,  'venezuela_ct');     console.log(`  ✓ ${ct.length} CT`); }
-  if (ind.length > 0) { total += await upsert(ind, 'venezuela_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (ct.length     > 0) { total += await upsert(ct,     'venezuela_ct');         console.log(`  ✓ ${ct.length} CT gov`); }
+  if (ctPriv.length > 0) { total += await upsert(ctPriv, 'venezuela_ct_privado'); console.log(`  ✓ ${ctPriv.length} CT priv`); }
+  if (ind.length    > 0) { total += await upsert(ind,    'venezuela_indeed');      console.log(`  ✓ ${ind.length} Indeed`); }
   if (total === 0) console.log('  ⚠ sin resultados');
   return total;
 }
@@ -807,13 +858,15 @@ async function scrapeCuba() {
 // ─── COSTA RICA ──────────────────────────────────────────────────────────────
 async function scrapeCostaRica() {
   console.log('🇨🇷 Costa Rica...');
-  const [ct, ind] = await Promise.all([
+  const [ct, ctPriv, ind] = await Promise.all([
     scrapeComputrabajoPaginas('cr', 'CR', 'costarica_ct', 6),
+    scrapeComputrabajoPrivadoPaginas('cr', 'CR', 'costarica_ct_privado', 5),
     fetchRSS(`https://cr.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'CR', 'costarica_indeed', { tipo_vinculo: 'privado' }),
   ]);
   let total = 0;
-  if (ct.length  > 0) { total += await upsert(ct,  'costarica_ct');     console.log(`  ✓ ${ct.length} CT`); }
-  if (ind.length > 0) { total += await upsert(ind, 'costarica_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (ct.length     > 0) { total += await upsert(ct,     'costarica_ct');         console.log(`  ✓ ${ct.length} CT gov`); }
+  if (ctPriv.length > 0) { total += await upsert(ctPriv, 'costarica_ct_privado'); console.log(`  ✓ ${ctPriv.length} CT priv`); }
+  if (ind.length    > 0) { total += await upsert(ind,    'costarica_indeed');      console.log(`  ✓ ${ind.length} Indeed`); }
   if (total === 0) console.log('  ⚠ sin resultados');
   return total;
 }
@@ -846,13 +899,15 @@ async function scrapeGuatemala() {
 // ─── EL SALVADOR ─────────────────────────────────────────────────────────────
 async function scrapeElSalvador() {
   console.log('🇸🇻 El Salvador...');
-  const [ct, ind] = await Promise.all([
+  const [ct, ctPriv, ind] = await Promise.all([
     scrapeComputrabajoPaginas('sv', 'SV', 'elsalvador_ct', 6),
+    scrapeComputrabajoPrivadoPaginas('sv', 'SV', 'elsalvador_ct_privado', 5),
     fetchRSS(`https://sv.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'SV', 'elsalvador_indeed', { tipo_vinculo: 'privado' }),
   ]);
   let total = 0;
-  if (ct.length  > 0) { total += await upsert(ct,  'elsalvador_ct');     console.log(`  ✓ ${ct.length} CT`); }
-  if (ind.length > 0) { total += await upsert(ind, 'elsalvador_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (ct.length     > 0) { total += await upsert(ct,     'elsalvador_ct');         console.log(`  ✓ ${ct.length} CT gov`); }
+  if (ctPriv.length > 0) { total += await upsert(ctPriv, 'elsalvador_ct_privado'); console.log(`  ✓ ${ctPriv.length} CT priv`); }
+  if (ind.length    > 0) { total += await upsert(ind,    'elsalvador_indeed');      console.log(`  ✓ ${ind.length} Indeed`); }
   if (total === 0) console.log('  ⚠ sin resultados');
   return total;
 }
@@ -886,13 +941,15 @@ async function scrapeHonduras() {
 // ─── NICARAGUA ───────────────────────────────────────────────────────────────
 async function scrapeNicaragua() {
   console.log('🇳🇮 Nicaragua...');
-  const [ct, ind] = await Promise.all([
+  const [ct, ctPriv, ind] = await Promise.all([
     scrapeComputrabajoPaginas('ni', 'NI', 'nicaragua_ct', 6),
+    scrapeComputrabajoPrivadoPaginas('ni', 'NI', 'nicaragua_ct_privado', 5),
     fetchRSS(`https://ni.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'NI', 'nicaragua_indeed', { tipo_vinculo: 'privado' }),
   ]);
   let total = 0;
-  if (ct.length  > 0) { total += await upsert(ct,  'nicaragua_ct');     console.log(`  ✓ ${ct.length} CT`); }
-  if (ind.length > 0) { total += await upsert(ind, 'nicaragua_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (ct.length     > 0) { total += await upsert(ct,     'nicaragua_ct');         console.log(`  ✓ ${ct.length} CT gov`); }
+  if (ctPriv.length > 0) { total += await upsert(ctPriv, 'nicaragua_ct_privado'); console.log(`  ✓ ${ctPriv.length} CT priv`); }
+  if (ind.length    > 0) { total += await upsert(ind,    'nicaragua_indeed');      console.log(`  ✓ ${ind.length} Indeed`); }
   if (total === 0) console.log('  ⚠ sin resultados');
   return total;
 }
@@ -900,13 +957,15 @@ async function scrapeNicaragua() {
 // ─── PANAMÁ ──────────────────────────────────────────────────────────────────
 async function scrapePanama() {
   console.log('🇵🇦 Panamá...');
-  const [ct, ind] = await Promise.all([
+  const [ct, ctPriv, ind] = await Promise.all([
     scrapeComputrabajoPaginas('pa', 'PA', 'panama_ct', 6),
+    scrapeComputrabajoPrivadoPaginas('pa', 'PA', 'panama_ct_privado', 5),
     fetchRSS(`https://pa.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'PA', 'panama_indeed', { tipo_vinculo: 'privado' }),
   ]);
   let total = 0;
-  if (ct.length  > 0) { total += await upsert(ct,  'panama_ct');     console.log(`  ✓ ${ct.length} CT`); }
-  if (ind.length > 0) { total += await upsert(ind, 'panama_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (ct.length     > 0) { total += await upsert(ct,     'panama_ct');         console.log(`  ✓ ${ct.length} CT gov`); }
+  if (ctPriv.length > 0) { total += await upsert(ctPriv, 'panama_ct_privado'); console.log(`  ✓ ${ctPriv.length} CT priv`); }
+  if (ind.length    > 0) { total += await upsert(ind,    'panama_indeed');      console.log(`  ✓ ${ind.length} Indeed`); }
   if (total === 0) console.log('  ⚠ sin resultados');
   return total;
 }
@@ -914,13 +973,15 @@ async function scrapePanama() {
 // ─── REPÚBLICA DOMINICANA ────────────────────────────────────────────────────
 async function scrapeRepDominicana() {
   console.log('🇩🇴 Rep. Dominicana...');
-  const [ct, ind] = await Promise.all([
+  const [ct, ctPriv, ind] = await Promise.all([
     scrapeComputrabajoPaginas('do', 'DO', 'dominicana_ct', 6),
+    scrapeComputrabajoPrivadoPaginas('do', 'DO', 'dominicana_ct_privado', 5),
     fetchRSS(`https://do.indeed.com/rss?q=empleo+trabajo+vacante&sort=date`, 'DO', 'dominicana_indeed', { tipo_vinculo: 'privado' }),
   ]);
   let total = 0;
-  if (ct.length  > 0) { total += await upsert(ct,  'dominicana_ct');     console.log(`  ✓ ${ct.length} CT`); }
-  if (ind.length > 0) { total += await upsert(ind, 'dominicana_indeed'); console.log(`  ✓ ${ind.length} Indeed`); }
+  if (ct.length     > 0) { total += await upsert(ct,     'dominicana_ct');         console.log(`  ✓ ${ct.length} CT gov`); }
+  if (ctPriv.length > 0) { total += await upsert(ctPriv, 'dominicana_ct_privado'); console.log(`  ✓ ${ctPriv.length} CT priv`); }
+  if (ind.length    > 0) { total += await upsert(ind,    'dominicana_indeed');      console.log(`  ✓ ${ind.length} Indeed`); }
   if (total === 0) console.log('  ⚠ sin resultados');
   return total;
 }

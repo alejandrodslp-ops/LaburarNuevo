@@ -3,15 +3,29 @@ export const runtime = 'edge';
 const SECRET = process.env.PROXY_SECRET ?? '';
 
 const ALLOWED = new Set([
+  // Computrabajo — LatAm
   'bo.computrabajo.com', 'ec.computrabajo.com', 'py.computrabajo.com',
   've.computrabajo.com', 'cr.computrabajo.com', 'sv.computrabajo.com',
   'ni.computrabajo.com', 'pa.computrabajo.com', 'do.computrabajo.com',
   'ar.computrabajo.com', 'cl.computrabajo.com', 'co.computrabajo.com',
   'pe.computrabajo.com', 'mx.computrabajo.com', 'hn.computrabajo.com',
-  'gt.computrabajo.com', 'cu.computrabajo.com',
+  'gt.computrabajo.com', 'cu.computrabajo.com', 'br.computrabajo.com',
+  // México
   'dof.gob.mx', 'www.dof.gob.mx',
+  // Colombia
   'cnsc.gov.co', 'www.cnsc.gov.co',
+  // Canada
   'jobs.gc.ca', 'emplois.gc.ca',
+  // Portugal — BEP (Banco de Emprego Público) + IEFP
+  'bep.gov.pt', 'www.bep.gov.pt',
+  'emprego.gov.pt', 'www.emprego.gov.pt',
+  'iefp.pt', 'www.iefp.pt',
+  // Japan — NPA + HelloWork
+  'www.jinji.go.jp', 'jinji.go.jp',
+  'jrecin.jst.go.jp',
+  // Indeed — varios países (via proxy para bypass CF)
+  'pt.indeed.com', 'jp.indeed.com',
+  'au.indeed.com', 'ca.indeed.com',
 ]);
 
 export async function GET(request) {

@@ -1589,8 +1589,8 @@ async function scrapeEspana(): Promise<{ rows: ConcursoRow[]; errores: string[] 
 }
 
 // ─────────────────────────────────────────────────────────────
-// PARSER: Portugal — IEFP BEP + Adzuna + Indeed PT + Jooble
-// IEFP = Instituto do Emprego e Formação Profissional (portal oficial)
+// PARSER: Portugal — BEP (Banco Emprego Público) via proxy + Jooble
+// Adzuna no soporta country code "pt" → removido
 // ─────────────────────────────────────────────────────────────
 async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const errores: string[] = [];
@@ -1598,20 +1598,50 @@ async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[
   const seen = new Set<string>();
   const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  // 1. Indeed PT + Jooble en paralelo
-  const [ind1, ind2, jb1, jb2] = await Promise.all([
-    scrapeIndeed("pt", "emprego trabalho vaga", "PT", "portugal_indeed"),
-    scrapeIndeed("pt", "concurso público governo administração", "PT", "portugal_indeed2"),
+  // 1. BEP — Banco de Emprego Público (portal oficial concursos públicos PT)
+  // Acceso via proxy Vercel para bypass de geo/firewall
+  const BEP_PAGES = [
+    "https://www.bep.gov.pt/pt/concursos?tipoOferta=1",
+    "https://www.bep.gov.pt/pt/concursos?tipoOferta=1&page=2",
+    "https://www.bep.gov.pt/pt/concursos?tipoOferta=1&page=3",
+  ];
+  for (const bepUrl of BEP_PAGES) {
+    const html = await fetchViaProxy(bepUrl, 20000);
+    if (!html || html.length < 500) { errores.push(`PT BEP: sin respuesta ${bepUrl}`); continue; }
+    // BEP usa <li> o <article> con links tipo /pt/concurso/XXXXX
+    const linkRe = /href="(\/pt\/(?:concurso|oferta)\/[^"]+)"/gi;
+    let lm: RegExpExecArray | null;
+    const bepBase = "https://www.bep.gov.pt";
+    while ((lm = linkRe.exec(html)) !== null) {
+      const href = lm[1];
+      const fuente_id = `bep_${href.replace(/\W/g, "_").slice(-40)}`;
+      if (seen.has(fuente_id)) continue;
+      seen.add(fuente_id);
+      // Extraer título del contexto cercano
+      const ctx = html.slice(Math.max(0, lm.index - 200), lm.index + 300);
+      const tm = ctx.match(/>([^<]{8,100})</);
+      const titulo = tm ? stripHtml(tm[1]).trim() : href.split("/").pop()?.replace(/-/g, " ") ?? "";
+      if (titulo.length < 5) continue;
+      rows.push({
+        fuente_id, fuente: "portugal_bep", pais: "PT",
+        numero_llamado: null, titulo, cargo: titulo,
+        organismo: null, descripcion: null, requisitos: null,
+        tipo_tarea: null, tipo_vinculo: "publico", lugar: "Portugal",
+        fecha_inicio: null, fecha_cierre: sumarDias(null, 45),
+        puestos: 1,
+        url_detalle: `${bepBase}${href}`, url_postulacion: `${bepBase}${href}`,
+        keywords: extraerKeywords(titulo), activo: true,
+      });
+    }
+    if (rows.length > 0) break; // Suficientes resultados de la primera página
+  }
+
+  // 2. Jooble Portugal (privado + público)
+  const [jb1, jb2] = await Promise.all([
     scrapeJooble("emprego trabalho vaga Portugal Lisboa Porto", "Portugal", "PT", "portugal_jooble"),
     scrapeJooble("concurso público governo administração Portugal", "Portugal", "PT", "portugal_jooble2"),
   ]);
-  for (const r of [ind1, ind2, jb1, jb2]) { addRows(r.rows); errores.push(...r.errores); }
-
-  // 2. Adzuna multi-búsqueda Portugal — 10 ciudades × 8 categorías = 80 queries
-  const PT_CIDADES = ["Lisboa","Porto","Braga","Setubal","Coimbra","Almada","Funchal","Aveiro","Loures","Sintra"];
-  const PT_CATS    = ["tecnologia","vendas","engenharia","saude","logistica","construcao","hotelaria","administracao"];
-  const azPT = await adzunaMultiSearch("PT","pt", PT_CIDADES, PT_CATS, "pt-PT,pt;q=0.9,en;q=0.8", seen);
-  rows.push(...azPT);
+  for (const r of [jb1, jb2]) { addRows(r.rows); errores.push(...r.errores); }
 
   return { rows, errores };
 }
@@ -2606,8 +2636,21 @@ async function scrapeJapan(): Promise<{ rows: ConcursoRow[]; errores: string[] }
     }
   }
 
+  if (rows.length === 0) errores.push("JP: NPA sin resultados parseables");
+
+  // 2. Jooble Japan — sector privado + público en japonés e inglés
+  const seen = new Set(rows.map(r => r.fuente_id));
+  const [jb1, jb2, jb3] = await Promise.all([
+    scrapeJooble("求人 仕事 採用 正社員 東京 大阪", "日本", "JP", "japon_jooble"),
+    scrapeJooble("government jobs Japan recruitment Tokyo Osaka", "Japan", "JP", "japon_jooble2"),
+    scrapeJooble("仕事 派遣 アルバイト 正社員 名古屋 福岡", "日本", "JP", "japon_jooble3"),
+  ]);
+  for (const r of [jb1, jb2, jb3]) {
+    for (const x of r.rows) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } }
+    errores.push(...r.errores);
+  }
+
   if (rows.length === 0) {
-    errores.push("JP: NPA sin resultados parseables");
     const gn = await scrapeGoogleNews("US", "Japan government jobs recruitment vacancy 2026", "japon_googlenews", "JP", "en", 21);
     return { rows: gn.rows, errores: [...errores, ...gn.errores] };
   }
