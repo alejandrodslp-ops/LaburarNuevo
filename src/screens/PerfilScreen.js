@@ -344,6 +344,12 @@ export default function PerfilScreen({navigation}){
         </View>
 
         {esWorker&&(
+          <Sec titulo="HERRAMIENTAS">
+            <Fila icono="📄" titulo="Mi CV" subtitulo="Creá y exportá tu currículum profesional" onPress={()=>navigation.navigate('CV')}/>
+          </Sec>
+        )}
+
+        {esWorker&&(
           <CoachMarkEditarBtn visible={coachEditarPendiente} onDismiss={dismissCoachEditar}/>
         )}
 

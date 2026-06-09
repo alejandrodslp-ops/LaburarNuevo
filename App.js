@@ -45,6 +45,7 @@ import PerfilTrabajadorScreen from "./src/screens/employer/PerfilTrabajadorScree
 import HistorialScreen from "./src/screens/employer/HistorialScreen";
 import OfertasEmpleadorScreen from "./src/screens/employer/OfertasEmpleadorScreen";
 import CrearOfertaScreen from "./src/screens/employer/CrearOfertaScreen";
+import CVScreen from "./src/screens/worker/CVScreen";
 import TerminosScreen from "./src/screens/TerminosScreen";
 import PrivacidadScreen from "./src/screens/PrivacidadScreen";
 import AdminScreen from "./src/screens/admin/AdminScreen";
@@ -112,6 +113,7 @@ function PerfilStack(){
       <Stack.Screen name="SelectorOficio" component={SelectorOficioScreen} options={{presentation:"modal"}}/>
       <Stack.Screen name="Historial" component={HistorialScreen}/>
       <Stack.Screen name="PerfilTrabajador" component={PerfilTrabajadorScreen}/>
+      <Stack.Screen name="CV" component={CVScreen}/>
       <Stack.Screen name="Terminos" component={TerminosScreen}/>
       <Stack.Screen name="Privacidad" component={PrivacidadScreen}/>
       <Stack.Screen name="Admin" component={AdminScreen}/>
