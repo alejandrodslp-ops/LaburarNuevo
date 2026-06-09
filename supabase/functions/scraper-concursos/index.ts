@@ -377,6 +377,52 @@ async function scrapeIndeed(
 
 // ─────────────────────────────────────────────────────────────
 // HELPER: Jooble API — agrega múltiples búsquedas por keywords
+// ─────────────────────────────────────────────────────────────
+// JOBICY — API pública gratuita, ~50 empleos remotos por país
+// No requiere API key. URL: https://jobicy.com/api/v2/remote-jobs?count=50&geo=PAIS
+// ─────────────────────────────────────────────────────────────
+async function scrapeJobicy(
+  geo: string, pais: string, fuente: string
+): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const rows: ConcursoRow[] = [];
+  const errores: string[] = [];
+  try {
+    const url = `https://jobicy.com/api/v2/remote-jobs?count=50&geo=${encodeURIComponent(geo)}`;
+    const res = await fetchUrl(url, 12000);
+    if (!res) { errores.push(`Jobicy ${geo}: sin respuesta`); return { rows, errores }; }
+    const d = JSON.parse(res);
+    const jobs: Record<string, unknown>[] = Array.isArray(d) ? d : (d.jobs ?? []);
+    const hoy = new Date().toISOString().slice(0, 10);
+    for (const j of jobs.slice(0, 50)) {
+      const titulo = String(j.jobTitle ?? "").trim();
+      const empresa = String(j.companyName ?? "").trim();
+      if (titulo.length < 4) continue;
+      const id = String(j.id ?? "").replace(/\W/g, "").slice(0, 48) || titulo.replace(/\W/g, "").slice(0, 48);
+      const link = String(j.url ?? "");
+      const pubDate = j.pubDate ? String(j.pubDate).slice(0, 10) : null;
+      const cierre = pubDate && pubDate >= hoy ? sumarDias(pubDate, 30) : sumarDias(null, 30);
+      rows.push({
+        fuente_id: id, fuente, pais,
+        numero_llamado: null,
+        titulo: empresa ? `${titulo} — ${empresa}` : titulo,
+        cargo: titulo, organismo: empresa || null,
+        descripcion: String(j.jobExcerpt ?? "").slice(0, 600) || null,
+        requisitos: null, tipo_tarea: null, tipo_vinculo: "privado",
+        lugar: String(j.jobGeo ?? geo),
+        fecha_inicio: null, fecha_cierre: cierre,
+        puestos: 1,
+        url_detalle: link || null, url_postulacion: link || null,
+        keywords: extraerKeywords(`${titulo} ${empresa} ${j.jobIndustry ?? ""}`),
+        activo: true,
+      });
+    }
+    console.log(`Jobicy ${geo}: ${rows.length} resultados`);
+  } catch (e) {
+    errores.push(`Jobicy ${geo}: ${(e as Error).message}`);
+  }
+  return { rows, errores };
+}
+
 // Cubre ~70 países incluyendo toda LatAm. Requiere JOOBLE_API_KEY.
 // ─────────────────────────────────────────────────────────────
 async function scrapeJooble(
@@ -1598,6 +1644,10 @@ async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[
   const seen = new Set<string>();
   const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
+  // Jobicy — API pública, empleos remotos con sede en Portugal
+  const jbcy = await scrapeJobicy("portugal", "PT", "portugal_jobicy");
+  addRows(jbcy.rows); errores.push(...jbcy.errores);
+
   // Jooble Portugal — múltiples queries para maximizar cobertura
   const joobleResults = await Promise.all([
     scrapeJooble("emprego trabalho Lisboa Porto", "Portugal", "PT", "portugal_jooble"),
@@ -2603,14 +2653,15 @@ async function scrapeJapan(): Promise<{ rows: ConcursoRow[]; errores: string[] }
 
   if (rows.length === 0) errores.push("JP: NPA sin resultados parseables");
 
-  // 2. Jooble Japan — sector privado + público en japonés e inglés
+  // 2. Jobicy + Jooble Japan — sector privado en japonés e inglés
   const seen = new Set(rows.map(r => r.fuente_id));
-  const [jb1, jb2, jb3] = await Promise.all([
+  const [jbcy, jb1, jb2, jb3] = await Promise.all([
+    scrapeJobicy("japan", "JP", "japon_jobicy"),
     scrapeJooble("求人 仕事 採用 正社員 東京 大阪", "日本", "JP", "japon_jooble"),
     scrapeJooble("government jobs Japan recruitment Tokyo Osaka", "Japan", "JP", "japon_jooble2"),
     scrapeJooble("仕事 派遣 アルバイト 正社員 名古屋 福岡", "日本", "JP", "japon_jooble3"),
   ]);
-  for (const r of [jb1, jb2, jb3]) {
+  for (const r of [jbcy, jb1, jb2, jb3]) {
     for (const x of r.rows) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } }
     errores.push(...r.errores);
   }
