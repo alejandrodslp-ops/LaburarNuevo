@@ -345,16 +345,17 @@ async function scrapeComputrabajoPaginas(cc, ccUpper, fuente, numPages = 5) {
 }
 
 // Ciudades principales por país para scraping privado en CT
+// Usar slugs de nivel provincia/dpto (cubren más empleos que ciudad específica)
 const CT_CIUDADES = {
-  py: ['asuncion', 'ciudad-del-este', 'luque'],
+  py: ['asuncion', 'central', 'alto-parana'],
   bo: ['santa-cruz', 'la-paz', 'cochabamba'],
-  ec: ['guayaquil', 'quito', 'cuenca'],
-  ve: ['caracas', 'maracaibo', 'valencia'],
+  ec: ['guayas', 'pichincha', 'azuay'],
+  ve: ['distrito-capital', 'carabobo', 'miranda'],
   cr: ['san-jose', 'heredia', 'alajuela'],
-  sv: ['san-salvador', 'santa-ana', 'soyapango'],
-  ni: ['managua', 'leon'],
-  pa: ['ciudad-de-panama', 'colon', 'david'],
-  do: ['santo-domingo', 'santiago', 'san-cristobal'],
+  sv: ['san-salvador', 'la-libertad', 'santa-ana'],
+  ni: ['managua', 'matagalpa'],
+  pa: ['panama', 'colon'],
+  do: ['santo-domingo', 'distrito-nacional', 'santiago'],
   ar: ['buenos-aires', 'cordoba', 'rosario'],
   cl: ['santiago', 'valparaiso', 'concepcion'],
   co: ['bogota', 'medellin', 'cali'],
