@@ -200,33 +200,32 @@ export default function CVScreen({ navigation }) {
               text-transform:uppercase; letter-spacing:2.2pt; text-align:center;
               margin-bottom:24pt; }
 
-  .s-sep    { height:1pt; background:linear-gradient(to right,transparent,#2E2E2E,transparent);
-              margin:13pt 0; }
+  .s-sep    { height:0.5pt; background:#3A3A3A; margin:13pt 0; }
   .s-cat    { font-family:Helvetica,Arial,sans-serif; font-size:6.5pt; font-weight:bold;
               color:#C9A96E; text-transform:uppercase; letter-spacing:2.5pt;
               margin-bottom:9pt; }
 
   .s-row    { margin-bottom:6pt; }
-  .s-lbl    { font-family:Helvetica,Arial,sans-serif; font-size:6.5pt; color:#555;
+  .s-lbl    { font-family:Helvetica,Arial,sans-serif; font-size:6.5pt; color:#999;
               text-transform:uppercase; letter-spacing:0.8pt; margin-bottom:1pt; }
-  .s-val    { font-family:Helvetica,Arial,sans-serif; font-size:9pt; color:#C8C8C8; line-height:1.45; }
+  .s-val    { font-family:Helvetica,Arial,sans-serif; font-size:9pt; color:#D8D8D8; line-height:1.45; }
 
   /* idiomas */
-  .l-name   { font-family:Helvetica,Arial,sans-serif; font-size:9pt; color:#E0E0E0;
+  .l-name   { font-family:Helvetica,Arial,sans-serif; font-size:9pt; color:#E8E8E8;
               font-weight:bold; margin-bottom:3pt; }
-  .l-track  { height:2.5pt; background:#2A2A2A; margin-bottom:2pt; overflow:hidden; }
+  .l-track  { height:2.5pt; background:#333333; margin-bottom:2pt; overflow:hidden; }
   .l-fill   { height:2.5pt; background:#C9A96E; }
-  .l-lv     { font-family:Helvetica,Arial,sans-serif; font-size:6.5pt; color:#666; }
+  .l-lv     { font-family:Helvetica,Arial,sans-serif; font-size:6.5pt; color:#AAAAAA; }
 
   /* habilidades — pastillas */
   .sk-wrap  { margin-bottom:5pt; }
-  .sk-pill  { font-family:Helvetica,Arial,sans-serif; font-size:7.5pt; color:#D0D0D0;
-              border:0.5pt solid #2E2E2E; padding:2pt 6pt; display:inline-block;
+  .sk-pill  { font-family:Helvetica,Arial,sans-serif; font-size:7.5pt; color:#D8D8D8;
+              border:0.5pt solid #444444; padding:2pt 6pt; display:inline-block;
               margin:0 3pt 3pt 0; }
 
   /* certs */
-  .c-name   { font-family:Helvetica,Arial,sans-serif; font-size:8.5pt; color:#E0E0E0; font-weight:bold; }
-  .c-sub    { font-family:Helvetica,Arial,sans-serif; font-size:7.5pt; color:#666; margin-top:1pt; }
+  .c-name   { font-family:Helvetica,Arial,sans-serif; font-size:8.5pt; color:#E8E8E8; font-weight:bold; }
+  .c-sub    { font-family:Helvetica,Arial,sans-serif; font-size:7.5pt; color:#AAAAAA; margin-top:1pt; }
 
   /* ── MAIN HEADER ─────────────────────────────── */
   .m-hdr    { background:#111111; padding:34pt 38pt 26pt; }
