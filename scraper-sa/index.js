@@ -33,10 +33,13 @@ const TEST_MODE  = process.argv.includes('--test');
 const SOLO_PAIS  = process.env.PAIS?.toUpperCase() || null;
 
 const HEADERS = {
-  'User-Agent':      'Mozilla/5.0 (compatible; Nexu/1.0; concursos@nexu.uy)',
+  'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
   'Accept':          'text/html,application/xhtml+xml,*/*;q=0.8',
-  'Accept-Language': 'es,en;q=0.5',
+  'Accept-Language': 'es-419,es;q=0.9,en;q=0.8',
 };
+
+// Vercel Edge proxy (corre en la red de Cloudflare) — bypass CT Cloudflare protection
+const CT_PROXY = 'https://www.nexu.fyi/api/proxy?url=';
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -51,6 +54,14 @@ async function fetchUrl(url, { timeout = 14000, headers = {}, insecure = false }
     if (!res.ok) { console.log(`    ⚠ HTTP ${res.status} → ${url}`); return null; }
     return await res.text();
   } catch (e) { console.log(`    ⚠ fetch error → ${url}: ${e.message}`); return null; }
+}
+
+// Para Computrabajo: intenta directo (falla rápido si CF bloquea) → Vercel Edge proxy
+async function fetchCT(url, { timeout = 20000 } = {}) {
+  const direct = await fetchUrl(url, { timeout: 2000 });
+  if (direct && direct.includes('<article')) return direct;
+  const proxyUrl = CT_PROXY + encodeURIComponent(url);
+  return fetchUrl(proxyUrl, { timeout });
 }
 
 async function fetchJSON(url, { timeout = 14000, headers = {} } = {}) {
@@ -296,10 +307,12 @@ async function scrapeComputrabajoPaginas(cc, ccUpper, fuente, numPages = 5) {
   const rows = [];
   const seen = new Set();
   for (let pg = 1; pg <= numPages; pg++) {
-    const url  = `${base}/trabajo-de-empleo?pg=${pg}`;
-    const html = await fetchUrl(url, { timeout: 15000 });
+    const url  = pg === 1
+      ? `${base}/trabajo-de-gobierno`
+      : `${base}/trabajo-de-gobierno?pg=${pg}`;
+    const html = await fetchCT(url, { timeout: 20000 });
     if (!html || !html.includes('<article')) {
-      console.log(`    ⚠ CT ${cc} pg${pg}: sin articles — posible bloqueo`);
+      console.log(`    ⚠ CT ${cc} pg${pg}: sin articles`);
       break;
     }
     const $ = cheerio.load(html);

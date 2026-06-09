@@ -7,7 +7,7 @@ const supabase = createClient(
 );
 
 const USAJOBS_API_KEY  = Deno.env.get("USAJOBS_API_KEY")  ?? "";
-const CF_PROXY         = Deno.env.get("CF_PROXY_URL")     ?? "";
+const CF_PROXY         = Deno.env.get("CF_PROXY_URL")     ?? "https://www.nexu.fyi/api/proxy?url=";
 const PROXY_SECRET     = Deno.env.get("PROXY_SECRET")     ?? "";
 const SCRAPER_API_KEY  = Deno.env.get("SCRAPER_API_KEY")  ?? "";
 // ADZUNA: leído dentro de la función para evitar problema de módulo-scope en Deno Deploy
@@ -158,7 +158,7 @@ function stripHtml(html: string): string {
 async function fetchViaProxy(url: string, timeoutMs = 15000): Promise<string | null> {
   if (!CF_PROXY) return null;
   const proxyUrl = `${CF_PROXY}${encodeURIComponent(url)}`;
-  const extra = PROXY_SECRET ? { "x-proxy-token": PROXY_SECRET } : {};
+  const extra: Record<string, string> = PROXY_SECRET ? { "x-proxy-token": PROXY_SECRET } : {};
   return fetchUrl(proxyUrl, timeoutMs, extra);
 }
 
