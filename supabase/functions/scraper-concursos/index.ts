@@ -428,7 +428,7 @@ async function scrapeJooble(
         tipo_vinculo: "privado",
         lugar: String(j.location ?? location),
         fecha_inicio: null,
-        fecha_cierre: j.updated ? String(j.updated).slice(0, 10) : sumarDias(null, 30),
+        fecha_cierre: (() => { const hoy = new Date().toISOString().slice(0,10); const u = j.updated ? String(j.updated).slice(0,10) : null; return (u && u >= hoy) ? u : sumarDias(null, 30); })(),
         puestos: 1,
         url_detalle:    link || null,
         url_postulacion: link || null,
@@ -1589,8 +1589,8 @@ async function scrapeEspana(): Promise<{ rows: ConcursoRow[]; errores: string[] 
 }
 
 // ─────────────────────────────────────────────────────────────
-// PARSER: Portugal — BEP (Banco Emprego Público) via proxy + Jooble
-// Adzuna no soporta country code "pt" → removido
+// PARSER: Portugal — Jooble (múltiples queries)
+// BEP requiere login SSO, no scrrapeable. Adzuna no soporta "pt".
 // ─────────────────────────────────────────────────────────────
 async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const errores: string[] = [];
@@ -1598,50 +1598,15 @@ async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[
   const seen = new Set<string>();
   const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  // 1. BEP — Banco de Emprego Público (portal oficial concursos públicos PT)
-  // Acceso via proxy Vercel para bypass de geo/firewall
-  const BEP_PAGES = [
-    "https://www.bep.gov.pt/pt/concursos?tipoOferta=1",
-    "https://www.bep.gov.pt/pt/concursos?tipoOferta=1&page=2",
-    "https://www.bep.gov.pt/pt/concursos?tipoOferta=1&page=3",
-  ];
-  for (const bepUrl of BEP_PAGES) {
-    const html = await fetchViaProxy(bepUrl, 20000);
-    if (!html || html.length < 500) { errores.push(`PT BEP: sin respuesta ${bepUrl}`); continue; }
-    // BEP usa <li> o <article> con links tipo /pt/concurso/XXXXX
-    const linkRe = /href="(\/pt\/(?:concurso|oferta)\/[^"]+)"/gi;
-    let lm: RegExpExecArray | null;
-    const bepBase = "https://www.bep.gov.pt";
-    while ((lm = linkRe.exec(html)) !== null) {
-      const href = lm[1];
-      const fuente_id = `bep_${href.replace(/\W/g, "_").slice(-40)}`;
-      if (seen.has(fuente_id)) continue;
-      seen.add(fuente_id);
-      // Extraer título del contexto cercano
-      const ctx = html.slice(Math.max(0, lm.index - 200), lm.index + 300);
-      const tm = ctx.match(/>([^<]{8,100})</);
-      const titulo = tm ? stripHtml(tm[1]).trim() : href.split("/").pop()?.replace(/-/g, " ") ?? "";
-      if (titulo.length < 5) continue;
-      rows.push({
-        fuente_id, fuente: "portugal_bep", pais: "PT",
-        numero_llamado: null, titulo, cargo: titulo,
-        organismo: null, descripcion: null, requisitos: null,
-        tipo_tarea: null, tipo_vinculo: "publico", lugar: "Portugal",
-        fecha_inicio: null, fecha_cierre: sumarDias(null, 45),
-        puestos: 1,
-        url_detalle: `${bepBase}${href}`, url_postulacion: `${bepBase}${href}`,
-        keywords: extraerKeywords(titulo), activo: true,
-      });
-    }
-    if (rows.length > 0) break; // Suficientes resultados de la primera página
-  }
-
-  // 2. Jooble Portugal (privado + público)
-  const [jb1, jb2] = await Promise.all([
-    scrapeJooble("emprego trabalho vaga Portugal Lisboa Porto", "Portugal", "PT", "portugal_jooble"),
+  // Jooble Portugal — múltiples queries para maximizar cobertura
+  const joobleResults = await Promise.all([
+    scrapeJooble("emprego trabalho Lisboa Porto", "Portugal", "PT", "portugal_jooble"),
     scrapeJooble("concurso público governo administração Portugal", "Portugal", "PT", "portugal_jooble2"),
+    scrapeJooble("vaga emprego engenharia saúde tecnologia Portugal", "Lisboa", "PT", "portugal_jooble3"),
+    scrapeJooble("trabalho part-time full-time contrato Portugal", "Porto", "PT", "portugal_jooble4"),
+    scrapeJooble("recrutamento seleção candidatura emprego Portugal", "Portugal", "PT", "portugal_jooble5"),
   ]);
-  for (const r of [jb1, jb2]) { addRows(r.rows); errores.push(...r.errores); }
+  for (const r of joobleResults) { addRows(r.rows); errores.push(...r.errores); }
 
   return { rows, errores };
 }
