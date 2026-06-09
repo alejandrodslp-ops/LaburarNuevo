@@ -8,7 +8,7 @@ import JobsRealtime from '../../../JobsRealtime'
 
 export const revalidate = 600
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.app'
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.fyi'
 
 // Slug en URL → código ISO 2 letras
 const SLUG_A_CODIGO = {
@@ -228,7 +228,7 @@ export default async function PaisPage({ params }) {
 
       <footer className="footer">
         <p>
-          © {new Date().getFullYear()} Nexu · nexu.app ·{' '}
+          © {new Date().getFullYear()} Nexu · nexu.fyi ·{' '}
           <Link href="/empleos" style={{ color: 'inherit' }}>{t(lang, 'footer_jobs')}</Link>
         </p>
       </footer>

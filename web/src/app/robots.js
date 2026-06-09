@@ -1,4 +1,4 @@
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.app'
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.fyi'
 
 export default function robots() {
   return {

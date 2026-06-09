@@ -1,6 +1,6 @@
 import './globals.css'
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.app'
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.fyi'
 
 export const metadata = {
   metadataBase: new URL(SITE),

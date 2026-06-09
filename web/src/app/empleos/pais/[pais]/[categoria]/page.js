@@ -9,7 +9,7 @@ import JobsRealtime from '../../../../JobsRealtime'
 
 export const revalidate = 600
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.app'
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.fyi'
 
 const SLUG_A_CODIGO = {
   uruguay:'UY', argentina:'AR', chile:'CL', peru:'PE', colombia:'CO',
@@ -227,7 +227,7 @@ export default async function CategoriaPage({ params }) {
 
       <footer className="footer">
         <p>
-          © {new Date().getFullYear()} Nexu · nexu.app ·{' '}
+          © {new Date().getFullYear()} Nexu · nexu.fyi ·{' '}
           <Link href={`/empleos/pais/${params.pais}`} style={{ color: 'inherit' }}>{nombre}</Link>
           {' · '}
           <Link href="/empleos" style={{ color: 'inherit' }}>{t(lang, 'footer_jobs')}</Link>
