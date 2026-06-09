@@ -23,13 +23,11 @@ export async function generateMetadata({ searchParams }) {
 
 async function getConcursos(q) {
   const safe = (q || '').replace(/[%_'"\\;]/g, c => `\\${c}`).slice(0, 100)
-  const minCierre = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
 
   let query = db
     .from('concursos')
     .select('id,titulo,cargo,organismo,pais,lugar,fecha_cierre,tipo_vinculo,tipo_tarea,puestos,created_at')
     .eq('activo', true)
-    .or(`fecha_cierre.is.null,fecha_cierre.gte.${minCierre}`)
     .order('created_at', { ascending: false })
     .limit(360)
 
