@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { supabase } from "../../services/supabase";
@@ -59,6 +60,8 @@ export default function CVScreen({ navigation }) {
   const [tab, setTab] = useState("form"); // "form" | "preview"
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [userId, setUserId] = useState(null);
 
   const [cv, setCv] = useState({
     nombre: "", profesion: "", email: "", telefono: "",
@@ -70,12 +73,22 @@ export default function CVScreen({ navigation }) {
     certificaciones: [],
   });
 
-  // Pre-cargar datos del perfil
+  // Pre-cargar datos del perfil o CV guardado previamente
   useEffect(() => {
     (async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+        setUserId(user.id);
+
+        // Si hay un CV guardado, restaurarlo directamente
+        const saved = await AsyncStorage.getItem(`cv_${user.id}`);
+        if (saved) {
+          setCv(JSON.parse(saved));
+          return;
+        }
+
+        // Si no hay guardado, auto-rellenar desde el perfil
         const { data } = await supabase
           .from("profiles")
           .select("nombre,apellido1,apellido2,telefono,pais,ciudad,servicios,profesiones,tecnicaturas,especialidades,idiomas,bio,descripcion_libre,nacionalidad,anios_experiencia,avatar_url")
@@ -84,23 +97,16 @@ export default function CVScreen({ navigation }) {
         if (data) {
           const nombre = [data.nombre, data.apellido1, data.apellido2].filter(Boolean).join(" ");
           const profesion = (data.profesiones?.[0] || data.servicios?.[0] || data.tecnicaturas?.[0] || "");
-
-          // Idiomas: array de strings → [{idioma, nivel}]
           const idiomasArr = Array.isArray(data.idiomas) && data.idiomas.length > 0
             ? data.idiomas.map(i => ({ idioma: i, nivel: "Intermedio" }))
             : [{ idioma: "", nivel: "Intermedio" }];
-
-          // Habilidades: especialidades + servicios + profesiones como chips
           const habilidadesArr = [
             ...(data.especialidades || []),
             ...(data.servicios || []),
             ...(data.profesiones || []),
           ].filter(Boolean);
           const habilidades = [...new Set(habilidadesArr)].join(", ");
-
-          // Objetivo: descripcion_libre tiene prioridad sobre bio
           const objetivo = data.descripcion_libre || data.bio || "";
-
           setCv(prev => ({
             ...prev,
             nombre,
@@ -136,6 +142,18 @@ export default function CVScreen({ navigation }) {
   }
   function set(field, value) { setCv(prev => ({ ...prev, [field]: value })); }
 
+  async function guardarCambios() {
+    Keyboard.dismiss();
+    if (!cv.nombre.trim()) { Alert.alert("Falta info", "Completá al menos tu nombre antes de guardar."); return; }
+    setSaving(true);
+    try {
+      await AsyncStorage.setItem(`cv_${userId}`, JSON.stringify(cv));
+      Alert.alert("Guardado", "Tu CV fue guardado correctamente.");
+    } catch (e) {
+      Alert.alert("Error", "No se pudo guardar: " + e.message);
+    } finally { setSaving(false); }
+  }
+
   // ─── Generar HTML profesional para el CV ─────────────────────
   function generarHTML() {
     const habArr = cv.habilidades.split(/[,\n]+/).map(h => h.trim()).filter(Boolean);
@@ -155,173 +173,186 @@ export default function CVScreen({ navigation }) {
   html, body { width:210mm; background:#fff; }
 
   /* ── LAYOUT ─────────────────────────────────── */
-  table.page  { width:210mm; border-collapse:collapse; min-height:297mm; }
-  td.sidebar  { width:72mm; background:#242424; vertical-align:top; padding:36pt 22pt 40pt; }
-  td.main     { vertical-align:top; background:#FAFAFA; padding:0; }
+  table.page { width:210mm; border-collapse:collapse; min-height:297mm; }
 
-  /* ── SIDEBAR ─────────────────────────────────── */
-  .av-cell    { width:64pt; height:64pt; background:#B89A72; text-align:center; vertical-align:middle;
-                font-family:Georgia,serif; font-size:28pt; font-weight:bold; color:#fff; }
-  .av-wrap    { text-align:center; margin-bottom:22pt; }
-  .av-border  { display:inline-block; padding:3pt; border:1.5pt solid #B89A72; }
+  /* sidebar negro con franja dorada izquierda */
+  td.sb {
+    width:68mm; background:#111111; vertical-align:top;
+    border-left:4pt solid #C9A96E;
+    padding:44pt 20pt 40pt 22pt;
+  }
 
-  .s-name     { font-family:Georgia,serif; font-size:14pt; font-weight:bold; color:#fff;
-                text-align:center; line-height:1.25; letter-spacing:0.3pt; margin-bottom:3pt; }
-  .s-prof     { font-family:Helvetica,Arial,sans-serif; font-size:7.5pt; color:#B89A72;
-                text-transform:uppercase; letter-spacing:2pt; text-align:center; margin-bottom:20pt; }
+  /* columna principal blanca hueso */
+  td.mn { vertical-align:top; background:#FDFCFA; padding:0; }
 
-  .s-divider  { height:0.5pt; background:#3D3D3D; margin:14pt 0; }
-  .s-section  { font-family:Helvetica,Arial,sans-serif; font-size:7pt; font-weight:bold;
-                color:#B89A72; text-transform:uppercase; letter-spacing:2pt; margin-bottom:10pt; }
+  /* ── FOTO / INICIAL ──────────────────────────── */
+  .av-wrap  { text-align:center; margin-bottom:26pt; }
+  .av-ini   { display:inline-block; width:68pt; height:68pt; border-radius:34pt;
+              background:#222; border:1.5pt solid #C9A96E;
+              font-family:Georgia,serif; font-size:26pt; font-weight:bold;
+              color:#C9A96E; text-align:center; line-height:68pt; }
 
-  .s-row      { margin-bottom:7pt; }
-  .s-label    { font-family:Helvetica,Arial,sans-serif; font-size:7pt; color:#888; text-transform:uppercase; letter-spacing:0.8pt; margin-bottom:1pt; }
-  .s-value    { font-family:Helvetica,Arial,sans-serif; font-size:9pt; color:#D0D0D0; line-height:1.4; }
+  /* ── SIDEBAR TIPOGRAFÍA ──────────────────────── */
+  .s-title  { font-family:Georgia,serif; font-size:13.5pt; font-weight:bold;
+              color:#FFFFFF; line-height:1.3; letter-spacing:0.2pt;
+              text-align:center; margin-bottom:3pt; }
+  .s-sub    { font-family:Helvetica,Arial,sans-serif; font-size:7pt; color:#C9A96E;
+              text-transform:uppercase; letter-spacing:2.2pt; text-align:center;
+              margin-bottom:24pt; }
 
-  .lang-name  { font-family:Helvetica,Arial,sans-serif; font-size:9pt; color:#E0E0E0; font-weight:bold; margin-bottom:4pt; }
-  .lang-track { background:#3A3A3A; height:3pt; margin-bottom:2pt; overflow:hidden; }
-  .lang-fill  { height:3pt; background:#B89A72; }
-  .lang-level { font-family:Helvetica,Arial,sans-serif; font-size:7.5pt; color:#777; }
+  .s-sep    { height:1pt; background:linear-gradient(to right,transparent,#2E2E2E,transparent);
+              margin:13pt 0; }
+  .s-cat    { font-family:Helvetica,Arial,sans-serif; font-size:6.5pt; font-weight:bold;
+              color:#C9A96E; text-transform:uppercase; letter-spacing:2.5pt;
+              margin-bottom:9pt; }
 
-  .skill-item { font-family:Helvetica,Arial,sans-serif; font-size:9pt; color:#C8C8C8;
-                margin-bottom:4pt; padding-left:10pt; position:relative; }
+  .s-row    { margin-bottom:6pt; }
+  .s-lbl    { font-family:Helvetica,Arial,sans-serif; font-size:6.5pt; color:#555;
+              text-transform:uppercase; letter-spacing:0.8pt; margin-bottom:1pt; }
+  .s-val    { font-family:Helvetica,Arial,sans-serif; font-size:9pt; color:#C8C8C8; line-height:1.45; }
 
-  .cert-name  { font-family:Helvetica,Arial,sans-serif; font-size:9pt; color:#E0E0E0; font-weight:bold; }
-  .cert-sub   { font-family:Helvetica,Arial,sans-serif; font-size:8pt; color:#888; margin-top:1pt; }
+  /* idiomas */
+  .l-name   { font-family:Helvetica,Arial,sans-serif; font-size:9pt; color:#E0E0E0;
+              font-weight:bold; margin-bottom:3pt; }
+  .l-track  { height:2.5pt; background:#2A2A2A; margin-bottom:2pt; overflow:hidden; }
+  .l-fill   { height:2.5pt; background:#C9A96E; }
+  .l-lv     { font-family:Helvetica,Arial,sans-serif; font-size:6.5pt; color:#666; }
+
+  /* habilidades — pastillas */
+  .sk-wrap  { margin-bottom:5pt; }
+  .sk-pill  { font-family:Helvetica,Arial,sans-serif; font-size:7.5pt; color:#D0D0D0;
+              border:0.5pt solid #2E2E2E; padding:2pt 6pt; display:inline-block;
+              margin:0 3pt 3pt 0; }
+
+  /* certs */
+  .c-name   { font-family:Helvetica,Arial,sans-serif; font-size:8.5pt; color:#E0E0E0; font-weight:bold; }
+  .c-sub    { font-family:Helvetica,Arial,sans-serif; font-size:7.5pt; color:#666; margin-top:1pt; }
 
   /* ── MAIN HEADER ─────────────────────────────── */
-  .m-header   { background:#fff; padding:32pt 36pt 22pt; border-bottom:0.5pt solid #E8E2DC; }
-  .m-name     { font-family:Georgia,'Times New Roman',serif; font-size:22pt; font-weight:bold;
-                color:#1A1A1A; line-height:1.15; letter-spacing:0.2pt; }
-  .m-prof     { font-family:Helvetica,Arial,sans-serif; font-size:8.5pt; color:#B89A72;
-                text-transform:uppercase; letter-spacing:2.5pt; margin-top:7pt; font-weight:bold; }
-  .m-accent   { width:32pt; height:1.5pt; background:#B89A72; margin-top:12pt; }
+  .m-hdr    { background:#111111; padding:34pt 38pt 26pt; }
+  .m-name   { font-family:Georgia,'Times New Roman',serif; font-size:24pt; font-weight:bold;
+              color:#FFFFFF; line-height:1.15; letter-spacing:0.3pt; }
+  .m-prof   { font-family:Helvetica,Arial,sans-serif; font-size:8pt; color:#C9A96E;
+              text-transform:uppercase; letter-spacing:3pt; margin-top:9pt; font-weight:bold; }
+  .m-rule   { width:36pt; height:1pt; background:#C9A96E; margin-top:14pt; }
 
   /* ── MAIN BODY ───────────────────────────────── */
-  .m-body     { padding:26pt 36pt 30pt; }
-  .m-section  { margin-bottom:22pt; }
-  .m-sec-title{ font-family:Helvetica,Arial,sans-serif; font-size:8.5pt; font-weight:bold;
-                color:#1A1A1A; text-transform:uppercase; letter-spacing:2pt;
-                padding-bottom:5pt; border-bottom:1pt solid #1A1A1A; margin-bottom:14pt; }
+  .m-body   { padding:26pt 38pt 30pt; background:#FDFCFA; }
+  .m-sec    { margin-bottom:22pt; }
+  .m-stit   { font-family:Helvetica,Arial,sans-serif; font-size:7.5pt; font-weight:bold;
+              color:#111; text-transform:uppercase; letter-spacing:2.5pt;
+              padding-bottom:5pt; border-bottom:0.75pt solid #111; margin-bottom:13pt; }
 
-  .m-obj      { font-family:Georgia,serif; font-size:10.5pt; color:#4A4A4A;
-                line-height:1.8; font-style:italic; }
+  .m-profile{ font-family:Georgia,serif; font-size:10pt; color:#3A3A3A;
+              line-height:1.85; font-style:italic; }
 
-  .m-entry    { margin-bottom:14pt; }
-  .m-etit     { font-family:Helvetica,Arial,sans-serif; font-size:11pt; font-weight:bold; color:#1A1A1A; }
-  .m-esub     { font-family:Helvetica,Arial,sans-serif; font-size:9.5pt; color:#8A8A8A;
-                margin-top:2pt; letter-spacing:0.2pt; }
-  .m-edesc    { font-family:Georgia,serif; font-size:9.5pt; color:#555;
-                margin-top:6pt; line-height:1.7; }
+  .m-entry  { margin-bottom:14pt; padding-left:10pt;
+              border-left:2pt solid #EEEAE4; }
+  .m-etit   { font-family:Helvetica,Arial,sans-serif; font-size:10.5pt;
+              font-weight:bold; color:#111111; }
+  .m-esub   { font-family:Helvetica,Arial,sans-serif; font-size:8.5pt; color:#999;
+              margin-top:2pt; letter-spacing:0.2pt; }
+  .m-edesc  { font-family:Georgia,serif; font-size:9pt; color:#555;
+              margin-top:5pt; line-height:1.75; }
 
-  /* ── WATERMARK PIE ──────────────────────────── */
-  .watermark  { position:fixed; bottom:10pt; left:0; right:0; text-align:center;
-                font-family:Helvetica,Arial,sans-serif; font-size:6pt; color:rgba(0,0,0,0.1);
-                letter-spacing:3pt; text-transform:uppercase; }
+  /* ── WATERMARK ──────────────────────────────── */
+  .wm { position:fixed; bottom:9pt; left:0; right:0; text-align:center;
+        font-family:Helvetica,Arial,sans-serif; font-size:5.5pt;
+        color:rgba(0,0,0,0.08); letter-spacing:4pt; text-transform:uppercase; }
 </style>
 </head>
 <body>
-<table class="page">
-<tr>
+<table class="page"><tr>
 
 <!-- ░░ SIDEBAR ░░ -->
-<td class="sidebar">
+<td class="sb">
 
-  <!-- Avatar -->
   <div class="av-wrap">
     ${cv.foto
-      ? `<img src="${cv.foto}" style="width:70pt;height:70pt;border-radius:50%;object-fit:cover;border:2pt solid #B89A72;display:block;margin:0 auto;" />`
-      : `<table cellpadding="0" cellspacing="0" style="margin:0 auto"><tr><td class="av-cell" style="width:70pt;height:70pt;border:1.5pt solid #B89A72;">${inicial}</td></tr></table>`
+      ? `<img src="${cv.foto}" style="width:68pt;height:68pt;border-radius:50%;object-fit:cover;border:1.5pt solid #C9A96E;display:block;margin:0 auto;" />`
+      : `<div class="av-ini">${inicial}</div>`
     }
   </div>
 
-  <div class="s-name">${cv.nombre ? cv.nombre.split(" ").slice(0,2).join(" ") : "Tu Nombre"}</div>
-  ${cv.profesion ? `<div class="s-prof">${cv.profesion}</div>` : `<div style="margin-bottom:20pt"></div>`}
+  <div class="s-title">${cv.nombre ? cv.nombre.split(" ").slice(0,2).join(" ") : "Tu Nombre"}</div>
+  ${cv.profesion ? `<div class="s-sub">${cv.profesion}</div>` : `<div style="margin-bottom:24pt"></div>`}
 
-  <!-- Contacto -->
-  <div class="s-section">Contacto</div>
-  ${cv.telefono ? `<div class="s-row"><div class="s-label">Teléfono</div><div class="s-value">${cv.telefono}</div></div>` : ""}
-  ${cv.email    ? `<div class="s-row"><div class="s-label">Email</div><div class="s-value">${cv.email}</div></div>` : ""}
-  ${(cv.ciudad||cv.pais) ? `<div class="s-row"><div class="s-label">Ubicación</div><div class="s-value">${[cv.ciudad,cv.pais].filter(Boolean).join(", ")}</div></div>` : ""}
-  ${cv.linkedin ? `<div class="s-row"><div class="s-label">LinkedIn</div><div class="s-value">${cv.linkedin}</div></div>` : ""}
+  <div class="s-cat">Contacto</div>
+  ${cv.telefono ? `<div class="s-row"><div class="s-lbl">Teléfono</div><div class="s-val">${cv.telefono}</div></div>` : ""}
+  ${cv.email    ? `<div class="s-row"><div class="s-lbl">Email</div><div class="s-val">${cv.email}</div></div>` : ""}
+  ${(cv.ciudad||cv.pais) ? `<div class="s-row"><div class="s-lbl">Ubicación</div><div class="s-val">${[cv.ciudad,cv.pais].filter(Boolean).join(", ")}</div></div>` : ""}
+  ${cv.linkedin ? `<div class="s-row"><div class="s-lbl">LinkedIn</div><div class="s-val">${cv.linkedin}</div></div>` : ""}
 
-  <!-- Idiomas -->
   ${idioms.length ? `
-  <div class="s-divider"></div>
-  <div class="s-section">Idiomas</div>
+  <div class="s-sep"></div>
+  <div class="s-cat">Idiomas</div>
   ${idioms.map(i => {
     const pct = i.nivel==="Nativo"?100:i.nivel==="Avanzado"?75:i.nivel==="Intermedio"?50:25;
     return `<div style="margin-bottom:10pt">
-      <div class="lang-name">${i.idioma}</div>
-      <div class="lang-track"><div class="lang-fill" style="width:${pct}%"></div></div>
-      <div class="lang-level">${i.nivel}</div>
+      <div class="l-name">${i.idioma}</div>
+      <div class="l-track"><div class="l-fill" style="width:${pct}%"></div></div>
+      <div class="l-lv">${i.nivel}</div>
     </div>`;
   }).join("")}` : ""}
 
-  <!-- Habilidades -->
   ${habArr.length ? `
-  <div class="s-divider"></div>
-  <div class="s-section">Habilidades</div>
-  ${habArr.map(h=>`<div class="skill-item">&#8212;&nbsp;${h}</div>`).join("")}` : ""}
+  <div class="s-sep"></div>
+  <div class="s-cat">Competencias</div>
+  <div class="sk-wrap">${habArr.map(h=>`<span class="sk-pill">${h}</span>`).join("")}</div>` : ""}
 
-  <!-- Certificaciones -->
   ${certs.length ? `
-  <div class="s-divider"></div>
-  <div class="s-section">Certificaciones</div>
+  <div class="s-sep"></div>
+  <div class="s-cat">Formación Complementaria</div>
   ${certs.map(c=>`<div style="margin-bottom:9pt">
-    <div class="cert-name">${c.nombre}</div>
-    ${c.institucion?`<div class="cert-sub">${c.institucion}${c.anio?" &middot; "+c.anio:""}</div>`:""}
+    <div class="c-name">${c.nombre}</div>
+    ${c.institucion?`<div class="c-sub">${c.institucion}${c.anio?" &middot; "+c.anio:""}</div>`:""}
   </div>`).join("")}` : ""}
 
 </td>
 
 <!-- ░░ MAIN ░░ -->
-<td class="main">
+<td class="mn">
 
-  <!-- Header con nombre -->
-  <div class="m-header">
+  <div class="m-hdr">
     <div class="m-name">${cv.nombre || "Tu Nombre"}</div>
     ${cv.profesion ? `<div class="m-prof">${cv.profesion}</div>` : ""}
-    <div class="m-accent"></div>
+    <div class="m-rule"></div>
   </div>
 
   <div class="m-body">
 
     ${cv.objetivo ? `
-    <div class="m-section">
-      <div class="m-sec-title">Perfil Profesional</div>
-      <div class="m-obj">${cv.objetivo}</div>
+    <div class="m-sec">
+      <div class="m-stit">Perfil Profesional</div>
+      <div class="m-profile">${cv.objetivo}</div>
     </div>` : ""}
 
     ${exps.length ? `
-    <div class="m-section">
-      <div class="m-sec-title">Experiencia Laboral</div>
+    <div class="m-sec">
+      <div class="m-stit">Experiencia</div>
       ${exps.map(e=>`
       <div class="m-entry">
         <div class="m-etit">${e.cargo||""}</div>
-        <div class="m-esub">${[e.empresa,[e.desde,e.hasta||"Presente"].filter(Boolean).join(" &ndash; ")].filter(Boolean).join("&nbsp;&nbsp;|&nbsp;&nbsp;")}</div>
+        <div class="m-esub">${[e.empresa,[e.desde,e.hasta||"Presente"].filter(Boolean).join(" &ndash; ")].filter(Boolean).join("&ensp;&middot;&ensp;")}</div>
         ${e.descripcion?`<div class="m-edesc">${e.descripcion}</div>`:""}
       </div>`).join("")}
     </div>` : ""}
 
     ${edus.length ? `
-    <div class="m-section">
-      <div class="m-sec-title">Educación</div>
+    <div class="m-sec">
+      <div class="m-stit">Educación</div>
       ${edus.map(e=>`
       <div class="m-entry">
         <div class="m-etit">${e.titulo||""}</div>
-        <div class="m-esub">${[e.institucion,[e.desde,e.hasta].filter(Boolean).join(" &ndash; ")].filter(Boolean).join("&nbsp;&nbsp;|&nbsp;&nbsp;")}</div>
+        <div class="m-esub">${[e.institucion,[e.desde,e.hasta].filter(Boolean).join(" &ndash; ")].filter(Boolean).join("&ensp;&middot;&ensp;")}</div>
       </div>`).join("")}
     </div>` : ""}
 
   </div>
-
 </td>
-</tr>
-</table>
+</tr></table>
 
-<div class="watermark">nexu.fyi</div>
-
+<div class="wm">nexu.fyi</div>
 </body>
 </html>`;
   }
@@ -375,7 +406,7 @@ export default function CVScreen({ navigation }) {
       </View>
 
       {tab === "form" ? (
-        <FormularioCV cv={cv} set={set} addItem={addItem} removeItem={removeItem} updateItem={updateItem} />
+        <FormularioCV cv={cv} set={set} addItem={addItem} removeItem={removeItem} updateItem={updateItem} onGuardar={guardarCambios} saving={saving} />
       ) : (
         <PreviewCV cv={cv} generarHTML={generarHTML} />
       )}
@@ -384,7 +415,7 @@ export default function CVScreen({ navigation }) {
 }
 
 // ─── FORMULARIO ───────────────────────────────────────────────
-function FormularioCV({ cv, set, addItem, removeItem, updateItem }) {
+function FormularioCV({ cv, set, addItem, removeItem, updateItem, onGuardar, saving }) {
   return (
     <KeyboardAwareScrollView
       contentContainerStyle={s.scroll}
@@ -506,6 +537,12 @@ function FormularioCV({ cv, set, addItem, removeItem, updateItem }) {
           </View>
         ))}
       </View>
+
+      <TouchableOpacity style={s.saveBtn} onPress={onGuardar} disabled={saving}>
+        {saving
+          ? <ActivityIndicator color="#fff" size="small" />
+          : <Text style={s.saveBtnTxt}>Guardar cambios</Text>}
+      </TouchableOpacity>
 
       <View style={{ height: 40 }} />
     </KeyboardAwareScrollView>
@@ -677,6 +714,8 @@ const s = StyleSheet.create({
   nivelChipTxt: { fontSize: 11, color: MUTED, fontWeight: "600" },
   nivelChipTxtA: { color: "#FFF" },
   preview: { padding: 0 },
+  saveBtn: { marginHorizontal: 16, marginTop: 4, backgroundColor: DARK, borderRadius: 14, paddingVertical: 16, alignItems: "center", shadowColor: DARK, shadowOpacity: 0.18, shadowRadius: 10, elevation: 4 },
+  saveBtnTxt: { color: "#FFF", fontSize: 15, fontWeight: "800", letterSpacing: 0.3 },
 });
 
 // ─── ESTILOS PREVIEW ──────────────────────────────────────────
