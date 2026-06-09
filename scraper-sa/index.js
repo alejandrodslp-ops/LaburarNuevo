@@ -344,45 +344,68 @@ async function scrapeComputrabajoPaginas(cc, ccUpper, fuente, numPages = 5) {
   return rows;
 }
 
-// Sector privado — /empleos (requiere proxy, mismo patrón que gobierno)
-async function scrapeComputrabajoPrivadoPaginas(cc, ccUpper, fuente, numPages = 5) {
+// Ciudades principales por país para scraping privado en CT
+const CT_CIUDADES = {
+  py: ['asuncion', 'ciudad-del-este', 'luque'],
+  bo: ['santa-cruz', 'la-paz', 'cochabamba'],
+  ec: ['guayaquil', 'quito', 'cuenca'],
+  ve: ['caracas', 'maracaibo', 'valencia'],
+  cr: ['san-jose', 'heredia', 'alajuela'],
+  sv: ['san-salvador', 'santa-ana', 'soyapango'],
+  ni: ['managua', 'leon'],
+  pa: ['ciudad-de-panama', 'colon', 'david'],
+  do: ['santo-domingo', 'santiago', 'san-cristobal'],
+  ar: ['buenos-aires', 'cordoba', 'rosario'],
+  cl: ['santiago', 'valparaiso', 'concepcion'],
+  co: ['bogota', 'medellin', 'cali'],
+  pe: ['lima', 'arequipa', 'trujillo'],
+  mx: ['ciudad-de-mexico', 'monterrey', 'guadalajara'],
+  hn: ['tegucigalpa', 'san-pedro-sula'],
+  gt: ['ciudad-de-guatemala', 'mixco'],
+};
+
+// Sector privado — /empleos-en-[ciudad] (requiere proxy)
+async function scrapeComputrabajoPrivadoPaginas(cc, ccUpper, fuente, pagesPerCity = 3) {
   const base = `https://${cc}.computrabajo.com`;
+  const ciudades = CT_CIUDADES[cc] || [];
+  if (!ciudades.length) return [];
   const rows = [];
   const seen = new Set();
-  for (let pg = 1; pg <= numPages; pg++) {
-    const url  = pg === 1
-      ? `${base}/empleos`
-      : `${base}/empleos?pg=${pg}`;
-    const html = await fetchCT(url, { timeout: 20000 });
-    if (!html || !html.includes('<article')) {
-      console.log(`    ⚠ CT ${cc} privado pg${pg}: sin articles`);
-      break;
+  for (const ciudad of ciudades) {
+    for (let pg = 1; pg <= pagesPerCity; pg++) {
+      const url  = pg === 1
+        ? `${base}/empleos-en-${ciudad}`
+        : `${base}/empleos-en-${ciudad}?pg=${pg}`;
+      const html = await fetchCT(url, { timeout: 20000 });
+      if (!html || !html.includes('<article')) {
+        console.log(`    ⚠ CT ${cc} ${ciudad} pg${pg}: sin articles`);
+        break;
+      }
+      const $ = cheerio.load(html);
+      $('article').each((_, el) => {
+        const tituloEl = $('h2 a, .title_offer a, a[title]', el).first();
+        const titulo   = tituloEl.attr('title') || tituloEl.text().trim();
+        if (!titulo || titulo.length < 4) return;
+        const href    = tituloEl.attr('href') || '';
+        const link    = href.startsWith('http') ? href : `${base}${href}`;
+        const id      = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        const empresa = $('[class*="name_offer"],[class*="company"],[class*="fs16"]', el).first().text().trim() || null;
+        const cierre  = new Date(Date.now() + 45 * 86400000).toISOString().slice(0, 10);
+        rows.push(makeRow({
+          fuente_id: id, fuente, pais: ccUpper,
+          titulo: empresa ? `${titulo} — ${empresa}` : titulo,
+          cargo: titulo, organismo: empresa || null,
+          lugar: ciudad.replace(/-/g, ' '),
+          fecha_cierre: cierre,
+          url_detalle: link, url_postulacion: link,
+          tipo_vinculo: 'privado',
+          keywords: extraerKeywords(`${titulo} ${empresa || ''}`),
+        }));
+      });
+      console.log(`    CT ${cc} ${ciudad} pg${pg}: ${rows.length} acum`);
     }
-    const $ = cheerio.load(html);
-    $('article').each((_, el) => {
-      const tituloEl = $('h2 a, .title_offer a, a[title]', el).first();
-      const titulo   = tituloEl.attr('title') || tituloEl.text().trim();
-      if (!titulo || titulo.length < 4) return;
-      const href    = tituloEl.attr('href') || '';
-      const link    = href.startsWith('http') ? href : `${base}${href}`;
-      const id      = encodeURIComponent(href).slice(-48) || titulo.replace(/\W/g,'').slice(0,48);
-      if (!id || seen.has(id)) return;
-      seen.add(id);
-      const empresa = $('[class*="name_offer"],[class*="company"],[class*="fs16"]', el).first().text().trim() || null;
-      const ciudad  = $('[class*="detail"] li, [class*="ubic"] span', el).first().text().trim() || null;
-      const cierre  = new Date(Date.now() + 45 * 86400000).toISOString().slice(0, 10);
-      rows.push(makeRow({
-        fuente_id: id, fuente, pais: ccUpper,
-        titulo: empresa ? `${titulo} — ${empresa}` : titulo,
-        cargo: titulo, organismo: empresa || null,
-        lugar: ciudad || null,
-        fecha_cierre: cierre,
-        url_detalle: link, url_postulacion: link,
-        tipo_vinculo: 'privado',
-        keywords: extraerKeywords(`${titulo} ${empresa || ''}`),
-      }));
-    });
-    console.log(`    CT ${cc} privado pg${pg}: ${rows.length} acumulado`);
   }
   return rows;
 }
