@@ -12,7 +12,7 @@ export const metadata = {
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
 async function getTotal() {
-  const { count } = await db.from('concursos').select('*', { count: 'exact', head: true }).eq('activo', true)
+  const { count } = await db.from('concursos').select('*', { count: 'estimated', head: true }).eq('activo', true)
   return count ?? 0
 }
 
