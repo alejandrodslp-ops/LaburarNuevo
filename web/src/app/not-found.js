@@ -4,7 +4,7 @@ export default function NotFound() {
   return (
     <>
       <nav className="nav">
-        <Link href="/" className="nav-logo"><span>Nexu</span><span style={{fontSize:"0.5em",marginLeft:"-2px",lineHeight:1}}>🧩</span></Link>
+        <Link href="/" className="nav-logo"><span>Nexu</span><span style={{fontSize:"0.5em",marginLeft:"-6px",lineHeight:1}}>🧩</span></Link>
       </nav>
       <div className="empty-state" style={{ paddingTop: 80 }}>
         <p style={{ fontSize: 48, marginBottom: 16 }}>🔍</p>
