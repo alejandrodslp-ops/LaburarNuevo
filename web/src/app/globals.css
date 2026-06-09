@@ -38,10 +38,18 @@ a { color: inherit; text-decoration: none; }
   z-index: 100;
 }
 .nav-logo {
+  display: inline-flex;
+  align-items: center;
+  background: #151c2c;
+  border: 2.5px solid var(--coral);
+  border-radius: 14px;
+  padding: 5px 16px;
   color: var(--coral);
-  font-size: 32px;
+  font-size: 26px;
   font-weight: 900;
   letter-spacing: -1px;
+  text-decoration: none;
+  line-height: 1.2;
 }
 .nav-btn {
   background: var(--coral);

@@ -1,12 +1,25 @@
 import Link from 'next/link'
+import { createClient } from '@supabase/supabase-js'
 import WaitlistForm from '../../components/WaitlistForm'
+
+export const revalidate = 3600
 
 export const metadata = {
   title: 'Descargá Nexu — Acceso anticipado',
   description: 'Miles de personas quieren descargar Nexu. Anotate para recibir tu acceso antes que el resto.',
 }
 
-export default function DownloadPage() {
+const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+
+async function getTotal() {
+  const { count } = await db.from('concursos').select('*', { count: 'exact', head: true }).eq('activo', true)
+  return count ?? 0
+}
+
+export default async function DownloadPage() {
+  const total = await getTotal()
+  const totalStr = total > 0 ? `${total.toLocaleString('es')}+` : '100.000+'
+
   return (
     <>
       <nav style={{
@@ -15,7 +28,7 @@ export default function DownloadPage() {
         position: 'sticky', top: 0, zIndex: 100,
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
-        <Link href="/" style={{ color: '#E8785A', fontSize: 22, fontWeight: 900, letterSpacing: -0.5 }}>Nexu</Link>
+        <Link href="/" style={{ display:'inline-flex', alignItems:'center', background:'#151c2c', border:'2.5px solid #E8785A', borderRadius:14, padding:'4px 14px', color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-0.5, textDecoration:'none' }}>Nexu<span style={{fontSize:'0.72em',marginLeft:'1px',verticalAlign:'sub'}}>🧩</span></Link>
         <Link href="/empleos" style={{ color: '#94A3B8', fontSize: 13, fontWeight: 600 }}>Ver empleos →</Link>
       </nav>
 
@@ -69,7 +82,7 @@ export default function DownloadPage() {
           maxWidth: 500,
         }}>
           {[
-            { num: '65.000+', label: 'empleos disponibles hoy' },
+            { num: totalStr,  label: 'empleos disponibles hoy' },
             { num: '33',      label: 'países cubiertos' },
             { num: '100%',    label: 'alertas personalizadas' },
           ].map((s, i) => (

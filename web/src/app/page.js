@@ -56,7 +56,7 @@ export default async function Home() {
 
       {/* NAV */}
       <nav className="nav">
-        <Link href="/" className="nav-logo">Nexu</Link>
+        <Link href="/" className="nav-logo">Nexu<span style={{fontSize:'0.72em',marginLeft:'1px',verticalAlign:'sub'}}>🧩</span></Link>
         <div style={{ display:'flex', gap:12, alignItems:'center' }}>
           <Link href="/empleos" style={{ color:'#94A3B8', fontSize:13, fontWeight:600 }}>Ver empleos</Link>
           <a href="/download" className="nav-btn">App gratis</a>
@@ -163,7 +163,7 @@ export default async function Home() {
 
       {/* FOOTER */}
       <footer style={{ background:'#0D1117', borderTop:'1px solid rgba(255,255,255,0.06)', padding:'32px 24px', textAlign:'center' }}>
-        <Link href="/" style={{ color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-1, textDecoration:'none' }}>Nexu</Link>
+        <Link href="/" style={{ color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-1, textDecoration:'none' }}>Nexu🧩</Link>
         <p style={{ color:'#475569', fontSize:12, marginTop:8 }}>
           © {new Date().getFullYear()} Nexu ·{' '}
           <Link href="/empleos" style={{ color:'#64748B' }}>Ver empleos</Link> ·{' '}
