@@ -324,12 +324,9 @@ async function consultas(db: ReturnType<typeof createClient>, params: any) {
       // Solo cambiar si el usuario lo solicita explícitamente.
       const LIMITE_LLAMADOS = 2000;
 
-      const ahoraISO = new Date().toISOString();
-
       let q = db.from("concursos")
         .select("id,cargo,titulo,organismo,pais,lugar,fecha_cierre,tipo_tarea,tipo_vinculo,activo,created_at,url_detalle,url_postulacion,descripcion,requisitos,numero_llamado,puestos,fecha_inicio")
         .eq("activo", true)
-        .or(`fecha_cierre.is.null,fecha_cierre.gte.${ahoraISO}`)
         .order("created_at", { ascending: false })
         .limit(LIMITE_LLAMADOS);
 
@@ -345,10 +342,9 @@ async function consultas(db: ReturnType<typeof createClient>, params: any) {
       if (paisFlt2)   q = q.eq("pais", paisFlt2);
       if (cargoFlt2)  q = q.or(`cargo.ilike.%${cargoFlt2}%,titulo.ilike.%${cargoFlt2}%`);
 
-      // COUNT real (sin límite) para mostrar total exacto en DB
-      let countQ = db.from("concursos").select("*", { count: "exact", head: true })
-        .eq("activo", true)
-        .or(`fecha_cierre.is.null,fecha_cierre.gte.${ahoraISO}`);
+      // COUNT estimado para evitar timeout en tabla grande
+      let countQ = db.from("concursos").select("*", { count: "estimated", head: true })
+        .eq("activo", true);
       if (tipoVinculo === "privado") countQ = countQ.eq("tipo_vinculo", "privado");
       else if (tipoVinculo === "publico") countQ = countQ.or("tipo_vinculo.neq.privado,tipo_vinculo.is.null");
       if (paisFlt2)  countQ = countQ.eq("pais", paisFlt2);
