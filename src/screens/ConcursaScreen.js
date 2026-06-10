@@ -202,7 +202,7 @@ export default function ConcursaScreen({ navigation, route }) {
           concursos (
             id, pais, fuente, numero_llamado, titulo, cargo, organismo,
             tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre,
-            puestos, url_detalle, url_postulacion, descripcion, requisitos
+            puestos, url_detalle, url_postulacion, descripcion, requisitos, activo
           )
         `)
         .eq('worker_id', authUser.id)
@@ -264,7 +264,7 @@ export default function ConcursaScreen({ navigation, route }) {
         } else {
           if (paisISO && mp && mp !== paisISO) return false;
         }
-        if (m.concursos.fecha_cierre && m.concursos.fecha_cierre < hoyStr) return false;
+        if (m.concursos.activo === false) return false;
         if (m.concursos.fuente?.includes('gnews') || m.concursos.fuente?.includes('news')) return false;
         return true;
       });
@@ -286,7 +286,6 @@ export default function ConcursaScreen({ navigation, route }) {
       const { data: todosData } = await todosQuery;
 
       const todosValidos = (todosData || []).filter(c => {
-        if (c.fecha_cierre && c.fecha_cierre < hoyStr) return false;
         if (c.fuente?.includes('gnews') || c.fuente?.includes('news')) return false;
         return true;
       });

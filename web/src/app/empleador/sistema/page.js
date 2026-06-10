@@ -45,9 +45,13 @@ export default function SistemaPage() {
     setEstados(p => ({ ...p, [key]: 'loading' }))
     addLog(`Disparando ${nombre}...`)
     try {
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
       const res = await fetch('/api/trigger-scraper', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
         body: JSON.stringify({ workflow: key }),
       })
       const json = await res.json()

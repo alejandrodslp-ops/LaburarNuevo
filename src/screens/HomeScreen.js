@@ -257,23 +257,22 @@ export default function HomeScreen({ navigation }) {
 
         const { count } = await supabase
           .from('concursos')
-          .select('id', { count: 'exact', head: true })
+          .select('id', { count: 'estimated', head: true })
           .eq('pais', paisISO)
           .eq('activo', true);
         setTotalConcursos(count || 0);
 
         const { data: allMatches } = await supabase
           .from('concurso_matches')
-          .select('score, cumple, concursos(id, cargo, organismo, fecha_cierre, tipo_vinculo, pais)')
+          .select('score, cumple, concursos(id, cargo, organismo, fecha_cierre, tipo_vinculo, pais, activo)')
           .eq('worker_id', user.id)
           .eq('cumple', true)
           .order('score', { ascending: false })
           .limit(30);
 
-        const hoy = new Date();
         const validos = (allMatches || []).filter(m => {
           if (!m.concursos) return false;
-          if (m.concursos.fecha_cierre && new Date(m.concursos.fecha_cierre) < hoy) return false;
+          if (m.concursos.activo === false) return false;
           return true;
         });
 

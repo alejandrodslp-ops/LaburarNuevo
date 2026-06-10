@@ -31,7 +31,7 @@ const ALLOWED = new Set([
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const token = searchParams.get('t') ?? request.headers.get('x-proxy-token') ?? '';
-  if (SECRET && token !== SECRET) {
+  if (!SECRET || token !== SECRET) {
     return new Response('Unauthorized', { status: 401 });
   }
 

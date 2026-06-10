@@ -79,7 +79,10 @@ export async function POST(req) {
   if (!checkRateLimit(ip)) {
     return NextResponse.json({ ok: false, error: 'Demasiados intentos. Esperá un minuto.' }, { status: 429 })
   }
-  const { pais, idFiscal, email } = await req.json()
+  const body = await req.json()
+  const pais     = typeof body.pais     === 'string' ? body.pais.slice(0, 5).toUpperCase()   : ''
+  const idFiscal = typeof body.idFiscal === 'string' ? body.idFiscal.slice(0, 20)             : ''
+  const email    = typeof body.email    === 'string' ? body.email.slice(0, 200).toLowerCase() : ''
 
   if (pais === 'UY') {
     if (!email) return NextResponse.json({ ok: false, error: 'Email requerido.' })
