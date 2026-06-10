@@ -2603,7 +2603,7 @@ function TabScraper() {
         await Promise.all(PAISES_SCRAPER.map(async (p) => {
           const { count } = await supabase
             .from('concursos')
-            .select('*', { count: 'exact', head: true })
+            .select('*', { count: 'estimated', head: true })
             .eq('pais', p)
             .eq('activo', true);
           resultados[p] = count ?? 0;

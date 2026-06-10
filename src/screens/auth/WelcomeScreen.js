@@ -51,8 +51,8 @@ export default function WelcomeScreen({ navigation }) {
     });
 
     const pf = config.paises;
-    const baseCount = supabase.from('concursos').select('*',{count:'exact',head:true}).eq('activo',true);
-    const basePais  = supabase.from('concursos').select('pais',{count:'exact',head:false}).eq('activo',true);
+    const baseCount = supabase.from('concursos').select('*',{count:'estimated',head:true}).eq('activo',true);
+    const basePais  = supabase.from('concursos').select('pais',{count:'estimated',head:false}).eq('activo',true);
     Promise.all([
       pf.length ? baseCount.in('pais',pf) : baseCount,
       pf.length ? basePais.in('pais',pf)  : basePais,

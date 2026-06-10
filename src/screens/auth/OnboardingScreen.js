@@ -24,7 +24,7 @@ const role=(route.params?.role)||'worker';
 const SLIDES=role==='employer'?SLIDES_EMPLOYER:SLIDES_WORKER;
 const[totalOportunidades,setTotalOportunidades]=useState(null);
 useEffect(()=>{
-  supabase.from('concursos').select('*',{count:'exact',head:true}).then(({count})=>{
+  supabase.from('concursos').select('*',{count:'estimated',head:true}).then(({count})=>{
     if(count)setTotalOportunidades(count);
   });
 },[]);
