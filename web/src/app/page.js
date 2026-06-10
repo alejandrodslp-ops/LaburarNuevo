@@ -56,7 +56,7 @@ export default async function Home() {
 
       {/* NAV */}
       <nav className="nav">
-        <Link href="/" className="nav-logo"><span>Nexu</span><span style={{fontSize:'0.42em',marginLeft:'-9px',lineHeight:1}}>🧩</span></Link>
+        <Link href="/" className="nav-logo"><span>Nexu</span><span style={{fontSize:'0.42em',marginLeft:'-9px',lineHeight:1,marginBottom:'3px'}}>🧩</span></Link>
         <div style={{ display:'flex', gap:12, alignItems:'center' }}>
           <Link href="/empleos" style={{ color:'#94A3B8', fontSize:13, fontWeight:600 }}>Ver empleos</Link>
           <a href="/download" className="nav-btn">App gratis</a>

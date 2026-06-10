@@ -119,7 +119,7 @@ export default async function ConcursoPage({ params }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/<\/script>/gi, '<\\/script>') }} />
 
       <nav className="nav">
-        <Link href="/" className="nav-logo"><span>Nexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1}}>🧩</span></Link>
+        <Link href="/" className="nav-logo"><span>Nexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
         <a href="/download" className="nav-btn">Descargar app</a>
       </nav>
 
