@@ -49,6 +49,9 @@ export default function EmpleadorLayout({ children }) {
             <NavLink href="/empleador" label="Dashboard" pathname={pathname} />
             <NavLink href="/empleador/ofertas" label="Mis ofertas" pathname={pathname} />
             <NavLink href="/empleador/candidatos" label="Candidatos" pathname={pathname} />
+            {user?.email === 'alejandrodslp@gmail.com' && (
+              <NavLink href="/empleador/sistema" label="⚙️ Sistema" pathname={pathname} />
+            )}
             <button onClick={cerrarSesion} style={{ marginLeft: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.6)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 13 }}>
               Salir
             </button>
