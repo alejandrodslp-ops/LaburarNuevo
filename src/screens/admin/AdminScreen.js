@@ -2599,12 +2599,10 @@ function TabScraper() {
     async function cargarConteos() {
       setCargando(true);
       try {
-        const { data } = await supabase.rpc('count_concursos_por_pais');
-        const resultados = {};
-        for (const row of data ?? []) {
-          if (row.pais) resultados[row.pais] = Number(row.total);
-        }
-        setConteos(resultados);
+        const { data } = await supabase.functions.invoke('admin-data', {
+          body: { accion: 'scraper_stats' },
+        });
+        setConteos(data?.conteos ?? {});
       } catch {}
       setCargando(false);
     }

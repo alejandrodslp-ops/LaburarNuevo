@@ -325,7 +325,7 @@ async function consultas(db: ReturnType<typeof createClient>, params: any) {
       const LIMITE_LLAMADOS = 2000;
 
       let q = db.from("concursos")
-        .select("id,cargo,titulo,organismo,pais,lugar,fecha_cierre,tipo_tarea,tipo_vinculo,activo,created_at,url_detalle,url_postulacion,descripcion,requisitos,numero_llamado,puestos,fecha_inicio")
+        .select("id,cargo,titulo,organismo,pais,lugar,fecha_cierre,tipo_tarea,tipo_vinculo,activo,created_at,url_detalle,url_postulacion,numero_llamado,puestos,fecha_inicio")
         .eq("activo", true)
         .order("created_at", { ascending: false })
         .limit(LIMITE_LLAMADOS);
@@ -1014,6 +1014,14 @@ serve(async (req) => {
       case "mensajes_hilo":          return await getMensajesHilo(db, params ?? {});
       case "ofertas_empleadores":    return await getOfertasEmpleadores(db, params ?? {});
       case "analytics":              return await getAnalytics(db);
+      case "scraper_stats": {
+        const { data } = await db.rpc("count_concursos_por_pais");
+        const conteos: Record<string, number> = {};
+        for (const row of (data ?? []) as any[]) {
+          if (row.pais) conteos[row.pais] = Number(row.total);
+        }
+        return ok({ conteos });
+      }
       case "get_ciudades": {
         const q = ((params?.query as string) ?? "").trim();
         if (q.length < 2) return ok({ ciudades: [] });
