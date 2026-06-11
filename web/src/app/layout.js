@@ -1,4 +1,5 @@
 import './globals.css'
+import { Analytics } from '@vercel/analytics/next'
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.fyi'
 
@@ -72,6 +73,7 @@ export default function RootLayout({ children }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
         {children}
+        <Analytics />
       </body>
     </html>
   )
