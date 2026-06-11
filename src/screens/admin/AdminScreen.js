@@ -2599,15 +2599,11 @@ function TabScraper() {
     async function cargarConteos() {
       setCargando(true);
       try {
+        const { data } = await supabase.rpc('count_concursos_por_pais');
         const resultados = {};
-        await Promise.all(PAISES_SCRAPER.map(async (p) => {
-          const { count } = await supabase
-            .from('concursos')
-            .select('*', { count: 'exact', head: true })
-            .eq('pais', p)
-            .eq('activo', true);
-          resultados[p] = count ?? 0;
-        }));
+        for (const row of data ?? []) {
+          if (row.pais) resultados[row.pais] = Number(row.total);
+        }
         setConteos(resultados);
       } catch {}
       setCargando(false);
