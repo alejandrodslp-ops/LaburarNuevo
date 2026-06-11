@@ -1015,12 +1015,16 @@ serve(async (req) => {
       case "ofertas_empleadores":    return await getOfertasEmpleadores(db, params ?? {});
       case "analytics":              return await getAnalytics(db);
       case "scraper_stats": {
-        const { data } = await db.rpc("count_concursos_por_pais");
-        const conteos: Record<string, number> = {};
-        for (const row of (data ?? []) as any[]) {
-          if (row.pais) conteos[row.pais] = Number(row.total);
-        }
-        return ok({ conteos });
+        const PAISES = ["UY","AR","BR","CL","CO","PE","PY","BO","EC","MX","VE",
+          "CU","CR","GT","SV","HN","NI","PA","DO",
+          "ES","PT","IT","FR","DE","GB","US","CA","AU","SE","NO","JP","IN"];
+        const entries = await Promise.all(PAISES.map(async (p) => {
+          const { count } = await db.from("concursos")
+            .select("*", { count: "estimated", head: true })
+            .eq("pais", p).eq("activo", true);
+          return [p, count ?? 0] as const;
+        }));
+        return ok({ conteos: Object.fromEntries(entries) });
       }
       case "get_ciudades": {
         const q = ((params?.query as string) ?? "").trim();
