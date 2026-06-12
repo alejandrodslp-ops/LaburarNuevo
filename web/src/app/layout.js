@@ -1,7 +1,7 @@
 import './globals.css'
 import { Analytics } from '@vercel/analytics/next'
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.fyi'
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.nexu.fyi'
 
 export const metadata = {
   metadataBase: new URL(SITE),
