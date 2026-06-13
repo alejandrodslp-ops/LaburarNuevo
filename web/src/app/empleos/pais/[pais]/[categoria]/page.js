@@ -64,7 +64,7 @@ export async function generateMetadata({ params }) {
 async function getConcursosCategoria(codigo, cat) {
   let query = db
     .from('concursos')
-    .select('id,titulo,cargo,organismo,pais,lugar,fecha_cierre,tipo_vinculo,tipo_tarea,puestos,created_at', { count: 'estimated' })
+    .select('id,titulo,cargo,organismo,pais,lugar,fecha_cierre,tipo_vinculo,tipo_tarea,puestos,created_at')
     .eq('activo', true)
     .eq('pais', codigo)
     .order('created_at', { ascending: false })
@@ -79,8 +79,10 @@ async function getConcursosCategoria(codigo, cat) {
     query = query.or(orParts)
   }
 
-  const { data, count } = await query
-  return { concursos: data ?? [], total: count ?? 0 }
+  const { data } = await query
+  const list = data ?? []
+  // Si llegamos al límite (300), asumimos que hay más en DB
+  return { concursos: list, total: list.length >= 300 ? list.length + 1 : list.length }
 }
 
 export default async function CategoriaPage({ params }) {

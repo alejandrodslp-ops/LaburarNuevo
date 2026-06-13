@@ -85,14 +85,15 @@ export async function generateMetadata({ params }) {
 }
 
 async function getConcursosPais(codigo) {
-  const { data, count } = await db
+  const { data } = await db
     .from('concursos')
-    .select('id,titulo,cargo,organismo,pais,lugar,fecha_cierre,tipo_vinculo,tipo_tarea,puestos,created_at', { count: 'estimated' })
+    .select('id,titulo,cargo,organismo,pais,lugar,fecha_cierre,tipo_vinculo,tipo_tarea,puestos,created_at')
     .eq('activo', true)
     .eq('pais', codigo)
     .order('created_at', { ascending: false })
     .limit(300)
-  return { concursos: data ?? [], total: count ?? 0 }
+  const list = data ?? []
+  return { concursos: list, total: list.length >= 300 ? list.length + 1 : list.length }
 }
 
 export default async function PaisPage({ params }) {
