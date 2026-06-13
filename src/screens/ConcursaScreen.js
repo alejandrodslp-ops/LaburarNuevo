@@ -274,7 +274,6 @@ export default function ConcursaScreen({ navigation, route }) {
         .from('concursos')
         .select('id, pais, fuente, numero_llamado, titulo, cargo, organismo, tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre, puestos, url_detalle, url_postulacion, created_at')
         .eq('activo', true)
-        .order('created_at', { ascending: false })
         .limit(300);
       if (paisesPermitidos) {
         todosQuery = todosQuery.in('pais', paisesPermitidos);
@@ -283,10 +282,9 @@ export default function ConcursaScreen({ navigation, route }) {
       }
       const { data: todosData } = await todosQuery;
 
-      const todosValidos = (todosData || []).filter(c => {
-        if (c.fuente?.includes('gnews') || c.fuente?.includes('news')) return false;
-        return true;
-      });
+      const todosValidos = (todosData || [])
+        .filter(c => !(c.fuente?.includes('gnews') || c.fuente?.includes('news')))
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       console.log('[Concursa] paisISO:', paisISO, '| todos raw:', todosData?.length, '| todos validos:', todosValidos.length, '| matches:', validos.length);
       setTodos(todosValidos);
 
