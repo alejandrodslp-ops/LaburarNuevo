@@ -252,19 +252,25 @@ export default function HomeScreen({ navigation }) {
       setVisDisp(data.visualizaciones_disponibles || 0);
 
       if (data.rol === 'worker' && data.pais) {
-        const PAIS_ISO = { 'uruguay':'UY','argentina':'AR','chile':'CL','colombia':'CO','peru':'PE','perú':'PE','brasil':'BR','brazil':'BR','paraguay':'PY' };
-        const paisISO = PAIS_ISO[(data.pais||'').toLowerCase().trim()] || data.pais.slice(0, 2).toUpperCase();
+        const [
+          { data: totalN },
+          { data: allMatches },
+          { count: propCount },
+        ] = await Promise.all([
+          supabase.rpc('count_concursos_activos'),
+          supabase.from('concurso_matches')
+            .select('score, cumple, concursos(id, cargo, organismo, fecha_cierre, tipo_vinculo, pais, activo)')
+            .eq('worker_id', user.id)
+            .eq('cumple', true)
+            .order('score', { ascending: false })
+            .limit(30),
+          supabase.from('propuestas')
+            .select('id', { count: 'exact', head: true })
+            .eq('worker_id', user.id)
+            .eq('estado', 'pendiente'),
+        ]);
 
-        const { data: totalN } = await supabase.rpc('count_concursos_activos');
         if (totalN) setTotalConcursos(totalN);
-
-        const { data: allMatches } = await supabase
-          .from('concurso_matches')
-          .select('score, cumple, concursos(id, cargo, organismo, fecha_cierre, tipo_vinculo, pais, activo)')
-          .eq('worker_id', user.id)
-          .eq('cumple', true)
-          .order('score', { ascending: false })
-          .limit(30);
 
         const validos = (allMatches || []).filter(m => {
           if (!m.concursos) return false;
@@ -274,12 +280,6 @@ export default function HomeScreen({ navigation }) {
 
         setMatchesPublicos(validos.filter(m => m.concursos?.tipo_vinculo !== 'privado').slice(0, 3));
         setMatchesPrivados(validos.filter(m => m.concursos?.tipo_vinculo === 'privado').slice(0, 3));
-
-        const { count: propCount } = await supabase
-          .from('propuestas')
-          .select('id', { count: 'exact', head: true })
-          .eq('worker_id', user.id)
-          .eq('estado', 'pendiente');
         setPropuestasPendientes(propCount || 0);
       }
     } catch (_) {}
