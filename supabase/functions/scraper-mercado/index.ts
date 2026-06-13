@@ -6,7 +6,8 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const PROXY     = Deno.env.get("CF_PROXY_URL") ?? "https://www.nexu.fyi/api/proxy?url=";
+// Proxy como fallback si acceso directo falla
+const PROXY     = "https://www.nexu.fyi/api/proxy?url=";
 const PROXY_SEC = Deno.env.get("PROXY_SECRET") ?? "";
 
 const HEADERS = {
@@ -15,7 +16,6 @@ const HEADERS = {
   "Accept-Language": "es-419,es;q=0.9,en;q=0.8",
 };
 
-// Cada país con su URL de resultados (home no muestra el conteo)
 const PAISES: { codigo: string; url: string }[] = [
   { codigo: "BR", url: "https://br.computrabajo.com/trabalho" },
   { codigo: "AR", url: "https://ar.computrabajo.com/trabajo" },
@@ -31,44 +31,49 @@ const PAISES: { codigo: string; url: string }[] = [
 ];
 
 function parsearNumero(raw: string): number {
-  // Quita separadores de miles (. y ,) y parsea como entero
-  const limpio = raw.replace(/[.,]/g, "");
-  return parseInt(limpio, 10);
+  return parseInt(raw.replace(/[.,]/g, ""), 10);
 }
 
 function extraerConteo(html: string): number | null {
-  // Patrón 1: <span class="fwB">16.384</span> oferta  (países hispanos en /trabajo)
-  const m1 = html.match(/class="fwB"\s*>\s*([\d.,]+)\s*<\/span>\s*oferta/i);
+  // Patrón 1: <span class="fwB">16.384</span> oferta  (países hispanos)
+  const m1 = html.match(/class="fwB"[^>]*>\s*([\d.,]+)\s*<\/span>\s*oferta/i);
   if (m1) {
     const n = parsearNumero(m1[1]);
     if (!isNaN(n) && n > 50) return n;
   }
 
-  // Patrón 2: + 513.000 <span class="infotxt">oferta  (Brasil y España)
-  const m2 = html.match(/\+\s*([\d.,]+)\s*<span[^>]*>\s*oferta/i);
+  // Patrón 2: + 513.000 <span class="infotxt">oferta  (Brasil / España)
+  const m2 = html.match(/\+\s*([\d.,]+)\s*<span[^>]*>\s*(oferta|vaga)/i);
   if (m2) {
     const n = parsearNumero(m2[1]);
     if (!isNaN(n) && n > 50) return n;
   }
 
-  // Patrón 3: vaga (portugués Brasil)
-  const m3 = html.match(/\+\s*([\d.,]+)\s*<span[^>]*>\s*vaga/i);
+  // Patrón 3: más de NUMBER ofertas (slogan genérico)
+  const m3 = html.match(/más de\s*<[^>]*>([\d.,]+)<\/[^>]*>\s*oferta/i);
   if (m3) {
     const n = parsearNumero(m3[1]);
-    if (!isNaN(n) && n > 50) return n;
-  }
-
-  // Patrón 4: slogan con número y oferta (fallback)
-  const m4 = html.match(/más de\s*<[^>]*>([\d.,]+)<\/[^>]*>\s*oferta/i);
-  if (m4) {
-    const n = parsearNumero(m4[1]);
     if (!isNaN(n) && n > 50) return n;
   }
 
   return null;
 }
 
-async function fetchPais(url: string): Promise<number | null> {
+async function fetchDirecto(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: HEADERS,
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) return null;
+    return await res.text();
+  } catch {
+    return null;
+  }
+}
+
+async function fetchViaProxy(url: string): Promise<string | null> {
+  if (!PROXY_SEC) return null;
   try {
     const proxyUrl = `${PROXY}${encodeURIComponent(url)}&t=${PROXY_SEC}`;
     const res = await fetch(proxyUrl, {
@@ -76,11 +81,28 @@ async function fetchPais(url: string): Promise<number | null> {
       signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) return null;
-    const html = await res.text();
-    return extraerConteo(html);
+    return await res.text();
   } catch {
     return null;
   }
+}
+
+async function fetchPais(url: string): Promise<{ total: number | null; via: string }> {
+  // Intento 1: acceso directo
+  let html = await fetchDirecto(url);
+  if (html) {
+    const total = extraerConteo(html);
+    if (total !== null) return { total, via: "directo" };
+  }
+
+  // Intento 2: vía proxy
+  html = await fetchViaProxy(url);
+  if (html) {
+    const total = extraerConteo(html);
+    if (total !== null) return { total, via: "proxy" };
+  }
+
+  return { total: null, via: "fallo" };
 }
 
 serve(async (req) => {
@@ -89,11 +111,11 @@ serve(async (req) => {
   }
 
   const hoy = new Date().toISOString().split("T")[0];
-  const resultados: { pais: string; total: number | null }[] = [];
+  const resultados: { pais: string; total: number | null; via: string }[] = [];
 
   for (const { codigo, url } of PAISES) {
-    const total = await fetchPais(url);
-    resultados.push({ pais: codigo, total });
+    const { total, via } = await fetchPais(url);
+    resultados.push({ pais: codigo, total, via });
 
     if (total !== null) {
       await supabase.from("mercado_stats").upsert(
@@ -102,7 +124,7 @@ serve(async (req) => {
       );
     }
 
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 1200));
   }
 
   const ok    = resultados.filter(r => r.total !== null).length;
