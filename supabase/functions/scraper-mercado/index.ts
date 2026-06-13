@@ -111,19 +111,21 @@ serve(async (req) => {
   }
 
   const hoy = new Date().toISOString().split("T")[0];
-  const resultados: { pais: string; total: number | null; via: string }[] = [];
+  const resultados: { pais: string; total: number | null; via: string; dbError?: string }[] = [];
 
   for (const { codigo, url } of PAISES) {
     const { total, via } = await fetchPais(url);
-    resultados.push({ pais: codigo, total, via });
 
+    let dbError: string | null = null;
     if (total !== null) {
-      await supabase.from("mercado_stats").upsert(
+      const { error } = await supabase.from("mercado_stats").upsert(
         { fecha: hoy, pais: codigo, total_empleos: total, actualizado_at: new Date().toISOString() },
         { onConflict: "fecha,pais" }
       );
+      if (error) dbError = error.message;
     }
 
+    resultados.push({ pais: codigo, total, via, dbError: dbError ?? undefined });
     await new Promise(r => setTimeout(r, 1200));
   }
 
