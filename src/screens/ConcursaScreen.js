@@ -256,25 +256,29 @@ export default function ConcursaScreen({ navigation, route }) {
         todosQuery = todosQuery.eq('pais', paisISO);
       }
 
-      // Matches y todos en paralelo
+      // Matches y todos en paralelo, con timeout de 8s
+      const TIMEOUT = new Promise(resolve => setTimeout(() => resolve([{ data: null }, { data: null }]), 8000));
       const [
         { data: matchData },
         { data: todosData },
-      ] = await Promise.all([
-        supabase
-          .from('concurso_matches')
-          .select(`
-            score, cumple, keywords_match,
-            concursos (
-              id, pais, fuente, numero_llamado, titulo, cargo, organismo,
-              tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre,
-              puestos, url_detalle, url_postulacion, descripcion, requisitos, activo, created_at
-            )
-          `)
-          .eq('worker_id', authUser.id)
-          .order('score', { ascending: false })
-          .limit(300),
-        todosQuery,
+      ] = await Promise.race([
+        Promise.all([
+          supabase
+            .from('concurso_matches')
+            .select(`
+              score, cumple, keywords_match,
+              concursos (
+                id, pais, fuente, numero_llamado, titulo, cargo, organismo,
+                tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre,
+                puestos, url_detalle, url_postulacion, descripcion, requisitos, activo, created_at
+              )
+            `)
+            .eq('worker_id', authUser.id)
+            .order('score', { ascending: false })
+            .limit(300),
+          todosQuery,
+        ]),
+        TIMEOUT,
       ]);
 
       const hoy = new Date();

@@ -245,15 +245,24 @@ export default function HomeScreen({ navigation }) {
         setVisDisp(c.visualizaciones_disponibles || 0);
       }
 
-      const { data } = await supabase
-        .from('profiles')
-        .select('nombre, perfil_activo, perfil_activo_hasta, vistas, contactos, avatar_url, pais, rol, visualizaciones_disponibles')
-        .eq('id', user.id)
-        .single();
+      // Query a profiles con timeout de 5s — si tarda, usa cache y sigue
+      const profileTimeout = new Promise(resolve => setTimeout(() => resolve({ data: null }), 5000));
+      const { data: freshData } = await Promise.race([
+        supabase
+          .from('profiles')
+          .select('nombre, perfil_activo, perfil_activo_hasta, vistas, contactos, avatar_url, pais, rol, visualizaciones_disponibles')
+          .eq('id', user.id)
+          .single(),
+        profileTimeout,
+      ]);
+
+      const cachedObj = cached ? JSON.parse(cached) : null;
+      const data = freshData || cachedObj;
       if (!data) return;
 
-      // Guardar en cache para la próxima vez
-      AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data)).catch(() => {});
+      if (freshData) {
+        AsyncStorage.setItem(CACHE_KEY, JSON.stringify(freshData)).catch(() => {});
+      }
 
       const hasta = data.perfil_activo_hasta ? new Date(data.perfil_activo_hasta) : null;
       const diasRestantes = hasta ? Math.max(0, Math.ceil((hasta - new Date()) / (1000 * 60 * 60 * 24))) : 0;
@@ -266,7 +275,7 @@ export default function HomeScreen({ navigation }) {
       }
       setPerfil({
         nombre: data.nombre || '',
-        activo: data.perfil_activo && diasRestantes > 0,
+        activo: (data.perfil_activo && diasRestantes > 0) || esAdmin,
         diasRestantes,
         vistas: data.vistas || 0,
         contactos: data.contactos || 0,
@@ -275,22 +284,28 @@ export default function HomeScreen({ navigation }) {
       setVisDisp(data.visualizaciones_disponibles || 0);
 
       if ((data.rol === 'worker' || esAdmin) && data.pais) {
+        const homeTimeout = new Promise(resolve =>
+          setTimeout(() => resolve([{ data: null }, { data: null }, { count: 0 }]), 8000)
+        );
         const [
           { data: totalN },
           { data: allMatches },
           { count: propCount },
-        ] = await Promise.all([
-          supabase.rpc('count_concursos_activos'),
-          supabase.from('concurso_matches')
-            .select('score, cumple, concursos(id, cargo, organismo, fecha_cierre, tipo_vinculo, pais, activo)')
-            .eq('worker_id', user.id)
-            .eq('cumple', true)
-            .order('score', { ascending: false })
-            .limit(30),
-          supabase.from('propuestas')
-            .select('id', { count: 'exact', head: true })
-            .eq('worker_id', user.id)
-            .eq('estado', 'pendiente'),
+        ] = await Promise.race([
+          Promise.all([
+            supabase.rpc('count_concursos_activos'),
+            supabase.from('concurso_matches')
+              .select('score, cumple, concursos(id, cargo, organismo, fecha_cierre, tipo_vinculo, pais, activo)')
+              .eq('worker_id', user.id)
+              .eq('cumple', true)
+              .order('score', { ascending: false })
+              .limit(30),
+            supabase.from('propuestas')
+              .select('id', { count: 'exact', head: true })
+              .eq('worker_id', user.id)
+              .eq('estado', 'pendiente'),
+          ]),
+          homeTimeout,
         ]);
 
         if (totalN) setTotalConcursos(totalN);
