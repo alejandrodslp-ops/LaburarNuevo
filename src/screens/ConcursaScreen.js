@@ -8,6 +8,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SIZES, SHADOWS } from '../constants/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase';
 import { useApp as useAppContext } from '../services/AppContext';
 import { useI18n } from '../services/I18nContext';
@@ -157,61 +158,36 @@ export default function ConcursaScreen({ navigation, route }) {
     else setCargando(true);
 
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
+      // getSession() usa token cacheado — sin round-trip al servidor
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authUser = sessionData?.session?.user;
       if (!authUser) { setCargando(false); return; }
-      console.log('[Concursa] cargar() inicio — user:', authUser.id);
-
-      // Verificar que el usuario tiene perfil de worker
-      const { data: perfil, error: perfilError } = await supabase
-        .from('profiles')
-        .select('rol, servicios, profesiones, especialidades, tecnicaturas, pais, nomada_digital, idiomas_trabajo')
-        .eq('id', authUser.id)
-        .single();
-
-      console.log('[Concursa] perfil:', perfil?.rol, perfil?.pais, '| error:', perfilError?.message);
 
       const esAdminUser = authUser.email === 'alejandrodslp@gmail.com';
+
+      // Leer perfil desde cache (HomeScreen ya lo guardó)
+      const CACHE_KEY = `perfil_cache_${authUser.id}`;
+      let perfil = null;
+      try {
+        const cached = await AsyncStorage.getItem(CACHE_KEY);
+        if (cached) perfil = JSON.parse(cached);
+      } catch (_) {}
+
+      // Si no hay cache, traer de DB
+      if (!perfil) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('rol, servicios, profesiones, especialidades, tecnicaturas, pais, nomada_digital, idiomas_trabajo')
+          .eq('id', authUser.id)
+          .single();
+        perfil = data;
+      }
+
       if (!esAdminUser && (perfil?.rol === 'employer' || perfil?.rol === 'company')) {
         setSinPerfil(true);
         return;
       }
 
-      const tieneKeywords = [
-        ...(perfil?.servicios || []),
-        ...(perfil?.profesiones || []),
-        ...(perfil?.especialidades || []),
-        ...(perfil?.tecnicaturas || []),
-      ].length > 0;
-
-      if (!tieneKeywords) {
-        setSinPerfil(false);
-        // Igual traemos concursos aunque no haya keywords, mostramos todos
-      }
-
-      console.log('[Concursa] user.id:', authUser.id, '| pais:', perfil?.pais, '| rol:', perfil?.rol);
-
-      // Disparar matching actualizado en el servidor
-      supabase.functions.invoke('match-concursos', {
-        body: { worker_id: authUser.id },
-      }).catch(() => {});
-
-      // Traer matches con datos del concurso
-      const { data: matchData } = await supabase
-        .from('concurso_matches')
-        .select(`
-          score, cumple, keywords_match,
-          concursos (
-            id, pais, fuente, numero_llamado, titulo, cargo, organismo,
-            tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre,
-            puestos, url_detalle, url_postulacion, descripcion, requisitos, activo, created_at
-          )
-        `)
-        .eq('worker_id', authUser.id)
-        .order('score', { ascending: false })
-        .limit(300);
-
-      const hoy = new Date();
-      const hoyStr = new Date().toISOString().slice(0, 10); // "2026-05-21" — para comparar fechas sin timezone
       const PAIS_ISO = {
         'uruguay':'UY','argentina':'AR','chile':'CL','colombia':'CO',
         'peru':'PE','perú':'PE','brasil':'BR','brazil':'BR','paraguay':'PY',
@@ -246,13 +222,52 @@ export default function ConcursaScreen({ navigation, route }) {
       const paisRaw = (perfil?.pais || '').toLowerCase().trim();
       const paisISO = PAIS_ISO[paisRaw] || paisRaw.slice(0,2).toUpperCase();
 
-      // Países permitidos según modo nómada
-      let paisesPermitidos = null; // null = solo país propio
+      let paisesPermitidos = null;
       if (perfil?.nomada_digital) {
         const idiomas = perfil.idiomas_trabajo?.length ? perfil.idiomas_trabajo : ['es'];
         paisesPermitidos = idiomas.flatMap(i => IDIOMA_PAISES[i] || []);
         if (!paisesPermitidos.includes(paisISO)) paisesPermitidos.push(paisISO);
       }
+
+      // Disparar matching (fire & forget)
+      supabase.functions.invoke('match-concursos', {
+        body: { worker_id: authUser.id },
+      }).catch(() => {});
+
+      // Construir query de todos ANTES del Promise.all
+      let todosQuery = supabase
+        .from('concursos')
+        .select('id, pais, fuente, numero_llamado, titulo, cargo, organismo, tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre, puestos, url_detalle, url_postulacion, created_at')
+        .eq('activo', true)
+        .limit(300);
+      if (paisesPermitidos) {
+        todosQuery = todosQuery.in('pais', paisesPermitidos);
+      } else if (paisISO) {
+        todosQuery = todosQuery.eq('pais', paisISO);
+      }
+
+      // Matches y todos en paralelo
+      const [
+        { data: matchData },
+        { data: todosData },
+      ] = await Promise.all([
+        supabase
+          .from('concurso_matches')
+          .select(`
+            score, cumple, keywords_match,
+            concursos (
+              id, pais, fuente, numero_llamado, titulo, cargo, organismo,
+              tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre,
+              puestos, url_detalle, url_postulacion, descripcion, requisitos, activo, created_at
+            )
+          `)
+          .eq('worker_id', authUser.id)
+          .order('score', { ascending: false })
+          .limit(300),
+        todosQuery,
+      ]);
+
+      const hoy = new Date();
 
       // Filtrar matches por país
       const validos = (matchData || []).filter(m => {
@@ -270,23 +285,9 @@ export default function ConcursaScreen({ navigation, route }) {
 
       setMatches(validos);
 
-      // Cargar TODOS los concursos del país directamente (no depende de matching)
-      let todosQuery = supabase
-        .from('concursos')
-        .select('id, pais, fuente, numero_llamado, titulo, cargo, organismo, tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre, puestos, url_detalle, url_postulacion, created_at')
-        .eq('activo', true)
-        .limit(300);
-      if (paisesPermitidos) {
-        todosQuery = todosQuery.in('pais', paisesPermitidos);
-      } else if (paisISO) {
-        todosQuery = todosQuery.eq('pais', paisISO);
-      }
-      const { data: todosData } = await todosQuery;
-
       const todosValidos = (todosData || [])
         .filter(c => !(c.fuente?.includes('gnews') || c.fuente?.includes('news')))
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-      console.log('[Concursa] paisISO:', paisISO, '| todos raw:', todosData?.length, '| todos validos:', todosValidos.length, '| matches:', validos.length);
       setTodos(todosValidos);
 
       // Stats
