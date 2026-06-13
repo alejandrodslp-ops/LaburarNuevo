@@ -8,8 +8,8 @@ export const revalidate = 3600
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
 async function getStats() {
-  const { count } = await db.from('concursos').select('*', { count: 'estimated', head: true }).eq('activo', true)
-  return { total: count ?? 0 }
+  const { data } = await db.rpc('count_concursos_activos')
+  return { total: (data ?? 0) }
 }
 
 async function getRecentJobs() {
