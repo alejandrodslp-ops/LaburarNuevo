@@ -170,7 +170,8 @@ export default function ConcursaScreen({ navigation, route }) {
 
       console.log('[Concursa] perfil:', perfil?.rol, perfil?.pais, '| error:', perfilError?.message);
 
-      if (perfil?.rol === 'employer' || perfil?.rol === 'company') {
+      const esAdminUser = authUser.email === 'alejandrodslp@gmail.com';
+      if (!esAdminUser && (perfil?.rol === 'employer' || perfil?.rol === 'company')) {
         setSinPerfil(true);
         return;
       }

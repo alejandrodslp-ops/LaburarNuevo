@@ -274,7 +274,7 @@ export default function HomeScreen({ navigation }) {
       });
       setVisDisp(data.visualizaciones_disponibles || 0);
 
-      if (data.rol === 'worker' && data.pais) {
+      if ((data.rol === 'worker' || esAdmin) && data.pais) {
         const [
           { data: totalN },
           { data: allMatches },
