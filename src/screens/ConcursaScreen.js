@@ -249,7 +249,7 @@ export default function ConcursaScreen({ navigation, route }) {
         .from('concursos')
         .select('id, pais, fuente, numero_llamado, titulo, cargo, organismo, tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre, puestos, url_detalle, url_postulacion, created_at')
         .eq('activo', true)
-        .limit(300);
+        .limit(50);
       if (paisesPermitidos) {
         todosQuery = todosQuery.in('pais', paisesPermitidos);
       } else if (paisISO) {
