@@ -58,6 +58,7 @@ export default async function Home() {
       <nav className="nav">
         <Link href="/" className="nav-logo"><span>Nexu</span><span style={{fontSize:'0.42em',marginLeft:'-9px',lineHeight:1,marginBottom:'3px'}}>🧩</span></Link>
         <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+          <Link href="/pulso-latam" style={{ color:'#94A3B8', fontSize:13, fontWeight:600 }}>Pulso Laboral</Link>
           <Link href="/empleos" style={{ color:'#94A3B8', fontSize:13, fontWeight:600 }}>Ver empleos</Link>
           <a href="/download" className="nav-btn">App gratis</a>
         </div>
@@ -121,6 +122,29 @@ export default async function Home() {
             <Link href="/empleos" style={{ color:'#E8785A', fontSize:13, fontWeight:700, textDecoration:'none' }}>Ver todos →</Link>
           </div>
           <JobsRealtime initialJobs={recentJobs} />
+        </div>
+      </section>
+
+      {/* PULSO LABORAL LATAM BANNER */}
+      <section style={{ background:'#080D12', padding:'48px 24px', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ maxWidth:900, margin:'0 auto' }}>
+          <Link href="/pulso-latam" style={{ display:'block', background:'linear-gradient(120deg,#0D1117,#0f1a14)', border:'1px solid rgba(45,212,191,0.2)', borderRadius:18, padding:'28px 32px', textDecoration:'none', transition:'border-color .2s' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, flexWrap:'wrap' }}>
+              <div>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                  <span style={{ width:7, height:7, borderRadius:'50%', background:'#2DD4BF', display:'inline-block', animation:'pulse 2s infinite' }}/>
+                  <span style={{ fontSize:11, color:'#2DD4BF', fontWeight:800, letterSpacing:'1.5px', textTransform:'uppercase' }}>Datos en tiempo real</span>
+                </div>
+                <p style={{ fontSize:'clamp(16px,2.5vw,22px)', fontWeight:900, color:'#F1F5F9', letterSpacing:'-.5px', marginBottom:6 }}>
+                  Pulso Laboral LatAm — vacantes activas por país
+                </p>
+                <p style={{ fontSize:14, color:'#64748B', lineHeight:1.5 }}>
+                  ¿Cuántos empleos hay disponibles hoy en Brasil, Argentina, México y toda la región? Datos reales actualizados cada mañana.
+                </p>
+              </div>
+              <span style={{ fontSize:13, fontWeight:800, color:'#2DD4BF', whiteSpace:'nowrap' }}>Ver datos →</span>
+            </div>
+          </Link>
         </div>
       </section>
 
