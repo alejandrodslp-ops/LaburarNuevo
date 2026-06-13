@@ -24,8 +24,8 @@ const role=(route.params?.role)||'worker';
 const SLIDES=role==='employer'?SLIDES_EMPLOYER:SLIDES_WORKER;
 const[totalOportunidades,setTotalOportunidades]=useState(null);
 useEffect(()=>{
-  supabase.from('concursos').select('*',{count:'estimated',head:true}).then(({count})=>{
-    if(count)setTotalOportunidades(count);
+  supabase.rpc('count_concursos_activos').then(({data})=>{
+    if(data)setTotalOportunidades(data);
   });
 },[]);
 function siguiente(){if(actual<SLIDES.length-1){const next=actual+1;scrollRef.current?.scrollTo({x:next*width,animated:true});setActual(next);}else{navigation.replace('Register',{role});}}

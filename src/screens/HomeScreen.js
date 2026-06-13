@@ -255,12 +255,8 @@ export default function HomeScreen({ navigation }) {
         const PAIS_ISO = { 'uruguay':'UY','argentina':'AR','chile':'CL','colombia':'CO','peru':'PE','perú':'PE','brasil':'BR','brazil':'BR','paraguay':'PY' };
         const paisISO = PAIS_ISO[(data.pais||'').toLowerCase().trim()] || data.pais.slice(0, 2).toUpperCase();
 
-        const { count } = await supabase
-          .from('concursos')
-          .select('id', { count: 'estimated', head: true })
-          .eq('pais', paisISO)
-          .eq('activo', true);
-        setTotalConcursos(count || 0);
+        const { data: totalN } = await supabase.rpc('count_concursos_activos');
+        setTotalConcursos(totalN || 0);
 
         const { data: allMatches } = await supabase
           .from('concurso_matches')
