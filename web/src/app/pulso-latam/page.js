@@ -19,55 +19,37 @@ const PAISES_META = {
   PY: { nombre: 'Paraguay',  bandera: '🇵🇾' },
 }
 
-const RUBROS_META = {
-  tecnologia:   { label: 'Tecnología & IT',         icono: '💻' },
-  industria:    { label: 'Industria & Manufactura',  icono: '🏭' },
-  comercio:     { label: 'Comercio & Ventas',        icono: '🛒' },
-  salud:        { label: 'Salud & Medicina',         icono: '🏥' },
-  logistica:    { label: 'Logística & Transporte',   icono: '🚛' },
-  finanzas:     { label: 'Contabilidad & Finanzas',  icono: '💰' },
-  construccion: { label: 'Construcción',             icono: '🏗️' },
-  educacion:    { label: 'Educación & Docencia',     icono: '📚' },
-  admin:        { label: 'Administración',           icono: '📋' },
-  gastronomia:  { label: 'Turismo & Gastronomía',    icono: '🍽️' },
+const RUBROS_LABELS = {
+  tecnologia:'Tecnología & IT', industria:'Industria', comercio:'Comercio & Ventas',
+  salud:'Salud', logistica:'Logística', finanzas:'Finanzas',
+  construccion:'Construcción', educacion:'Educación', admin:'Administración', gastronomia:'Gastronomía',
 }
 
 export const metadata = {
-  title: 'Pulso Laboral LatAm — Empleos disponibles en América Latina hoy',
-  description: 'Seguimiento diario del mercado laboral en América Latina. Cuántos empleos hay por país y por sector. Datos actualizados cada 24 horas.',
-  keywords: ['mercado laboral latinoamérica','empleos disponibles latam','estadísticas empleo','vacantes por sector','empleos tecnología latam','mercado trabajo argentina','empleos brasil','vacantes colombia'],
+  title: 'Pulso Laboral LatAm — ¿Cuántos empleos hay en América Latina hoy?',
+  description: 'Datos reales: cuántos empleos hay disponibles hoy en Brasil, Argentina, México, Colombia, Chile y toda América Latina. Actualizado cada 24 horas.',
+  keywords: ['cuántos empleos hay en latinoamérica','mercado laboral latinoamérica 2026','empleos disponibles latam','vacantes por país latam','estadísticas empleo brasil','mercado trabajo argentina','vacantes colombia chile','empleos disponibles hoy'],
   openGraph: {
     title: 'Pulso Laboral LatAm — Empleos en América Latina hoy',
-    description: 'Cuántos empleos hay disponibles por país y por sector en América Latina. Datos diarios del mercado laboral.',
+    description: 'Datos reales del mercado laboral latinoamericano. País por país, actualizado diariamente.',
     url: '/pulso-latam',
   },
   alternates: { canonical: '/pulso-latam' },
 }
 
 async function getDatos() {
-  // Últimos 7 días de totales por país
-  const { data: historial } = await db
-    .from('mercado_stats')
-    .select('pais, total_empleos, fecha')
-    .order('fecha', { ascending: false })
-    .limit(77) // 11 países × 7 días
+  const [{ data: historial }, { data: rubros }] = await Promise.all([
+    db.from('mercado_stats').select('pais,total_empleos,fecha').order('fecha', { ascending: false }).limit(77),
+    db.from('mercado_rubros').select('pais,rubro,total_empleos,fecha').order('fecha', { ascending: false }).limit(100),
+  ])
 
-  // Rubros más recientes
-  const { data: rubros } = await db
-    .from('mercado_rubros')
-    .select('pais, rubro, total_empleos, fecha')
-    .order('fecha', { ascending: false })
-    .limit(100)
+  if (!historial?.length) return null
 
-  if (!historial?.length) return { porPais: [], tendencia: [], rubros: [], ultimaFecha: null }
-
-  // Dato más reciente por país
   const porPais = {}
   for (const row of historial) {
     if (!porPais[row.pais]) porPais[row.pais] = row
   }
 
-  // Tendencia: totales globales por fecha
   const porFecha = {}
   for (const row of historial) {
     if (!porFecha[row.fecha]) porFecha[row.fecha] = 0
@@ -78,307 +60,337 @@ async function getDatos() {
     .slice(0, 7)
     .map(([fecha, total]) => ({ fecha, total }))
 
-  // Rubros más recientes por sector
+  const ranking = Object.values(porPais).sort((a, b) => b.total_empleos - a.total_empleos)
+  const total = ranking.reduce((s, r) => s + r.total_empleos, 0)
+  const maximo = ranking[0]?.total_empleos ?? 1
+  const ultimaFecha = ranking[0]?.fecha ?? null
+
   const rubrosMap = {}
   for (const row of (rubros || [])) {
     if (!rubrosMap[row.rubro]) rubrosMap[row.rubro] = row
   }
+  const rubrosList = Object.values(rubrosMap).sort((a, b) => b.total_empleos - a.total_empleos)
 
-  const ultimaFecha = Object.values(porPais)[0]?.fecha ?? null
-  return {
-    porPais: Object.values(porPais).sort((a, b) => b.total_empleos - a.total_empleos),
-    tendencia,
-    rubros: Object.values(rubrosMap).sort((a, b) => b.total_empleos - a.total_empleos),
-    ultimaFecha,
-  }
+  return { ranking, total, maximo, tendencia, rubros: rubrosList, ultimaFecha }
 }
 
-function fmtNum(n) { return Number(n).toLocaleString('es-UY') }
+function fmtN(n) { return Number(n).toLocaleString('es-UY') }
 function fmtFecha(f) {
-  if (!f) return '–'
+  if (!f) return ''
   return new Date(f + 'T12:00:00').toLocaleDateString('es-UY', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 function fmtFechaCorta(f) {
-  if (!f) return '–'
+  if (!f) return ''
   return new Date(f + 'T12:00:00').toLocaleDateString('es-UY', { day: 'numeric', month: 'short' })
+}
+function pct(n, total) { return ((n / total) * 100).toFixed(1) }
+
+function derivarInsights(ranking, total) {
+  if (!ranking?.length) return []
+  const insights = []
+  const top = ranking[0]
+  const seg = ranking[1]
+  const topM = PAISES_META[top?.pais]
+  const segM = PAISES_META[seg?.pais]
+
+  if (top && seg && Math.abs(top.total_empleos - seg.total_empleos) < top.total_empleos * 0.05) {
+    insights.push(`${topM?.nombre} y ${segM?.nombre} empatan en el liderato con ${fmtN(top.total_empleos)} vacantes cada uno.`)
+  } else if (top) {
+    insights.push(`${topM?.nombre} lidera la región con ${fmtN(top.total_empleos)} empleos — el ${pct(top.total_empleos, total)}% del mercado.`)
+  }
+
+  for (let i = 1; i < ranking.length - 1; i++) {
+    const a = ranking[i], b = ranking[i + 1]
+    const mA = PAISES_META[a.pais], mB = PAISES_META[b.pais]
+    if (a.total_empleos > b.total_empleos * 1.1) {
+      insights.push(`${mA?.nombre} supera a ${mB?.nombre}: ${fmtN(a.total_empleos)} vs ${fmtN(b.total_empleos)} puestos activos.`)
+      break
+    }
+  }
+
+  const ultimo = ranking[ranking.length - 1]
+  if (ultimo && top && top.total_empleos > ultimo.total_empleos * 50) {
+    const veces = Math.round(top.total_empleos / ultimo.total_empleos).toLocaleString('es-UY')
+    const ultiM = PAISES_META[ultimo.pais]
+    insights.push(`${topM?.nombre} tiene ${veces}× más vacantes que ${ultiM?.nombre}.`)
+  }
+
+  return insights.slice(0, 3)
 }
 
 export default async function PulsoLatam() {
-  const { porPais, tendencia, rubros, ultimaFecha } = await getDatos()
-  const totalGlobal = porPais.reduce((acc, s) => acc + (s.total_empleos ?? 0), 0)
-  const hayDatos = porPais.length > 0
-  const maxPais = porPais[0]?.total_empleos ?? 1
-  const maxRubro = rubros[0]?.total_empleos ?? 1
+  const d = await getDatos()
+  const ranking = d?.ranking ?? []
+  const total = d?.total ?? 0
+  const maximo = d?.maximo ?? 1
+  const tendencia = d?.tendencia ?? []
+  const rubros = d?.rubros ?? []
+  const ultimaFecha = d?.ultimaFecha
+  const insights = derivarInsights(ranking, total)
+  const hayDatos = ranking.length > 0
+  const top1 = ranking[0]
+  const top1Meta = top1 ? PAISES_META[top1.pais] : null
+  const ultimo = ranking[ranking.length - 1]
+  const ultiMeta = ultimo ? PAISES_META[ultimo.pais] : null
 
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Dataset',
     name: 'Pulso Laboral LatAm',
-    description: 'Cantidad de empleos disponibles por país y sector en América Latina, actualizado diariamente.',
+    description: 'Empleos activos por país en América Latina, relevado diariamente.',
     url: 'https://www.nexu.fyi/pulso-latam',
     creator: { '@type': 'Organization', name: 'Nexu', url: 'https://www.nexu.fyi' },
   }
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+
       <style>{`
-        @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:.4} }
-        .fade-up { animation: fadeUp 0.55s ease both }
-        .live-dot { animation: pulse 2.4s infinite }
-        .card {
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.07);
-          border-radius: 16px;
-          padding: 20px 24px;
-          transition: background 0.15s, border-color 0.15s;
-        }
-        .card:hover { background: rgba(255,255,255,0.07); border-color: rgba(232,120,90,0.3); }
-        .bar-bg { background: rgba(255,255,255,0.06); border-radius: 4px; height: 6px; margin-top: 8px; }
-        .bar-fill { background: #E8785A; border-radius: 4px; height: 6px; transition: width 0.6s ease; }
-        .bar-fill-teal { background: #2DD4BF; }
-        .section-title { font-size: 18px; font-weight: 800; color: #F1F5F9; letter-spacing: -0.5px; margin-bottom: 6px; }
-        .section-sub { font-size: 13px; color: #64748B; margin-bottom: 24px; }
-        .trend-table { width: 100%; border-collapse: collapse; }
-        .trend-table th { font-size: 11px; color: #64748B; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 0 0 12px; text-align: left; }
-        .trend-table td { font-size: 14px; color: #CBD5E1; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.05); }
-        .trend-table td:last-child { text-align: right; font-weight: 700; color: #E8785A; font-size: 16px; }
-        .badge-new { background: rgba(45,212,191,0.15); color: #2DD4BF; border-radius: 6px; padding: 2px 8px; font-size: 10px; font-weight: 700; margin-left: 8px; }
-        @media(max-width:640px){
-          .grid-2 { grid-template-columns: 1fr !important }
-          .total-num { font-size: clamp(40px,12vw,64px) !important }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        *{box-sizing:border-box}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+        .fu{animation:fadeUp .55s ease both}
+        .d1{animation-delay:.05s}.d2{animation-delay:.12s}.d3{animation-delay:.22s}.d4{animation-delay:.32s}
+        .live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#2DD4BF;animation:blink 2s infinite;margin-right:8px;vertical-align:middle;flex-shrink:0}
+        .num-hero{font-size:clamp(64px,11vw,120px);font-weight:900;line-height:1;letter-spacing:clamp(-3px,-0.05em,-5px);color:#fff;font-family:'Inter',system-ui,sans-serif}
+        .insight{border-left:3px solid #E8785A;padding:11px 16px;background:rgba(232,120,90,0.07);border-radius:0 8px 8px 0;font-size:14px;color:#CBD5E1;line-height:1.5}
+        .bar-row{display:flex;align-items:center;gap:10px;padding:13px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+        .bar-row:last-child{border-bottom:none}
+        .bar-track{flex:1;height:10px;background:rgba(255,255,255,0.07);border-radius:5px;overflow:hidden;min-width:60px}
+        .bar-fill{height:100%;border-radius:5px}
+        .bar-fill-coral{background:linear-gradient(90deg,#E8785A 0%,#f0a080 100%)}
+        .bar-fill-teal{background:linear-gradient(90deg,#2DD4BF 0%,#5eead4 100%)}
+        .card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:24px 28px}
+        .trend-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+        .trend-row:last-child{border-bottom:none}
+        .badge-hoy{background:rgba(45,212,191,0.15);color:#2DD4BF;border-radius:5px;padding:2px 7px;font-size:10px;font-weight:800;margin-left:8px;letter-spacing:.5px}
+        .label-sec{font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#475569;margin-bottom:18px}
+        .callout{background:linear-gradient(135deg,rgba(232,120,90,0.1),rgba(232,120,90,0.03));border:1px solid rgba(232,120,90,0.22);border-radius:18px;padding:36px 36px}
+        .seo p{font-size:15px;color:#64748B;line-height:1.8;margin-bottom:14px}
+        .seo h2{font-size:19px;font-weight:800;color:#94A3B8;margin:32px 0 10px;letter-spacing:-.3px}
+        .seo strong{color:#94A3B8}
+        .nav{display:flex;justify-content:space-between;align-items:center;padding:16px 32px;border-bottom:1px solid rgba(255,255,255,0.06);position:sticky;top:0;background:rgba(8,11,16,0.94);backdrop-filter:blur(14px);z-index:100}
+        .nav-logo{text-decoration:none;font-size:22px;font-weight:900;color:#E8785A;letter-spacing:-.5px}
+        .nav-btn{background:#E8785A;color:#fff!important;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;text-decoration:none}
+        .divider{height:1px;background:rgba(255,255,255,0.06);margin:56px 0}
+        @media(max-width:600px){
+          .card{padding:18px 16px}
+          .callout{padding:24px 18px}
+          .bar-name{display:none}
+          .num-hero{letter-spacing:-2px}
+          .nav{padding:14px 20px}
         }
       `}</style>
 
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-
       {/* NAV */}
       <nav className="nav">
-        <Link href="/" className="nav-logo">
-          <span>Nexu</span>
-          <span style={{ fontSize:'0.42em', marginLeft:'-9px', lineHeight:1, marginBottom:'3px' }}>🧩</span>
-        </Link>
-        <div style={{ display:'flex', gap:12, alignItems:'center' }}>
-          <Link href="/empleos" style={{ color:'#94A3B8', fontSize:13, fontWeight:600 }}>Ver empleos</Link>
+        <Link href="/" className="nav-logo">Nexu<span style={{fontSize:9,marginLeft:'-8px',verticalAlign:'bottom'}}>🧩</span></Link>
+        <div style={{display:'flex',gap:12,alignItems:'center'}}>
+          <Link href="/empleos" style={{color:'#94A3B8',fontSize:13,fontWeight:600,textDecoration:'none'}}>Ver empleos</Link>
           <a href="/download" className="nav-btn">App gratis</a>
         </div>
       </nav>
 
       {/* HERO */}
-      <section style={{ background:'linear-gradient(160deg,#0D1117 60%,#0d1520)', padding:'72px 24px 64px', textAlign:'center', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
-        <div className="fade-up" style={{ maxWidth:720, margin:'0 auto' }}>
-          <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(45,212,191,0.1)', border:'1px solid rgba(45,212,191,0.25)', borderRadius:100, padding:'6px 16px', marginBottom:28 }}>
-            <span className="live-dot" style={{ width:7, height:7, borderRadius:'50%', background:'#2DD4BF', display:'inline-block' }}/>
-            <span style={{ fontSize:12, color:'#2DD4BF', fontWeight:700, letterSpacing:0.5 }}>
-              ACTUALIZADO DIARIAMENTE — {hayDatos ? fmtFecha(ultimaFecha) : 'próximamente'}
-            </span>
-          </div>
+      <section style={{maxWidth:900,margin:'0 auto',padding:'68px 32px 56px'}}>
 
-          <h1 style={{ fontSize:'clamp(32px,6vw,58px)', fontWeight:900, color:'#F1F5F9', lineHeight:1.08, letterSpacing:-2, marginBottom:14 }}>
-            Pulso Laboral <em style={{ color:'#E8785A', fontStyle:'italic' }}>LatAm</em>
-          </h1>
-          <p style={{ fontSize:'clamp(15px,2vw,18px)', color:'#94A3B8', maxWidth:520, margin:'0 auto 40px', lineHeight:1.65 }}>
-            ¿Cuántos empleos hay disponibles hoy en América Latina?<br/>
-            Datos reales del mercado laboral, país por país y sector por sector.
-          </p>
-
-          {/* Total global */}
-          {hayDatos ? (
-            <div style={{ background:'rgba(232,120,90,0.08)', border:'1px solid rgba(232,120,90,0.2)', borderRadius:20, padding:'28px 40px', display:'inline-block' }}>
-              <div className="total-num" style={{ fontSize:'clamp(48px,9vw,80px)', fontWeight:900, color:'#E8785A', letterSpacing:-3, lineHeight:1, marginBottom:8 }}>
-                {fmtNum(totalGlobal)}
-              </div>
-              <div style={{ fontSize:14, color:'#94A3B8', fontWeight:600, letterSpacing:0.5, textTransform:'uppercase' }}>
-                empleos disponibles en {porPais.length} países
-              </div>
-            </div>
-          ) : (
-            <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:20, padding:'32px 40px', display:'inline-block' }}>
-              <div style={{ fontSize:48, fontWeight:900, color:'#475569', letterSpacing:-2, lineHeight:1, marginBottom:8 }}>—</div>
-              <div style={{ fontSize:14, color:'#64748B', fontWeight:600 }}>Datos disponibles mañana</div>
-            </div>
-          )}
+        <div className="fu d1" style={{marginBottom:20}}>
+          <span style={{fontSize:11,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:'#475569'}}>Pulso Laboral LatAm</span>
+          <span style={{margin:'0 12px',color:'#334155'}}>·</span>
+          <span className="live-dot"/>
+          <span style={{fontSize:11,color:'#2DD4BF',fontWeight:700,letterSpacing:1,textTransform:'uppercase'}}>
+            {hayDatos ? fmtFecha(ultimaFecha) : 'Sin datos aún'}
+          </span>
         </div>
+
+        <div className="fu d1">
+          <h1 style={{fontSize:'clamp(26px,4vw,40px)',fontWeight:900,color:'#F1F5F9',lineHeight:1.15,letterSpacing:-.8,marginBottom:28,maxWidth:660}}>
+            ¿Cuántos empleos hay disponibles en América Latina hoy?
+          </h1>
+        </div>
+
+        {hayDatos ? (
+          <>
+            <div className="fu d2" style={{marginBottom:8}}>
+              <div className="num-hero">{fmtN(total)}</div>
+            </div>
+            <div className="fu d2" style={{marginBottom:44}}>
+              <p style={{fontSize:'clamp(15px,2vw,20px)',color:'#64748B',fontWeight:600,marginTop:6}}>
+                empleos activos en {ranking.length} países · actualizados cada 24 horas
+              </p>
+            </div>
+
+            {insights.length > 0 && (
+              <div className="fu d3" style={{display:'flex',flexDirection:'column',gap:8}}>
+                {insights.map((txt, i) => <div key={i} className="insight">{txt}</div>)}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="fu d2">
+            <div style={{fontSize:72,fontWeight:900,color:'#1E293B',letterSpacing:-3,marginBottom:16}}>–</div>
+            <p style={{fontSize:16,color:'#475569'}}>Datos disponibles mañana. El sistema recopila automáticamente cada mañana.</p>
+          </div>
+        )}
       </section>
 
       {hayDatos && (
-        <div style={{ background:'#0D1117' }}>
+        <div style={{maxWidth:900,margin:'0 auto',padding:'0 32px 80px'}}>
 
-          {/* TENDENCIA DIARIA */}
-          <section style={{ padding:'56px 24px 0' }}>
-            <div style={{ maxWidth:900, margin:'0 auto' }}>
-              <div className="section-title">Tendencia diaria</div>
-              <div className="section-sub">
-                Total de empleos en los {tendencia.length} {tendencia.length === 1 ? 'día disponible' : 'días disponibles'} — se actualiza cada mañana
-              </div>
-
-              {tendencia.length === 1 && (
-                <div style={{ background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.15)', borderRadius:12, padding:'14px 20px', marginBottom:24, fontSize:13, color:'#64748B' }}>
-                  📊 El historial semanal se completa automáticamente — hoy es el primer día de datos. Volvé en 7 días para ver la curva completa.
-                </div>
-              )}
-
-              <div className="card" style={{ padding:'24px 28px' }}>
-                <table className="trend-table">
-                  <thead>
-                    <tr>
-                      <th>Fecha</th>
-                      <th style={{ textAlign:'right' }}>Total LatAm</th>
-                      <th style={{ textAlign:'right', paddingLeft:24 }}>Variación</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tendencia.map((row, i) => {
-                      const siguiente = tendencia[i + 1]
-                      const variacion = siguiente ? row.total - siguiente.total : null
-                      const pct = siguiente ? ((row.total - siguiente.total) / siguiente.total * 100).toFixed(1) : null
-                      return (
-                        <tr key={row.fecha}>
-                          <td>
-                            {fmtFechaCorta(row.fecha)}
-                            {i === 0 && <span className="badge-new">HOY</span>}
-                          </td>
-                          <td style={{ textAlign:'right', fontWeight:700, color:'#E8785A', fontSize:16 }}>
-                            {fmtNum(row.total)}
-                          </td>
-                          <td style={{ textAlign:'right', paddingLeft:24, fontSize:13, color: variacion === null ? '#475569' : variacion >= 0 ? '#4ADE80' : '#F87171' }}>
-                            {variacion === null ? '–' : `${variacion >= 0 ? '+' : ''}${fmtNum(variacion)} (${variacion >= 0 ? '+' : ''}${pct}%)`}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
-
-          {/* EMPLEOS POR PAÍS */}
-          <section style={{ padding:'56px 24px 0' }}>
-            <div style={{ maxWidth:900, margin:'0 auto' }}>
-              <div className="section-title">Empleos por país</div>
-              <div className="section-sub">Ranking actualizado al {fmtFecha(ultimaFecha)}</div>
-              <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12 }}>
-                {porPais.map(({ pais, total_empleos }) => {
-                  const meta = PAISES_META[pais] ?? { nombre: pais, bandera: '🌐' }
-                  const pct = Math.round((total_empleos / maxPais) * 100)
-                  return (
-                    <div key={pais} className="card">
-                      <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                        <span style={{ fontSize:32 }}>{meta.bandera}</span>
-                        <div style={{ flex:1 }}>
-                          <div style={{ fontSize:14, fontWeight:700, color:'#F1F5F9', marginBottom:2 }}>{meta.nombre}</div>
-                          <div style={{ fontSize:11, color:'#64748B', fontWeight:600, textTransform:'uppercase', letterSpacing:0.5 }}>empleos activos</div>
-                        </div>
-                        <div style={{ fontSize:'clamp(18px,3vw,24px)', fontWeight:900, color:'#E8785A', letterSpacing:-1 }}>
-                          {fmtNum(total_empleos)}
-                        </div>
-                      </div>
-                      <div className="bar-bg">
-                        <div className="bar-fill" style={{ width:`${pct}%` }} />
-                      </div>
+          {/* RANKING */}
+          <section className="fu d3" style={{marginBottom:60}}>
+            <p className="label-sec">Ranking de países · {fmtFecha(ultimaFecha)}</p>
+            <div className="card">
+              {ranking.map(({pais, total_empleos}, i) => {
+                const meta = PAISES_META[pais] ?? {nombre:pais, bandera:'🌐'}
+                const ancho = Math.round((total_empleos / maximo) * 100)
+                const porcentaje = pct(total_empleos, total)
+                return (
+                  <div key={pais} className="bar-row">
+                    <span style={{fontSize:12,color:'#334155',fontWeight:800,minWidth:18,textAlign:'right'}}>{i+1}</span>
+                    <span style={{fontSize:26,width:32,flexShrink:0}}>{meta.bandera}</span>
+                    <span className="bar-name" style={{fontSize:13,color:'#94A3B8',fontWeight:600,minWidth:80}}>{meta.nombre}</span>
+                    <div className="bar-track">
+                      <div className="bar-fill bar-fill-coral" style={{width:`${ancho}%`}} />
                     </div>
-                  )
-                })}
-              </div>
+                    <span style={{fontSize:'clamp(14px,2vw,17px)',fontWeight:800,color:'#F1F5F9',minWidth:90,textAlign:'right',letterSpacing:-.3}}>{fmtN(total_empleos)}</span>
+                    <span style={{fontSize:12,color:'#475569',fontWeight:700,minWidth:40,textAlign:'right'}}>{porcentaje}%</span>
+                  </div>
+                )
+              })}
             </div>
+            <p style={{fontSize:11,color:'#1E293B',marginTop:10}}>Fuente: Computrabajo · Relevamiento automático diario</p>
           </section>
 
-          {/* EMPLEOS POR SECTOR (rubros) */}
-          {rubros.length > 0 && (
-            <section style={{ padding:'56px 24px 0' }}>
-              <div style={{ maxWidth:900, margin:'0 auto' }}>
-                <div className="section-title">Empleos por sector</div>
-                <div className="section-sub">
-                  Argentina · {fmtFecha(rubros[0]?.fecha)} — expandiendo a más países
-                </div>
-                <div className="grid-2" style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12 }}>
-                  {rubros.map(({ rubro, total_empleos }) => {
-                    const meta = RUBROS_META[rubro] ?? { label: rubro, icono: '💼' }
-                    const pct = Math.round((total_empleos / maxRubro) * 100)
-                    return (
-                      <div key={rubro} className="card">
-                        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                          <span style={{ fontSize:28, flexShrink:0 }}>{meta.icono}</span>
-                          <div style={{ flex:1 }}>
-                            <div style={{ fontSize:13, fontWeight:700, color:'#F1F5F9', marginBottom:2 }}>{meta.label}</div>
-                            <div style={{ fontSize:11, color:'#64748B', fontWeight:600, textTransform:'uppercase', letterSpacing:0.5 }}>vacantes</div>
-                          </div>
-                          <div style={{ fontSize:'clamp(16px,2.5vw,22px)', fontWeight:900, color:'#2DD4BF', letterSpacing:-1 }}>
-                            {fmtNum(total_empleos)}
-                          </div>
-                        </div>
-                        <div className="bar-bg">
-                          <div className="bar-fill bar-fill-teal" style={{ width:`${pct}%` }} />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                <p style={{ marginTop:16, fontSize:12, color:'#475569' }}>
-                  * Datos de sector disponibles para Argentina. Brasil, México, Chile y demás países en proceso de integración.
+          {/* EL DATO */}
+          {top1 && ultimo && top1.pais !== ultimo.pais && (
+            <section className="fu d3" style={{marginBottom:60}}>
+              <div className="callout">
+                <p style={{fontSize:11,color:'#E8785A',fontWeight:800,letterSpacing:2,textTransform:'uppercase',marginBottom:14}}>El dato</p>
+                <p style={{fontSize:'clamp(20px,3vw,34px)',fontWeight:900,color:'#F1F5F9',lineHeight:1.2,letterSpacing:-.5,marginBottom:14}}>
+                  {top1Meta?.nombre} tiene {Math.round(top1.total_empleos / ultimo.total_empleos).toLocaleString('es-UY')}× más empleos publicados que {ultiMeta?.nombre}
+                </p>
+                <p style={{fontSize:14,color:'#64748B',lineHeight:1.65}}>
+                  La brecha entre los mercados más digitalizados y los más pequeños refleja la desigualdad estructural del empleo formal en LatAm. Los países con mayor penetración de internet y economías más formalizadas concentran la mayoría de las vacantes.
                 </p>
               </div>
             </section>
           )}
 
-          {/* QUÉ MIDE */}
-          <section style={{ padding:'56px 24px', borderTop:'1px solid rgba(255,255,255,0.06)', marginTop:56 }}>
-            <div style={{ maxWidth:900, margin:'0 auto' }}>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
-                <div className="card">
-                  <div style={{ fontSize:28, marginBottom:12 }}>📡</div>
-                  <div style={{ fontSize:15, fontWeight:800, color:'#F1F5F9', marginBottom:6 }}>Datos reales, sin filtros</div>
-                  <div style={{ fontSize:13, color:'#64748B', lineHeight:1.65 }}>
-                    Relevamos la cantidad total de empleos activos en los principales mercados de LatAm. No son proyecciones — son los números reales del día.
+          {/* TENDENCIA */}
+          <section className="fu d4" style={{marginBottom:60}}>
+            <p className="label-sec">Evolución del total regional</p>
+            <div className="card">
+              <p style={{fontSize:13,color:'#475569',marginBottom:16,lineHeight:1.6}}>
+                Suma de vacantes activas en los {ranking.length} países monitoreados.
+                {tendencia.length === 1 && ' El historial semanal se construye solo — volvé en 7 días para ver la curva completa.'}
+              </p>
+              {tendencia.map((row, i) => {
+                const sig = tendencia[i+1]
+                const diff = sig ? row.total - sig.total : null
+                const varPct = sig ? ((row.total - sig.total) / sig.total * 100).toFixed(1) : null
+                return (
+                  <div key={row.fecha} className="trend-row">
+                    <div>
+                      <span style={{fontSize:14,color:'#94A3B8',fontWeight:600}}>{fmtFechaCorta(row.fecha)}</span>
+                      {i === 0 && <span className="badge-hoy">HOY</span>}
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:14}}>
+                      {diff !== null && (
+                        <span style={{fontSize:12,fontWeight:700,color:diff>=0?'#4ADE80':'#F87171'}}>
+                          {diff>=0?'▲':'▼'} {Math.abs(diff).toLocaleString('es-UY')} ({diff>=0?'+':''}{varPct}%)
+                        </span>
+                      )}
+                      <span style={{fontSize:18,fontWeight:800,color:'#E8785A',minWidth:100,textAlign:'right'}}>{fmtN(row.total)}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="card">
-                  <div style={{ fontSize:28, marginBottom:12 }}>🔄</div>
-                  <div style={{ fontSize:15, fontWeight:800, color:'#F1F5F9', marginBottom:6 }}>Actualización diaria automática</div>
-                  <div style={{ fontSize:13, color:'#64748B', lineHeight:1.65 }}>
-                    Cada mañana el sistema recopila los datos de 11 países. El historial se acumula automáticamente, construyendo la curva de tendencia semana a semana.
-                  </div>
-                </div>
-                <div className="card">
-                  <div style={{ fontSize:28, marginBottom:12 }}>🗺️</div>
-                  <div style={{ fontSize:15, fontWeight:800, color:'#F1F5F9', marginBottom:6 }}>11 países monitoreados</div>
-                  <div style={{ fontSize:13, color:'#64748B', lineHeight:1.65 }}>
-                    Brasil, Argentina, México, Chile, España, Uruguay, Colombia, Perú, Ecuador, Bolivia y Paraguay. Cobertura del 95% del mercado laboral hispanohablante.
-                  </div>
-                </div>
-              </div>
+                )
+              })}
             </div>
           </section>
+
+          {/* RUBROS */}
+          {rubros.length > 0 && (
+            <section className="fu d4" style={{marginBottom:60}}>
+              <p className="label-sec">Empleos por sector · Argentina</p>
+              <div className="card">
+                {rubros.map(({rubro, total_empleos}) => (
+                  <div key={rubro} className="bar-row">
+                    <span style={{fontSize:13,color:'#94A3B8',fontWeight:600,minWidth:140}}>{RUBROS_LABELS[rubro] ?? rubro}</span>
+                    <div className="bar-track">
+                      <div className="bar-fill bar-fill-teal" style={{width:`${Math.round((total_empleos/rubros[0].total_empleos)*100)}%`}} />
+                    </div>
+                    <span style={{fontSize:16,fontWeight:800,color:'#F1F5F9',minWidth:80,textAlign:'right'}}>{fmtN(total_empleos)}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <div className="divider"/>
+
+          {/* SEO TEXT */}
+          <section className="seo" style={{marginBottom:64}}>
+            <h2>¿Qué mide el Pulso Laboral LatAm?</h2>
+            <p>
+              El <strong>Pulso Laboral LatAm</strong> es un relevamiento diario de la cantidad de empleos activos en los principales portales de trabajo de América Latina y España. Los datos provienen de <strong>Computrabajo</strong>, con presencia en Brasil, Argentina, México, Colombia, Chile, Perú, Uruguay, Ecuador, Bolivia, Paraguay y España.
+            </p>
+
+            <h2>¿Qué significa cada número?</h2>
+            <p>
+              Cada cifra representa avisos de empleo <strong>activos en ese momento</strong> — puestos publicados por empresas en proceso de selección. No son proyecciones ni estimaciones estadísticas: son vacantes reales que cualquier persona puede ver al ingresar al portal.
+            </p>
+            <p>Los datos se actualizan automáticamente cada mañana. El historial se acumula día a día, permitiendo ver si el mercado de cada país crece, se estabiliza o se contrae.</p>
+
+            <h2>El mercado laboral latinoamericano en 2026</h2>
+            <p>
+              {top1 && top1Meta
+                ? <>Al {fmtFecha(ultimaFecha)}, <strong>{top1Meta.nombre}</strong> lidera la región con <strong>{fmtN(top1.total_empleos)} vacantes activas</strong> — el {pct(top1.total_empleos, total)}% del total. México ocupa el tercer lugar con {fmtN(ranking.find(r=>r.pais==='MX')?.total_empleos??0)} vacantes, seguido de Colombia y Chile.</>
+                : 'Datos en proceso de recopilación.'}
+            </p>
+            <p>
+              La concentración de empleos en los países más grandes refleja el tamaño de sus economías y el grado de digitalización de sus mercados laborales. Bolivia y Paraguay, con menor penetración de portales digitales, muestran cifras significativamente menores — aunque sus mercados laborales informales pueden ser más amplios.
+            </p>
+
+            <h2>¿Por qué confiar en estos datos?</h2>
+            <p>
+              Son un conteo directo de avisos publicados. Sin metodología estadística ni margen de error: exactamente los empleos visibles en el portal en el momento del relevamiento. Actualizamos diariamente para capturar la dinámica real del mercado.
+            </p>
+          </section>
+
+          {/* CTA */}
+          <section style={{textAlign:'center',padding:'12px 0 20px'}}>
+            <p style={{fontSize:11,color:'#334155',fontWeight:800,letterSpacing:2,textTransform:'uppercase',marginBottom:12}}>¿Buscás trabajo?</p>
+            <p style={{fontSize:'clamp(18px,2.5vw,26px)',fontWeight:900,color:'#F1F5F9',letterSpacing:-.5,marginBottom:8}}>
+              Nexu monitorea todos estos mercados por vos
+            </p>
+            <p style={{fontSize:14,color:'#64748B',marginBottom:28,lineHeight:1.6}}>
+              Concursos públicos y empleos de LatAm en un solo lugar.<br/>
+              La app te avisa cuando aparece algo que encaja con tu perfil.
+            </p>
+            <Link href="/empleos" style={{display:'inline-block',background:'#E8785A',color:'#fff',borderRadius:10,padding:'14px 32px',fontSize:15,fontWeight:800,textDecoration:'none',marginRight:10}}>
+              Ver empleos →
+            </Link>
+            <a href="/download" style={{display:'inline-block',color:'#64748B',padding:'14px 16px',fontSize:14,fontWeight:600,textDecoration:'none'}}>
+              Descargar app gratis
+            </a>
+          </section>
+
         </div>
       )}
 
-      {/* CTA */}
-      <section style={{ background:'linear-gradient(160deg,#0D1117,#0d1a17)', padding:'64px 24px', textAlign:'center', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ maxWidth:480, margin:'0 auto' }}>
-          <h2 style={{ fontSize:'clamp(20px,3.5vw,32px)', fontWeight:900, color:'#F1F5F9', marginBottom:12, letterSpacing:-0.8 }}>
-            ¿Buscás trabajo en LatAm?
-          </h2>
-          <p style={{ fontSize:15, color:'#64748B', marginBottom:32, lineHeight:1.65 }}>
-            En Nexu encontrás los concursos públicos y vacantes de todos estos países, actualizados diariamente.
-          </p>
-          <Link href="/empleos" style={{ display:'inline-block', background:'#E8785A', color:'#fff', borderRadius:10, padding:'14px 32px', fontSize:15, fontWeight:800, textDecoration:'none', letterSpacing:-0.3 }}>
-            Ver empleos disponibles →
-          </Link>
-        </div>
-      </section>
-
       {/* FOOTER */}
-      <footer style={{ background:'#0D1117', borderTop:'1px solid rgba(255,255,255,0.06)', padding:'32px 24px', textAlign:'center' }}>
-        <Link href="/" style={{ color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-1, textDecoration:'none' }}>
-          <span>Nexu</span><span style={{ fontSize:'0.42em', marginLeft:'-9px', lineHeight:1 }}>🧩</span>
+      <footer style={{borderTop:'1px solid rgba(255,255,255,0.06)',padding:'24px 32px',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10}}>
+        <Link href="/" style={{color:'#E8785A',fontSize:18,fontWeight:900,letterSpacing:-.5,textDecoration:'none'}}>
+          Nexu<span style={{fontSize:8,marginLeft:'-8px',verticalAlign:'bottom'}}>🧩</span>
         </Link>
-        <p style={{ color:'#475569', fontSize:12, marginTop:8 }}>
-          © {new Date().getFullYear()} Nexu ·{' '}
-          <Link href="/empleos" style={{ color:'#64748B' }}>Ver empleos</Link> ·{' '}
-          <Link href="/pulso-latam" style={{ color:'#64748B' }}>Pulso Laboral</Link> ·{' '}
-          <a href="/download" style={{ color:'#64748B' }}>App gratis</a> ·{' '}
-          soporte@nexu.fyi
+        <p style={{color:'#334155',fontSize:12}}>
+          <Link href="/pulso-latam" style={{color:'#475569',textDecoration:'none'}}>Pulso Laboral</Link>
+          {' · '}
+          <Link href="/empleos" style={{color:'#475569',textDecoration:'none'}}>Ver empleos</Link>
+          {' · '}soporte@nexu.fyi
         </p>
       </footer>
     </>
