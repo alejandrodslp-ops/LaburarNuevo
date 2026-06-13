@@ -229,6 +229,16 @@ export default function ConcursaScreen({ navigation, route }) {
         if (!paisesPermitidos.includes(paisISO)) paisesPermitidos.push(paisISO);
       }
 
+      // Mostrar datos cacheados inmediatamente (stale-while-revalidate)
+      const TODOS_CACHE_KEY = `todos_cache_${authUser.id}`;
+      try {
+        const cachedTodos = await AsyncStorage.getItem(TODOS_CACHE_KEY);
+        if (cachedTodos && !esRefresh) {
+          setTodos(JSON.parse(cachedTodos));
+          setCargando(false);
+        }
+      } catch (_) {}
+
       // Disparar matching (fire & forget)
       supabase.functions.invoke('match-concursos', {
         body: { worker_id: authUser.id },
@@ -289,6 +299,7 @@ export default function ConcursaScreen({ navigation, route }) {
         .filter(c => !(c.fuente?.includes('gnews') || c.fuente?.includes('news')))
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setTodos(todosValidos);
+      AsyncStorage.setItem(TODOS_CACHE_KEY, JSON.stringify(todosValidos)).catch(() => {});
 
       // Stats
       const paraVos = validos.filter(m => m.cumple).length;
