@@ -10,6 +10,7 @@ const ALLOWED = new Set([
   'ar.computrabajo.com', 'cl.computrabajo.com', 'co.computrabajo.com',
   'pe.computrabajo.com', 'mx.computrabajo.com', 'hn.computrabajo.com',
   'gt.computrabajo.com', 'cu.computrabajo.com', 'br.computrabajo.com',
+  'uy.computrabajo.com', 'es.computrabajo.com',
   // México
   'dof.gob.mx', 'www.dof.gob.mx',
   // Colombia
