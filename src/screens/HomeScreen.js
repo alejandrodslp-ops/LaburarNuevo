@@ -221,9 +221,29 @@ export default function HomeScreen({ navigation }) {
 
   async function cargar() {
     try {
-      const { data: authData } = await supabase.auth.getUser();
-      const user = authData?.user;
+      // getSession() usa el token cacheado localmente — sin round-trip al servidor
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
       if (!user || !montadoRef.current) return;
+
+      // Mostrar datos cacheados inmediatamente si existen
+      const CACHE_KEY = `perfil_cache_${user.id}`;
+      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const c = JSON.parse(cached);
+        const hasta = c.perfil_activo_hasta ? new Date(c.perfil_activo_hasta) : null;
+        const diasRestantes = hasta ? Math.max(0, Math.ceil((hasta - new Date()) / (1000 * 60 * 60 * 24))) : 0;
+        const esAdmin = user.email === 'alejandrodslp@gmail.com';
+        setPerfil({
+          nombre: c.nombre || '',
+          activo: (c.perfil_activo && diasRestantes > 0) || esAdmin,
+          diasRestantes,
+          vistas: c.vistas || 0,
+          contactos: c.contactos || 0,
+          avatar: c.avatar_url || null,
+        });
+        setVisDisp(c.visualizaciones_disponibles || 0);
+      }
 
       const { data } = await supabase
         .from('profiles')
@@ -231,6 +251,9 @@ export default function HomeScreen({ navigation }) {
         .eq('id', user.id)
         .single();
       if (!data) return;
+
+      // Guardar en cache para la próxima vez
+      AsyncStorage.setItem(CACHE_KEY, JSON.stringify(data)).catch(() => {});
 
       const hasta = data.perfil_activo_hasta ? new Date(data.perfil_activo_hasta) : null;
       const diasRestantes = hasta ? Math.max(0, Math.ceil((hasta - new Date()) / (1000 * 60 * 60 * 24))) : 0;
