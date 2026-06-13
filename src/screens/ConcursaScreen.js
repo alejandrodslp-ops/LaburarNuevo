@@ -207,7 +207,7 @@ export default function ConcursaScreen({ navigation, route }) {
         `)
         .eq('worker_id', authUser.id)
         .order('score', { ascending: false })
-        .limit(2000);
+        .limit(300);
 
       const hoy = new Date();
       const hoyStr = new Date().toISOString().slice(0, 10); // "2026-05-21" — para comparar fechas sin timezone
@@ -275,7 +275,7 @@ export default function ConcursaScreen({ navigation, route }) {
         .select('id, pais, fuente, numero_llamado, titulo, cargo, organismo, tipo_tarea, tipo_vinculo, lugar, fecha_inicio, fecha_cierre, puestos, url_detalle, url_postulacion, created_at')
         .eq('activo', true)
         .order('created_at', { ascending: false })
-        .limit(2000);
+        .limit(300);
       if (paisesPermitidos) {
         todosQuery = todosQuery.in('pais', paisesPermitidos);
       } else if (paisISO) {
