@@ -7,7 +7,7 @@ import { CATEGORIAS, SLUGS_CATEGORIA } from '../../../../../lib/categorias'
 import AppCta from '../../../../AppCta'
 import JobsRealtime from '../../../../JobsRealtime'
 
-export const revalidate = 600
+export const dynamic = 'force-dynamic'
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.fyi'
 

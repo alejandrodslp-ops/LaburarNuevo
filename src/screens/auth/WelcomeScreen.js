@@ -50,15 +50,8 @@ export default function WelcomeScreen({ navigation }) {
       if (visto) navigation.replace('RoleSelect');
     });
 
-    const pf = config.paises;
-    const baseCount = supabase.from('concursos').select('*',{count:'estimated',head:true}).eq('activo',true);
-    const basePais  = supabase.from('concursos').select('pais',{count:'estimated',head:false}).eq('activo',true);
-    Promise.all([
-      pf.length ? baseCount.in('pais',pf) : baseCount,
-      pf.length ? basePais.in('pais',pf)  : basePais,
-    ]).then(([{count},{data}])=>{
-      if(count) setTotal(count);
-      if(data) setPaises(new Set(data.map(r=>r.pais)).size);
+    supabase.rpc('count_concursos_activos').then(({data})=>{
+      if(data) setTotal(data);
     });
 
     Animated.parallel([
