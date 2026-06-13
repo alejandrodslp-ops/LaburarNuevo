@@ -256,7 +256,7 @@ export default function HomeScreen({ navigation }) {
         const paisISO = PAIS_ISO[(data.pais||'').toLowerCase().trim()] || data.pais.slice(0, 2).toUpperCase();
 
         const { data: totalN } = await supabase.rpc('count_concursos_activos');
-        setTotalConcursos(totalN || 0);
+        if (totalN) setTotalConcursos(totalN);
 
         const { data: allMatches } = await supabase
           .from('concurso_matches')
