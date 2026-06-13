@@ -6,8 +6,8 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const PROXY      = Deno.env.get("CF_PROXY_URL") ?? "https://www.nexu.fyi/api/proxy?url=";
-const PROXY_SEC  = Deno.env.get("PROXY_SECRET") ?? "";
+const PROXY     = Deno.env.get("CF_PROXY_URL") ?? "https://www.nexu.fyi/api/proxy?url=";
+const PROXY_SEC = Deno.env.get("PROXY_SECRET") ?? "";
 
 const HEADERS = {
   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -15,48 +15,66 @@ const HEADERS = {
   "Accept-Language": "es-419,es;q=0.9,en;q=0.8",
 };
 
-// Países a scrapear (sin Venezuela)
+// Cada país con su URL de resultados (home no muestra el conteo)
 const PAISES: { codigo: string; url: string }[] = [
-  { codigo: "BR", url: "https://br.computrabajo.com/" },
-  { codigo: "AR", url: "https://ar.computrabajo.com/" },
-  { codigo: "MX", url: "https://mx.computrabajo.com/" },
-  { codigo: "CL", url: "https://cl.computrabajo.com/" },
-  { codigo: "ES", url: "https://es.computrabajo.com/" },
-  { codigo: "UY", url: "https://uy.computrabajo.com/" },
-  { codigo: "CO", url: "https://co.computrabajo.com/" },
-  { codigo: "PE", url: "https://pe.computrabajo.com/" },
-  { codigo: "EC", url: "https://ec.computrabajo.com/" },
-  { codigo: "BO", url: "https://bo.computrabajo.com/" },
-  { codigo: "PY", url: "https://py.computrabajo.com/" },
+  { codigo: "BR", url: "https://br.computrabajo.com/trabalho" },
+  { codigo: "AR", url: "https://ar.computrabajo.com/trabajo" },
+  { codigo: "MX", url: "https://mx.computrabajo.com/trabajo" },
+  { codigo: "CL", url: "https://cl.computrabajo.com/trabajo" },
+  { codigo: "ES", url: "https://es.computrabajo.com/trabajo" },
+  { codigo: "UY", url: "https://uy.computrabajo.com/trabajo" },
+  { codigo: "CO", url: "https://co.computrabajo.com/trabajo" },
+  { codigo: "PE", url: "https://pe.computrabajo.com/trabajo" },
+  { codigo: "EC", url: "https://ec.computrabajo.com/trabajo" },
+  { codigo: "BO", url: "https://bo.computrabajo.com/trabajo" },
+  { codigo: "PY", url: "https://py.computrabajo.com/trabajo" },
 ];
 
-// Extrae el número de empleos del HTML de Computrabajo
-function extraerConteo(html: string): number | null {
-  const patrones = [
-    /(\d[\d.,\s]{1,12})\s*ofertas?\s*de\s*trabajo/i,
-    /(\d[\d.,\s]{1,12})\s*ofertas?\s*activas/i,
-    /(\d[\d.,\s]{1,12})\s*empleos?\s*disponibles/i,
-    /(\d[\d.,\s]{1,12})\s*vagas?\s*de\s*emprego/i,
-    /(\d[\d.,\s]{1,12})\s*vagas?\s*disponíveis/i,
-    /(\d[\d.,\s]{1,12})\s*empleos?/i,
-    /(\d[\d.,\s]{1,12})\s*ofertas?/i,
-  ];
+function parsearNumero(raw: string): number {
+  // Quita separadores de miles (. y ,) y parsea como entero
+  const limpio = raw.replace(/[.,]/g, "");
+  return parseInt(limpio, 10);
+}
 
-  for (const patron of patrones) {
-    const match = html.match(patron);
-    if (match) {
-      const raw = match[1].replace(/[\s.]/g, "").replace(",", "");
-      const num = parseInt(raw, 10);
-      if (!isNaN(num) && num > 100) return num;
-    }
+function extraerConteo(html: string): number | null {
+  // Patrón 1: <span class="fwB">16.384</span> oferta  (países hispanos en /trabajo)
+  const m1 = html.match(/class="fwB"\s*>\s*([\d.,]+)\s*<\/span>\s*oferta/i);
+  if (m1) {
+    const n = parsearNumero(m1[1]);
+    if (!isNaN(n) && n > 50) return n;
   }
+
+  // Patrón 2: + 513.000 <span class="infotxt">oferta  (Brasil y España)
+  const m2 = html.match(/\+\s*([\d.,]+)\s*<span[^>]*>\s*oferta/i);
+  if (m2) {
+    const n = parsearNumero(m2[1]);
+    if (!isNaN(n) && n > 50) return n;
+  }
+
+  // Patrón 3: vaga (portugués Brasil)
+  const m3 = html.match(/\+\s*([\d.,]+)\s*<span[^>]*>\s*vaga/i);
+  if (m3) {
+    const n = parsearNumero(m3[1]);
+    if (!isNaN(n) && n > 50) return n;
+  }
+
+  // Patrón 4: slogan con número y oferta (fallback)
+  const m4 = html.match(/más de\s*<[^>]*>([\d.,]+)<\/[^>]*>\s*oferta/i);
+  if (m4) {
+    const n = parsearNumero(m4[1]);
+    if (!isNaN(n) && n > 50) return n;
+  }
+
   return null;
 }
 
 async function fetchPais(url: string): Promise<number | null> {
   try {
     const proxyUrl = `${PROXY}${encodeURIComponent(url)}&t=${PROXY_SEC}`;
-    const res = await fetch(proxyUrl, { headers: HEADERS, signal: AbortSignal.timeout(15000) });
+    const res = await fetch(proxyUrl, {
+      headers: HEADERS,
+      signal: AbortSignal.timeout(15000),
+    });
     if (!res.ok) return null;
     const html = await res.text();
     return extraerConteo(html);
@@ -83,7 +101,7 @@ serve(async (req) => {
         { onConflict: "fecha,pais" }
       );
     }
-    // Pausa entre requests para no saturar
+
     await new Promise(r => setTimeout(r, 1500));
   }
 
