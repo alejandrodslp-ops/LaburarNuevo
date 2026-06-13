@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
