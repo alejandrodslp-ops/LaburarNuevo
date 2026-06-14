@@ -6,20 +6,30 @@ export const dynamic = 'force-dynamic'
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
 // Población 2024 (Banco Mundial, millones)
-const POBLACION = { BR:215, AR:46, MX:130, CL:19.5, ES:47.5, UY:3.5, CO:52, PE:33, EC:18, BO:12, PY:7.5 }
+const POBLACION = {
+  BR:215, AR:46, MX:130, CL:19.5, ES:47.5, UY:3.5, CO:52, PE:33, EC:18, BO:12, PY:7.5,
+  FR:68, IT:60, PT:10.3, GB:67,
+}
+
+// Países LATAM para separar en hallazgos
+const LATAM = new Set(['BR','AR','MX','CL','UY','CO','PE','EC','BO','PY','VE','CU','CR','GT','SV','HN','NI','PA','DO'])
 
 const PAIS_INFO = {
-  BR: { nombre:'Brasil',    bandera:'🇧🇷', moneda:'BRL' },
-  AR: { nombre:'Argentina', bandera:'🇦🇷', moneda:'ARS' },
-  MX: { nombre:'México',    bandera:'🇲🇽', moneda:'MXN' },
-  CL: { nombre:'Chile',     bandera:'🇨🇱', moneda:'CLP' },
-  ES: { nombre:'España',    bandera:'🇪🇸', moneda:'EUR' },
-  UY: { nombre:'Uruguay',   bandera:'🇺🇾', moneda:'UYU' },
-  CO: { nombre:'Colombia',  bandera:'🇨🇴', moneda:'COP' },
-  PE: { nombre:'Perú',      bandera:'🇵🇪', moneda:'PEN' },
-  EC: { nombre:'Ecuador',   bandera:'🇪🇨', moneda:'USD' },
-  BO: { nombre:'Bolivia',   bandera:'🇧🇴', moneda:'BOB' },
-  PY: { nombre:'Paraguay',  bandera:'🇵🇾', moneda:'PYG' },
+  BR: { nombre:'Brasil',         bandera:'🇧🇷', moneda:'BRL' },
+  AR: { nombre:'Argentina',      bandera:'🇦🇷', moneda:'ARS' },
+  MX: { nombre:'México',         bandera:'🇲🇽', moneda:'MXN' },
+  CL: { nombre:'Chile',          bandera:'🇨🇱', moneda:'CLP' },
+  CO: { nombre:'Colombia',       bandera:'🇨🇴', moneda:'COP' },
+  PE: { nombre:'Perú',           bandera:'🇵🇪', moneda:'PEN' },
+  EC: { nombre:'Ecuador',        bandera:'🇪🇨', moneda:'USD' },
+  UY: { nombre:'Uruguay',        bandera:'🇺🇾', moneda:'UYU' },
+  BO: { nombre:'Bolivia',        bandera:'🇧🇴', moneda:'BOB' },
+  PY: { nombre:'Paraguay',       bandera:'🇵🇾', moneda:'PYG' },
+  ES: { nombre:'España',         bandera:'🇪🇸', moneda:'EUR' },
+  FR: { nombre:'Francia',        bandera:'🇫🇷', moneda:'EUR' },
+  IT: { nombre:'Italia',         bandera:'🇮🇹', moneda:'EUR' },
+  PT: { nombre:'Portugal',       bandera:'🇵🇹', moneda:'EUR' },
+  GB: { nombre:'Reino Unido',    bandera:'🇬🇧', moneda:'GBP' },
 }
 
 const RUBROS_LABELS = {
@@ -31,12 +41,12 @@ const RUBROS_LABELS = {
 }
 
 export const metadata = {
-  title: 'Pulso Laboral LatAm — Vacantes activas por país en América Latina',
-  description: 'Cuántos empleos hay disponibles hoy en Brasil, Argentina, México, Colombia, Chile y América Latina. Datos reales por país y por sector, actualizados diariamente.',
-  keywords: ['vacantes latam','empleos disponibles latinoamerica','mercado laboral 2026','estadísticas empleo por país','vacantes argentina brasil mexico','densidad laboral latam'],
+  title: 'Pulso Laboral — Vacantes activas en América Latina y Europa',
+  description: 'Cuántos empleos hay disponibles hoy en Brasil, Argentina, México, España, Francia, Italia, Portugal y más. Datos reales por país y por sector, actualizados diariamente.',
+  keywords: ['vacantes latam','empleos disponibles latinoamerica','mercado laboral 2026','estadísticas empleo por país','vacantes argentina brasil mexico','vacantes españa francia italia','mercado laboral europa latam'],
   openGraph: {
-    title: 'Pulso Laboral LatAm — Vacantes activas en América Latina',
-    description: 'Datos reales del mercado laboral: cuántos empleos hay disponibles hoy en cada país de LatAm, ajustado por población.',
+    title: 'Pulso Laboral — Vacantes activas en América Latina y Europa',
+    description: 'Datos reales del mercado laboral: vacantes activas en 15 países de LatAm y Europa, ajustadas por población.',
     url: '/pulso-latam',
   },
   alternates: { canonical: '/pulso-latam' },
@@ -97,9 +107,11 @@ export default async function PulsoLatam() {
 
   // Hallazgos editoriales derivados del dato
   const hallazgos = []
-  const lidSud = rankingDensidad.filter(r => r.pais !== 'ES')[0]
-  const lidSudInfo = PAIS_INFO[lidSud?.pais]
-  if (lidSud) hallazgos.push(`${lidSudInfo?.nombre} es el mercado laboral más denso de Sudamérica con ${fmtN(lidSud.por100k)} vacantes por cada 100.000 habitantes.`)
+
+  // Líder en LatAm por densidad
+  const lidLatam = rankingDensidad.filter(r => LATAM.has(r.pais))[0]
+  const lidLatamInfo = PAIS_INFO[lidLatam?.pais]
+  if (lidLatam) hallazgos.push(`${lidLatamInfo?.nombre} es el mercado laboral más denso de América Latina con ${fmtN(lidLatam.por100k)} vacantes por cada 100.000 habitantes.`)
 
   const ar = ranking.find(r=>r.pais==='AR'), mx = ranking.find(r=>r.pais==='MX')
   if (ar && mx && mx.total_empleos > ar.total_empleos) {
@@ -109,11 +121,16 @@ export default async function PulsoLatam() {
   const ult = ranking[ranking.length-1]
   const ultInfo = PAIS_INFO[ult?.pais]
   if (ult && top && ult.pais !== top.pais) {
-    hallazgos.push(`La brecha regional es extrema: ${topInfo?.nombre} acumula ${fmtPct(top.total_empleos,total)}% de todas las vacantes digitales de la región, mientras ${ultInfo?.nombre} no llega al 0,1%.`)
+    hallazgos.push(`La brecha es extrema: ${topInfo?.nombre} acumula ${fmtPct(top.total_empleos,total)}% de todas las vacantes del panel, mientras ${ultInfo?.nombre} no llega al 0,1%.`)
   }
 
-  const es = ranking.find(r=>r.pais==='ES')
-  if (es) hallazgos.push(`España, único país europeo del índice, registra ${fmtN(es.por100k)} vacantes por 100k hab — la cifra más alta del panel y evidencia de un mercado laboral digital más maduro.`)
+  // Comparativa Europa vs LatAm por densidad
+  const lidEuropa = rankingDensidad.filter(r => !LATAM.has(r.pais))[0]
+  const lidEuropaInfo = PAIS_INFO[lidEuropa?.pais]
+  if (lidEuropa && lidLatam) {
+    const masOmenos = lidEuropa.por100k > lidLatam.por100k ? 'supera' : 'se ubica por debajo de'
+    hallazgos.push(`En densidad laboral digital, ${lidEuropaInfo?.nombre} (${fmtN(lidEuropa.por100k)} por 100k hab) ${masOmenos} al líder latinoamericano ${lidLatamInfo?.nombre} (${fmtN(lidLatam.por100k)} por 100k hab).`)
+  }
 
   const jsonLd = {
     '@context':'https://schema.org','@type':'Dataset',
@@ -241,24 +258,24 @@ export default async function PulsoLatam() {
       {/* EYEBROW */}
       <div className="eyebrow fi d1">
         <span className="live-dot"/>
-        <span className="eyebrow-txt">Pulso Laboral LatAm</span>
+        <span className="eyebrow-txt">Pulso Laboral — LatAm + Europa</span>
         <span className="eyebrow-fecha">· Datos al {fmtFecha(ultimaFecha)}</span>
       </div>
 
       {/* H1 */}
       <div className="fi d1">
         <h1 style={{fontSize:'clamp(26px,4vw,42px)',fontWeight:900,color:'#F8FAFC',lineHeight:1.12,letterSpacing:'-1px',maxWidth:680,marginBottom:10}}>
-          Mercado laboral en América Latina — vacantes activas por país
+          Vacantes activas en América Latina y Europa — por país
         </h1>
         <p style={{fontSize:16,color:'#64748B',lineHeight:1.6,maxWidth:580,marginBottom:0}}>
-          Relevamiento diario de empleos publicados en portales de trabajo de 11 países. Datos reales, sin proyecciones.
+          Relevamiento diario de empleos publicados en portales de trabajo de {ranking.length} países. Datos reales, sin proyecciones.
         </p>
       </div>
 
       {/* KPI CARDS */}
       <div className="kpi-grid fi d2">
         <div className="kpi">
-          <div className="kpi-label">Total LatAm</div>
+          <div className="kpi-label">Total del panel</div>
           <div className="kpi-value">{fmtN(total)}</div>
           <div className="kpi-sub">vacantes activas · {ranking.length} países</div>
         </div>
@@ -439,7 +456,7 @@ export default async function PulsoLatam() {
                 </tr>
               </thead>
               <tbody>
-                {rubros.map(({rubro,total_empleos},i) => {
+                {rubros.map(({rubro,total_empleos}) => {
                   const totalAR = rubros.reduce((s,r)=>s+r.total_empleos,0)
                   return (
                     <tr key={rubro}>
@@ -470,19 +487,19 @@ export default async function PulsoLatam() {
           <p><strong>Frecuencia:</strong> El sistema realiza un relevamiento automático cada mañana. Los datos corresponden al momento de la última actualización indicada al tope de la página.</p>
           <p><strong>Vacantes por 100.000 habitantes:</strong> Se calculan dividiendo las vacantes activas entre la población del país (en cientos de miles), usando estimaciones del Banco Mundial 2024. Esta métrica permite comparar mercados de distinto tamaño.</p>
           <p><strong>Limitaciones:</strong> Los datos reflejan el empleo formal digital publicado en un portal específico. El empleo informal, las búsquedas presenciales y los portales alternativos no están incluidos. Las cifras pueden variar intraday según actualizaciones del portal de origen.</p>
-          <p><strong>Países incluidos:</strong> Brasil, Argentina, México, Colombia, Chile, Perú, Uruguay, Ecuador, Bolivia, Paraguay y España (como referencia extraregional).</p>
+          <p><strong>Países incluidos:</strong> América Latina: Brasil, Argentina, México, Colombia, Chile, Perú, Uruguay, Ecuador, Bolivia y Paraguay. Europa: España, Francia, Italia, Portugal y Reino Unido. Los países europeos se incorporan para comparación directa con los mercados laborales digitales latinoamericanos.</p>
         </div>
       </section>
 
       {/* CTA */}
       <div className="cta-box">
-        <p style={{fontSize:11,fontWeight:800,color:'#E8785A',letterSpacing:'1.5px',textTransform:'uppercase',marginBottom:12}}>¿Buscás trabajo en LatAm?</p>
+        <p style={{fontSize:11,fontWeight:800,color:'#E8785A',letterSpacing:'1.5px',textTransform:'uppercase',marginBottom:12}}>¿Buscás trabajo en LatAm o Europa?</p>
         <p style={{fontSize:'clamp(18px,2.5vw,24px)',fontWeight:900,color:'#F1F5F9',letterSpacing:'-.5px',marginBottom:10}}>
           Nexu monitorea todos estos mercados por vos
         </p>
         <p style={{fontSize:14,color:'#4A5568',marginBottom:28,lineHeight:1.65}}>
-          Concursos públicos y empleos privados de LatAm, todos en un solo lugar.<br/>
-          La app cruzea tu perfil con las vacantes activas y te avisa cuando aparece algo que encaja.
+          Empleos de América Latina y Europa, todos en un solo lugar.<br/>
+          La app cruza tu perfil con las vacantes activas y te avisa cuando aparece algo que encaja.
         </p>
         <Link href="/empleos" style={{display:'inline-block',background:'#E8785A',color:'#fff',borderRadius:9,padding:'13px 30px',fontSize:14,fontWeight:800,marginRight:8}}>
           Ver empleos disponibles →

@@ -28,6 +28,10 @@ const PAISES: { codigo: string; url: string }[] = [
   { codigo: "EC", url: "https://ec.computrabajo.com/trabajo" },
   { codigo: "BO", url: "https://bo.computrabajo.com/trabajo" },
   { codigo: "PY", url: "https://py.computrabajo.com/trabajo" },
+  { codigo: "FR", url: "https://fr.computrabajo.com/emploi" },
+  { codigo: "IT", url: "https://it.computrabajo.com/lavoro" },
+  { codigo: "PT", url: "https://pt.computrabajo.com/emprego" },
+  { codigo: "GB", url: "https://uk.computrabajo.com/jobs" },
 ];
 
 // Rubros por país — solo donde las URLs responden sin JS
