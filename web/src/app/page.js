@@ -2,8 +2,9 @@ import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import WaitlistForm from '../components/WaitlistForm'
 import JobsRealtime from './JobsRealtime'
+import CounterRealtime from './CounterRealtime'
 
-export const revalidate = 3600
+export const revalidate = 300
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
@@ -71,7 +72,7 @@ export default async function Home() {
           {/* Badge EN VIVO */}
           <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(45,212,191,0.1)', border:'1px solid rgba(45,212,191,0.25)', borderRadius:100, padding:'6px 16px', marginBottom:32 }}>
             <span className="live-dot" style={{ width:7, height:7, borderRadius:'50%', background:'#2DD4BF', display:'inline-block' }}/>
-            <span style={{ fontSize:12, color:'#2DD4BF', fontWeight:700, letterSpacing:0.5 }}>EN VIVO — {total.toLocaleString('es')} empleos activos hoy</span>
+            <span style={{ fontSize:12, color:'#2DD4BF', fontWeight:700, letterSpacing:0.5 }}>EN VIVO — <CounterRealtime initialTotal={total} /> empleos activos hoy</span>
           </div>
 
           {/* Título */}
@@ -98,7 +99,7 @@ export default async function Home() {
           {/* Stats */}
           <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, maxWidth:480, margin:'0 auto 48px' }}>
             <div className="stat-card">
-              <div className="stat-num">{total.toLocaleString('es')}</div>
+              <div className="stat-num"><CounterRealtime initialTotal={total} /></div>
               <div className="stat-lbl">empleos activos</div>
             </div>
             <div className="stat-card">
