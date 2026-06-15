@@ -6,7 +6,7 @@ import CounterRealtime from './CounterRealtime'
 
 export const revalidate = 300
 
-const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
 async function getStats() {
   const { data } = await db.rpc('count_concursos_activos')
