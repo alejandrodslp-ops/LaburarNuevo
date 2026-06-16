@@ -49,6 +49,16 @@ export default function ConcursaDetalleScreen({ route, navigation }) {
   };
   const dias = diasRestantes();
 
+  const publicadoHace = () => {
+    if (!c.created_at) return null;
+    const d = Math.floor((new Date() - new Date(c.created_at)) / (1000 * 60 * 60 * 24));
+    if (d === 0) return 'Hoy';
+    if (d === 1) return 'Ayer';
+    return `Hace ${d} días`;
+  };
+  const antiguedad = publicadoHace();
+  const esAdzuna = c.fuente?.startsWith('adzuna');
+
   const abrirLink = async (url) => {
     if (!url) { Alert.alert('Sin enlace', 'Este llamado no tiene enlace disponible.'); return; }
     const supported = await Linking.canOpenURL(url);
@@ -104,6 +114,7 @@ export default function ConcursaDetalleScreen({ route, navigation }) {
         <View style={ss.section}>
           <Text style={ss.sectionTitle}>Información del llamado</Text>
 
+          {antiguedad && <Row label="Publicado" value={antiguedad} />}
           {c.numero_llamado && <Row label="Número" value={`#${c.numero_llamado}`} />}
           {c.tipo_tarea && <Row label="Tipo de tarea" value={c.tipo_tarea} />}
           {c.tipo_vinculo && <Row label="Vínculo" value={c.tipo_vinculo} />}
@@ -158,6 +169,11 @@ export default function ConcursaDetalleScreen({ route, navigation }) {
             >
               <Text style={ss.btnPrincipalTxt}>{esNoticia ? '📰 Leer artículo →' : (c.pais === 'UY' || c.url_postulacion?.includes('uruguayconcursa')) ? '📄 Ver bases completas →' : 'Postularme →'}</Text>
             </TouchableOpacity>
+            {esAdzuna && (
+              <Text style={ss.notaAdzuna}>
+                💡 Los empleos privados se cubren rápido. Si el puesto ya no está disponible, el link te muestra empleos similares.
+              </Text>
+            )}
           </View>
         )}
 
@@ -238,4 +254,8 @@ const ss = StyleSheet.create({
     borderWidth: 1.5, borderColor: '#1A3A5C',
   },
   btnSecundarioTxt: { color: '#1A3A5C', fontSize: SIZES.textMd, fontWeight: '700' },
+  notaAdzuna: {
+    fontSize: 12, color: COLORS.texto3, textAlign: 'center',
+    lineHeight: 18, paddingHorizontal: 8, marginTop: 4,
+  },
 });

@@ -5,6 +5,7 @@ import JobsRealtime from './JobsRealtime'
 import CounterRealtime from './CounterRealtime'
 
 export const revalidate = 300
+export const fetchCache = 'force-no-store'
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 

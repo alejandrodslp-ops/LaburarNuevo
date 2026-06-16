@@ -300,7 +300,7 @@ function Navigation({navigationRef,onTabChange}){
   const[splashVisible,setSplashVisible]=useState(true);
 
   useEffect(()=>{
-    const t=setTimeout(()=>setSplashVisible(false),2000);
+    const t=setTimeout(()=>setSplashVisible(false),800);
     return()=>clearTimeout(t);
   },[]);
   const[fraseVisible,setFraseVisible]=useState(false);

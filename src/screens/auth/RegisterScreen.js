@@ -30,7 +30,20 @@ const[pass,setPass]=useState("");
 const[ver,setVer]=useState(false);
 const[terminos,setTerminos]=useState(false);
 const[load,setLoad]=useState(false);
+const[fnDia,setFnDia]=useState("");
+const[fnMes,setFnMes]=useState("");
+const[fnAnio,setFnAnio]=useState("");
 const ROLES={worker:"Trabajador",employer:"Empleador",company:"Empresa"};
+
+function calcularEdadDesdeInputs(dia,mes,anio){
+  const d=parseInt(dia,10),m=parseInt(mes,10),a=parseInt(anio,10);
+  if(!d||!m||!a||a<1900||a>new Date().getFullYear())return null;
+  const nac=new Date(a,m-1,d);
+  const hoy=new Date();
+  let edad=hoy.getFullYear()-nac.getFullYear();
+  if(hoy<new Date(hoy.getFullYear(),m-1,d))edad--;
+  return edad;
+}
 
 async function handleRegistrar(){
 const emailClean=email.trim().toLowerCase();
@@ -42,6 +55,10 @@ if(apellido1Clean.length<2){Alert.alert("Error","Ingresa tu primer apellido");re
 if(apellido2Clean.length<2){Alert.alert("Error","Ingresa tu segundo apellido");return;}
 if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailClean)){Alert.alert("Error","Email no valido");return;}
 if(pass.length<8){Alert.alert("Error","La contrasena debe tener al menos 8 caracteres");return;}
+if(!fnDia||!fnMes||!fnAnio||fnAnio.length<4){Alert.alert("Error","Ingresa tu fecha de nacimiento completa");return;}
+const edadCalc=calcularEdadDesdeInputs(fnDia,fnMes,fnAnio);
+if(edadCalc===null){Alert.alert("Error","Fecha de nacimiento no válida");return;}
+if(edadCalc<18){Alert.alert("Acceso restringido","Debes ser mayor de edad para registrarte en Nexu.");return;}
 if(!terminos){Alert.alert("Error","Debes aceptar los terminos y condiciones");return;}
 setLoad(true);
 // Verificar si la waitlist está activa y si este email está habilitado
@@ -58,7 +75,8 @@ try{
 await AsyncStorage.setItem("coach_perfil_pendiente","true");
 await AsyncStorage.setItem("ir_a_editar_perfil","true");
 await AsyncStorage.setItem("verificar_email_pendiente","true");
-const resultado=await registrar({email:emailClean,password:pass,nombre:nombre1Clean,apellido1:apellido1Clean,apellido2:apellido2Clean,rol});
+const fechaNacFmt=`${fnDia.padStart(2,'0')}/${fnMes.padStart(2,'0')}/${fnAnio}`;
+const resultado=await registrar({email:emailClean,password:pass,nombre:nombre1Clean,apellido1:apellido1Clean,apellido2:apellido2Clean,rol,fecha_nac:fechaNacFmt});
 // Marcar como registrado en la waitlist (silencioso)
 supabase.functions.invoke('waitlist',{body:{accion:'registrado',email:email.trim().toLowerCase()}}).catch(()=>{});
 const refCode=await AsyncStorage.getItem("referral_code");
@@ -114,9 +132,19 @@ return(
 <View style={ss.ib}><TextInput style={ss.input} placeholder="Minimo 8 caracteres" placeholderTextColor="#D0C8DC" value={pass} onChangeText={setPass} secureTextEntry={!ver} autoCapitalize="none"/>
 <TouchableOpacity onPress={()=>setVer(!ver)}><Text style={{fontSize:16}}>{ver?"🙈":"👁️"}</Text></TouchableOpacity></View></View>
 
+<View style={ss.iw}>
+<Text style={ss.lbl}>Fecha de nacimiento <Text style={{color:"#E8785A"}}>*</Text></Text>
+<View style={{flexDirection:"row",gap:8}}>
+<View style={[ss.ib,{flex:1}]}><TextInput style={ss.input} placeholder="DD" placeholderTextColor="#D0C8DC" value={fnDia} onChangeText={t=>setFnDia(t.replace(/\D/g,'').slice(0,2))} keyboardType="number-pad" maxLength={2}/></View>
+<View style={[ss.ib,{flex:1}]}><TextInput style={ss.input} placeholder="MM" placeholderTextColor="#D0C8DC" value={fnMes} onChangeText={t=>setFnMes(t.replace(/\D/g,'').slice(0,2))} keyboardType="number-pad" maxLength={2}/></View>
+<View style={[ss.ib,{flex:2}]}><TextInput style={ss.input} placeholder="AAAA" placeholderTextColor="#D0C8DC" value={fnAnio} onChangeText={t=>setFnAnio(t.replace(/\D/g,'').slice(0,4))} keyboardType="number-pad" maxLength={4}/></View>
+</View>
+<Text style={{fontSize:11,color:"#A898B8",marginTop:4}}>Debés ser mayor de 18 años para registrarte.</Text>
+</View>
+
 <TouchableOpacity style={ss.termRow} onPress={()=>setTerminos(!terminos)}>
 <View style={[ss.check,terminos&&ss.checkA]}>{terminos&&<Text style={{color:"#FFF",fontSize:12,fontWeight:"800"}}>✓</Text>}</View>
-<Text style={ss.termTxt}>Acepto los <Text style={ss.termLink}>Terminos y Condiciones</Text> y la <Text style={ss.termLink}>Politica de Privacidad</Text></Text>
+<Text style={ss.termTxt}>Acepto los <Text style={ss.termLink}>Terminos y Condiciones</Text> y la <Text style={ss.termLink}>Politica de Privacidad</Text>. Declaro que la informacion que proporciono es veraz y soy responsable de su exactitud.</Text>
 </TouchableOpacity>
 
 <View style={ss.aviso}><Text style={ss.avisoTxt}>Tus datos son privados. Solo los empleadores que paguen por contactarte podran verlos.</Text></View>

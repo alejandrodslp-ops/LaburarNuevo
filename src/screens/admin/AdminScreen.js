@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 const SCREEN_H = Dimensions.get('window').height;
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../services/supabase';
 import { tieneSessionAdmin, cerrarSesionAdmin, cambiarPinAdmin, PIN_DEFAULT } from '../../components/PinAdminModal';
 import { useI18n } from '../../services/I18nContext';
@@ -40,8 +41,21 @@ function oficio(u) { return u?.servicios?.[0] || u?.profesiones?.[0] || '—'; }
 // Llamada a la Edge Function (service role → ve todos los datos sin RLS)
 // ─────────────────────────────────────────────────────────────────────────────
 async function callAdmin(accion, params = {}) {
+  // Leer el access_token directamente del storage — funciona aunque GoTrueClient
+  // haya borrado la sesión en memoria (504 en refresh). La edge function acepta tokens
+  // expirados con firma HMAC válida.
+  let token = null;
+  try {
+    const raw = await AsyncStorage.getItem('supabase.auth.token');
+    if (raw) token = JSON.parse(raw).access_token;
+  } catch {}
+  if (!token) {
+    try { token = await AsyncStorage.getItem('nexu_access_token'); } catch {}
+  }
+  const extraHeaders = token ? { Authorization: `Bearer ${token}` } : {};
   const { data, error } = await supabase.functions.invoke('admin-data', {
     body: { accion, params },
+    headers: extraHeaders,
   });
   if (error) throw new Error(error.message ?? 'Error en la función');
   if (data?.error) throw new Error(data.error);
@@ -1259,18 +1273,25 @@ function TabConsultas({ onDetalleUsuario, navigation }) {
   // Suscripción real-time a la tabla concursos
   useEffect(() => {
     const CONCURSO_VIEWS = ['todos_llamados', 'demanda_concursos'];
+    let debounceTimer = null;
     const channel = supabase
       .channel('tabconsultas-concursos')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'concursos' }, () => {
         const cur = consultaRef.current;
-        if (cur && CONCURSO_VIEWS.includes(cur)) {
-          ejecutarRef.current?.(cur);
+        if (!cur || !CONCURSO_VIEWS.includes(cur)) return;
+        // Debounce: el scraper inserta cientos de filas seguidas.
+        // Esperamos 60s para hacer un solo re-fetch al terminar.
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return; // no reintentar si el token venció
+          ejecutarRef.current?.(cur, {}, true); // isRefresh=true → no borra datos existentes
           setLiveActualizado(true);
           setTimeout(() => setLiveActualizado(false), 3000);
-        }
+        }, 60000);
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { supabase.removeChannel(channel); clearTimeout(debounceTimer); };
   }, []);
 
   const CONSULTAS = [
@@ -2599,10 +2620,8 @@ function TabScraper() {
     async function cargarConteos() {
       setCargando(true);
       try {
-        const { data } = await supabase.functions.invoke('admin-data', {
-          body: { accion: 'scraper_stats' },
-        });
-        setConteos(data?.conteos ?? {});
+        const result = await callAdmin('scraper_stats');
+        setConteos(result?.conteos ?? {});
       } catch {}
       setCargando(false);
     }
@@ -2749,6 +2768,7 @@ export default function AdminScreen({ navigation }) {
   const [detalleUser, setDetalleUser] = useState(null);
   const [cfgVisible, setCfgVisible]   = useState(false);
   const intervalRef = useRef(null);
+  const statsLoadedRef = useRef(false);
 
   const TABS = [
     { id: 'panel',     emoji: '📊', label: 'Panel' },
@@ -2776,14 +2796,25 @@ export default function AdminScreen({ navigation }) {
     return () => navigation.getParent()?.setOptions({ tabBarStyle: undefined });
   }, [navigation]);
 
+  const ADMIN_CACHE_KEY = 'admin_panel_cache_v1';
+
   const cargarStats = useCallback(async (silencioso = false) => {
     if (!silencioso) setRefreshing(true);
     setStatsError('');
+    // Mostrar cache inmediatamente si todavía no cargó nada
+    if (!statsLoadedRef.current) {
+      try {
+        const raw = await AsyncStorage.getItem(ADMIN_CACHE_KEY);
+        if (raw) { const { s, a } = JSON.parse(raw); setStats(s); setAnalytics(a); }
+      } catch {}
+    }
     try {
       const [res, anal] = await Promise.all([callAdmin('stats'), callAdmin('analytics')]);
       setStats(res);
       setAnalytics(anal);
+      statsLoadedRef.current = true;
       setUltimaAct(new Date().toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' }));
+      AsyncStorage.setItem(ADMIN_CACHE_KEY, JSON.stringify({ s: res, a: anal })).catch(() => {});
     } catch (e) { setStatsError(e.message); }
     finally { setRefreshing(false); }
   }, []);

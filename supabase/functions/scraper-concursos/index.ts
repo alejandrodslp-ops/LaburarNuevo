@@ -491,6 +491,90 @@ async function scrapeJooble(
 }
 
 // ─────────────────────────────────────────────────────────────
+// HELPER: Jooble multi-búsqueda — ciudad × sector (cubre LATAM sin Adzuna)
+// Dispara N×M queries en paralelo, deduplica por fuente_id, devuelve empleo privado
+// ─────────────────────────────────────────────────────────────
+async function joobleMultiSearch(
+  pais: string,
+  paisNombre: string,
+  ciudades: string[],
+  sectores: string[],
+  fuente: string,
+  seen: Set<string>
+): Promise<ConcursoRow[]> {
+  const APP_KEY = Deno.env.get("JOOBLE_API_KEY") ?? "";
+  if (!APP_KEY) return [];
+
+  const allRows: ConcursoRow[] = [];
+
+  const queries: [string, string][] = [];
+  for (const ciudad of ciudades) {
+    for (const sector of sectores) {
+      queries.push([sector, ciudad]);
+    }
+  }
+
+  for (let i = 0; i < queries.length; i += 10) {
+    const lote = queries.slice(i, i + 10);
+    const resultados = await Promise.all(lote.map(async ([keywords, location]) => {
+      try {
+        const body = JSON.stringify({ keywords, location: `${location} ${paisNombre}`, resultsOnPage: 50 });
+        const res = await fetch(`https://jooble.org/api/${APP_KEY}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!res.ok) return [] as Record<string, unknown>[];
+        const json = await res.json() as { jobs?: Record<string, unknown>[] };
+        return (json.jobs ?? []) as Record<string, unknown>[];
+      } catch { return [] as Record<string, unknown>[]; }
+    }));
+
+    for (const jobs of resultados) {
+      for (const j of jobs) {
+        const titulo = String(j.title ?? "").trim();
+        const empresa = String(j.company ?? "").trim();
+        if (!titulo || titulo.length < 4) continue;
+
+        const jId = String(j.id ?? "").replace(/\W/g, "").slice(0, 48);
+        const fuente_id = jId || (titulo + empresa).replace(/\W/g, "").slice(0, 48);
+        if (seen.has(fuente_id)) continue;
+        seen.add(fuente_id);
+
+        const desc = String(j.snippet ?? "").replace(/<[^>]+>/g, " ").trim().slice(0, 600);
+        const link = String(j.link ?? "");
+
+        allRows.push({
+          fuente_id, fuente, pais,
+          numero_llamado: null,
+          titulo: empresa ? `${titulo} — ${empresa}` : titulo,
+          cargo: titulo,
+          organismo: empresa || null,
+          descripcion: desc || null,
+          requisitos: null, tipo_tarea: null, tipo_vinculo: "privado",
+          lugar: String(j.location ?? location),
+          fecha_inicio: null,
+          fecha_cierre: sumarDias(null, 30),
+          puestos: 1,
+          url_detalle: link || null,
+          url_postulacion: link || null,
+          keywords: extraerKeywords(titulo),
+          activo: true,
+        });
+      }
+    }
+
+    if (i + 10 < queries.length) {
+      await new Promise(r => setTimeout(r, 400));
+    }
+  }
+
+  console.log(`Jooble multi ${pais}: ${allRows.length} empleos privados de ${queries.length} queries`);
+  return allRows;
+}
+
+// ─────────────────────────────────────────────────────────────
 // HELPER: Google News RSS — siempre accesible desde cualquier región
 // Retorna noticias de concursos/convocatorias para el país dado
 // ─────────────────────────────────────────────────────────────
@@ -764,14 +848,25 @@ async function scrapeArgentina(): Promise<{ rows: ConcursoRow[]; errores: string
     }));
   }
 
-  // Google News en paralelo
-  const [gn1, gn2, gn3] = await Promise.all([
+  // Google News + Indeed en paralelo
+  const [gn1, gn2, gn3, ind] = await Promise.all([
     scrapeGoogleNews("AR", "concurso público Argentina convocatoria empleo vacante 2026", "argentina_googlenews", "AR", "es", 25),
     scrapeGoogleNews("AR", "Argentina empleo público SINEP convocatoria cargo ingreso 2026", "argentina_googlenews2", "AR", "es", 25),
     scrapeGoogleNews("AR", "Argentina concurso público provincia municipal gobierno 2026", "argentina_googlenews3", "AR", "es", 20),
+    scrapeIndeed("ar", "empleo trabajo vacante Argentina Buenos Aires", "AR", "argentina_indeed"),
   ]);
-  addRows(gn1.rows); addRows(gn2.rows); addRows(gn3.rows);
-  errores.push(...gn1.errores, ...gn2.errores, ...gn3.errores);
+  for (const r of [gn1, gn2, gn3, ind]) { addRows(r.rows); errores.push(...r.errores); }
+
+  // Jooble multi-search: sector privado AR — 6 ciudades × 8 sectores = 48 queries
+  const AR_JB_CIUDADES = ["Buenos Aires", "Córdoba", "Rosario", "Mendoza", "Tucumán", "Mar del Plata"];
+  const AR_JB_SECTORES = [
+    "ventas comercial", "tecnología sistemas", "administración secretaria",
+    "logística depósito", "salud enfermería", "construcción obra",
+    "gastronomía cocina", "recursos humanos",
+  ];
+  const seenAR_JB = new Set<string>(rows.map(r => r.fuente_id));
+  const jbAR = await joobleMultiSearch("AR", "Argentina", AR_JB_CIUDADES, AR_JB_SECTORES, "argentina_jooble_multi", seenAR_JB);
+  addRows(jbAR);
 
   return { rows, errores };
 }
@@ -816,16 +911,25 @@ async function scrapeChile(): Promise<{ rows: ConcursoRow[]; errores: string[] }
     }
   }
 
-  // 4. Google News — siempre se agrega (completa lo que Computrabajo no da)
-  const [gn1, gn2, gn3, gn4] = await Promise.all([
+  // 4. Google News + Indeed en paralelo
+  const [gn1, gn2, gn3, gn4, ind] = await Promise.all([
     scrapeGoogleNews("CL", "concurso público Chile cargo vacante gobierno 2026", "chile_googlenews", "CL", "es", 25),
     scrapeGoogleNews("CL", "Chile trabajo empleo Santiago Valparaíso Concepción 2026", "chile_googlenews2", "CL", "es", 25),
     scrapeGoogleNews("CL", "Chile empleo empresa privada oferta laboral cargo 2026", "chile_googlenews3", "CL", "es", 25),
     scrapeGoogleNews("CL", "Chile postulación trabajo Servicio Civil municipal 2026", "chile_googlenews4", "CL", "es", 20),
+    scrapeIndeed("cl", "empleo trabajo vacante Chile Santiago", "CL", "chile_indeed"),
   ]);
-  for (const gn of [gn1, gn2, gn3, gn4]) {
-    addRows(gn.rows); errores.push(...gn.errores);
-  }
+  for (const r of [gn1, gn2, gn3, gn4, ind]) { addRows(r.rows); errores.push(...r.errores); }
+
+  // Jooble multi-search: sector privado CL — 5 ciudades × 6 sectores = 30 queries
+  const CL_JB_CIUDADES = ["Santiago", "Valparaíso", "Concepción", "Antofagasta", "Temuco"];
+  const CL_JB_SECTORES = [
+    "ventas comercial", "tecnología sistemas", "administración",
+    "logística depósito", "salud enfermería", "minería construcción",
+  ];
+  const seenCL_JB = new Set<string>(rows.map(r => r.fuente_id));
+  const jbCL = await joobleMultiSearch("CL", "Chile", CL_JB_CIUDADES, CL_JB_SECTORES, "chile_jooble_multi", seenCL_JB);
+  addRows(jbCL);
   return { rows, errores };
 }
 
@@ -837,106 +941,73 @@ async function scrapeChile(): Promise<{ rows: ConcursoRow[]; errores: string[] }
 async function scrapeColombia(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
   const errores: string[] = [];
   const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
+  const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  // 1. CNSC — portal oficial de concursos del Estado colombiano
-  // Intentar también el JSON:API de Drupal (no requiere JS)
-  const drupalApiUrl = "https://www.cnsc.gov.co/jsonapi/node/convocatoria?filter[status]=1&sort=-created&page[limit]=50";
-  const drupalJson = await fetchViaProxy(drupalApiUrl) ?? await fetchUrl(drupalApiUrl, 12000);
-  if (drupalJson && drupalJson.includes('"data"')) {
-    try {
-      const parsed = JSON.parse(drupalJson);
-      const items: Record<string, unknown>[] = parsed?.data ?? [];
-      for (const item of items.slice(0, 50)) {
-        const attr = item.attributes as Record<string, unknown>;
-        const titulo = ((attr?.title ?? attr?.field_nombre ?? "") as string).trim();
-        const slug = (attr?.field_numero_convocatoria ?? attr?.drupal_internal__nid ?? "") as string | number;
-        if (!titulo || titulo.length < 5) continue;
-        const fuente_id = String(slug).replace(/\W/g, "_").slice(-48) || titulo.replace(/\W/g, "_").slice(0, 48);
-        if (rows.some(r => r.fuente_id === fuente_id)) continue;
-        rows.push({
-          fuente_id, fuente: "colombia_cnsc", pais: "CO",
-          numero_llamado: String(slug) || null,
-          titulo, cargo: titulo, organismo: null,
-          descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-          lugar: "Colombia", fecha_inicio: null, fecha_cierre: sumarDias(null, 60), puestos: 1,
-          url_detalle: `https://www.cnsc.gov.co/convocatorias/${slug}`,
-          url_postulacion: `https://www.cnsc.gov.co/convocatorias/${slug}`,
-          keywords: extraerKeywords(titulo), activo: true,
-        });
-      }
-      if (rows.length > 0) return { rows, errores };
-    } catch (_) { /* not valid JSON */ }
-  }
-
-  const cnscUrls = [
-    "https://www.cnsc.gov.co/convocatorias/en-desarrollo",
-    "https://www.cnsc.gov.co/index.php/servicios/convocatorias",
-  ];
-  for (const cnscUrl of cnscUrls) {
-    // CNSC está geo-bloqueado desde AWS — intentar vía proxy Cloudflare
-    const html = await fetchViaProxy(cnscUrl) ?? await fetchUrl(cnscUrl, 15000);
-    if (!html) { errores.push(`CO: CNSC ${cnscUrl} inaccesible`); continue; }
-
-    // Links con slug de convocatoria: /convocatorias/{entidad}-{número}
-    const linkRe = /href="((?:https?:\/\/www\.cnsc\.gov\.co)?(?:\/index\.php)?\/convocatorias\/([^"#?\s]{4,80}))"[^>]*>[\s\S]{0,200}?>([\s\S]*?)<\/a>/gi;
-    let m: RegExpExecArray | null;
-    while ((m = linkRe.exec(html)) !== null && rows.length < 50) {
-      const rawHref = m[1];
-      const slug    = m[2];
-      const titulo  = stripHtml(m[3]).replace(/\s+/g, " ").trim();
-      if (titulo.length < 5) continue;
-      // Filtrar links de navegación genérica y páginas de sección (no convocatorias reales)
-      if (/^(ver m[aá]s|inicio|home|servicios|convocatorias|más|atrás|tutoriales|videos|historicas|lista de elegibles|nuevos procesos|universidades)$/i.test(titulo)) continue;
-      // Slugs de navegación no tienen número al final — los reales sí: /{entidad}-{número}
-      if (!/\d/.test(slug)) continue;
-
-      const href    = rawHref.startsWith("http") ? rawHref : `https://www.cnsc.gov.co${rawHref}`;
-      const fuente_id = slug.replace(/\W/g, "_").slice(-48);
-      if (rows.some(r => r.fuente_id === fuente_id)) continue;
-
-      // El slug suele ser {entidad}-{número}: extraer organismo
-      const orgFromSlug = slug.replace(/-\d+$/, "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-
-      rows.push({
-        fuente_id, fuente: "colombia_cnsc", pais: "CO",
-        numero_llamado: slug.match(/-(\d+)$/)?.[1] ?? null,
-        titulo, cargo: titulo,
-        organismo: orgFromSlug || null,
-        descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
-        lugar: "Colombia",
-        fecha_inicio: null, fecha_cierre: sumarDias(null, 60), puestos: 1,
-        url_detalle: href, url_postulacion: href,
-        keywords: extraerKeywords(titulo + " " + orgFromSlug), activo: true,
-      });
+  // CNSC — intento asíncrono que no bloquea el resto
+  const cnscPromise = (async (): Promise<ConcursoRow[]> => {
+    const drupalApiUrl = "https://www.cnsc.gov.co/jsonapi/node/convocatoria?filter[status]=1&sort=-created&page[limit]=50";
+    const drupalJson = await fetchViaProxy(drupalApiUrl) ?? await fetchUrl(drupalApiUrl, 12000);
+    const cnscRows: ConcursoRow[] = [];
+    if (drupalJson && drupalJson.includes('"data"')) {
+      try {
+        const parsed = JSON.parse(drupalJson);
+        const items: Record<string, unknown>[] = parsed?.data ?? [];
+        for (const item of items.slice(0, 50)) {
+          const attr = item.attributes as Record<string, unknown>;
+          const titulo = ((attr?.title ?? attr?.field_nombre ?? "") as string).trim();
+          const slug = (attr?.field_numero_convocatoria ?? attr?.drupal_internal__nid ?? "") as string | number;
+          if (!titulo || titulo.length < 5) continue;
+          const fuente_id = String(slug).replace(/\W/g, "_").slice(-48) || titulo.replace(/\W/g, "_").slice(0, 48);
+          if (cnscRows.some(r => r.fuente_id === fuente_id)) continue;
+          cnscRows.push({
+            fuente_id, fuente: "colombia_cnsc", pais: "CO",
+            numero_llamado: String(slug) || null,
+            titulo, cargo: titulo, organismo: null,
+            descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+            lugar: "Colombia", fecha_inicio: null, fecha_cierre: sumarDias(null, 60), puestos: 1,
+            url_detalle: `https://www.cnsc.gov.co/convocatorias/${slug}`,
+            url_postulacion: `https://www.cnsc.gov.co/convocatorias/${slug}`,
+            keywords: extraerKeywords(titulo), activo: true,
+          });
+        }
+      } catch (_) {}
     }
+    return cnscRows;
+  })();
 
-    if (rows.length < 5) {
-      errores.push(`CO: CNSC ${cnscUrl} accesible pero solo ${rows.length} items (posible JS-render)`);
-      rows.length = 0;
-      continue;
-    }
-    return { rows, errores };
-  }
-
-  // 2. Computrabajo CO
-  const ct = await scrapeComputrabajo("co", "CO", "colombia_concursar");
-  if (ct.rows.length > 0) return { rows: ct.rows, errores: [...errores, ...ct.errores] };
-  errores.push(...ct.errores);
-
-  // 3. Google News — múltiples queries en paralelo
-  const [gn1, gn2, gn3, gn4] = await Promise.all([
+  // Todas las fuentes en paralelo
+  const [cnscRows, ct, ctPriv, ind,
+    gn1, gn2, gn3, gn4, gn5, gn6, gn7, gn8, gn9, gn10] = await Promise.all([
+    cnscPromise,
+    scrapeComputrabajoPaginado("co", "CO", "colombia_concursar", 8),
+    scrapeComputrabajoPrivado("co", "CO", "colombia_privado", 5),
+    scrapeIndeed("co", "empleo trabajo vacante Bogotá Colombia", "CO", "colombia_indeed"),
     scrapeGoogleNews("US", "Colombia empleo convocatoria concurso público cargo vacante 2026", "colombia_googlenews", "CO", "es", 25),
     scrapeGoogleNews("US", "Colombia empleo trabajo empresa privada cargo disponible 2026", "colombia_googlenews2", "CO", "es", 25),
     scrapeGoogleNews("US", "Colombia oferta laboral trabajo Bogotá Medellín Cali 2026", "colombia_googlenews3", "CO", "es", 25),
     scrapeGoogleNews("US", "Colombia SENA convocatoria empleo oportunidad laboral 2026", "colombia_googlenews4", "CO", "es", 20),
+    scrapeGoogleNews("US", "Colombia tecnología empresa empleo desarrollador ingeniero 2026", "colombia_googlenews5", "CO", "es", 25),
+    scrapeGoogleNews("US", "Colombia Ecopetrol banco multinacional empleo cargo 2026", "colombia_googlenews6", "CO", "es", 25),
+    scrapeGoogleNews("US", "Colombia salud hospital médico enfermero empleo 2026", "colombia_googlenews7", "CO", "es", 25),
+    scrapeGoogleNews("US", "Colombia docente maestro educación empleo convocatoria 2026", "colombia_googlenews8", "CO", "es", 25),
+    scrapeGoogleNews("US", "Colombia logística almacén operario empleo cargo 2026", "colombia_googlenews9", "CO", "es", 25),
+    scrapeGoogleNews("US", "Colombia Medellín Cali Barranquilla empresa empleo vacante 2026", "colombia_googlenews10", "CO", "es", 25),
   ]);
-  const seen2 = new Set<string>();
-  const allRows: ConcursoRow[] = [];
-  for (const gn of [gn1, gn2, gn3, gn4]) {
-    for (const r of gn.rows) { if (!seen2.has(r.fuente_id)) { seen2.add(r.fuente_id); allRows.push(r); } }
-    errores.push(...gn.errores);
-  }
-  return { rows: allRows, errores };
+  add(cnscRows);
+  for (const r of [ct, ctPriv, ind,
+    gn1, gn2, gn3, gn4, gn5, gn6, gn7, gn8, gn9, gn10]) { add(r.rows); errores.push(...r.errores); }
+
+  // Jooble multi-search: sector privado CO — 5 ciudades × 6 sectores = 30 queries
+  const CO_JB_CIUDADES = ["Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena"];
+  const CO_JB_SECTORES = [
+    "ventas comercial", "tecnología sistemas", "administración",
+    "logística", "salud enfermería", "educación",
+  ];
+  const seenCO_JB = new Set<string>(rows.map(r => r.fuente_id));
+  const jbCO = await joobleMultiSearch("CO", "Colombia", CO_JB_CIUDADES, CO_JB_SECTORES, "colombia_jooble_multi", seenCO_JB);
+  add(jbCO);
+  return { rows, errores };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -977,6 +1048,18 @@ function parsePciConcursos(html: string, seen: Set<string>, rows: ConcursoRow[])
       });
     }
   }
+}
+
+function adzunaSearchUrl(titulo: string, empresa: string | null, pais: string): string {
+  const DOMINIOS: Record<string, string> = {
+    BR: "www.adzuna.com.br", MX: "www.adzuna.com.mx", ES: "www.adzuna.es",
+    US: "www.adzuna.com", GB: "www.adzuna.co.uk", DE: "www.adzuna.de",
+    FR: "www.adzuna.fr", IT: "www.adzuna.it", AU: "www.adzuna.com.au",
+    CA: "www.adzuna.ca", IN: "www.adzuna.in",
+  };
+  const dominio = DOMINIOS[pais] ?? "www.adzuna.com";
+  const q = encodeURIComponent([titulo, empresa].filter(Boolean).join(" "));
+  return `https://${dominio}/search?q=${q}`;
 }
 
 async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
@@ -1124,7 +1207,7 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
           const lugar   = (j.location as Record<string,string>)?.display_name ?? where;
           const desc    = String(j.description ?? "").replace(/<[^>]+>/g," ").trim().slice(0,600);
           const fechaPublicacion = String(j.created ?? "").slice(0, 10) || null;
-          const fechaCierreEstimada = sumarDias(null, 30); // siempre hoy+30 para no caducar recién insertados
+          const fechaCierreEstimada = sumarDias(null, 7); // Adzuna: URLs expiran rápido, 7 días max
 
           result.push({
             fuente_id, fuente: "adzuna_br", pais: "BR",
@@ -1133,8 +1216,8 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
             requisitos: null, tipo_tarea: what, tipo_vinculo: "privado",
             lugar, fecha_inicio: fechaPublicacion, fecha_cierre: fechaCierreEstimada,
             puestos: 1,
-            url_detalle: String(j.redirect_url ?? ""),
-            url_postulacion: String(j.redirect_url ?? ""),
+            url_detalle: adzunaSearchUrl(titulo, empresa, "BR"),
+            url_postulacion: adzunaSearchUrl(titulo, empresa, "BR"),
             keywords: extraerKeywords(`${titulo} ${empresa ?? ""} ${what} ${where}`),
             activo: true,
           });
@@ -1174,22 +1257,36 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
 // PARSER: Perú — Indeed + SERVIR fallback
 // ─────────────────────────────────────────────────────────────
 async function scrapePerú(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
-  const ct = await scrapeComputrabajo("pe", "PE", "peru_concursar");
-  if (ct.rows.length > 0) return ct;
+  const errores: string[] = [];
+  const rows: ConcursoRow[] = [];
+  const seen = new Set<string>();
+  const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [gn1, gn2, gn3, gn4] = await Promise.all([
+  const [ctPub, ctPriv, ind,
+    gn1, gn2, gn3, gn4, gn5, gn6, gn7] = await Promise.all([
+    scrapeComputrabajoPaginado("pe", "PE", "peru_concursar", 8),
+    scrapeComputrabajoPrivado("pe", "PE", "peru_privado", 5),
+    scrapeIndeed("pe", "empleo trabajo vacante Lima Perú", "PE", "peru_indeed"),
     scrapeGoogleNews("US", "Perú empleo concurso público plaza vacante CAS SERVIR 2026", "peru_googlenews", "PE", "es", 25),
     scrapeGoogleNews("US", "Perú trabajo empleo Lima Arequipa Trujillo oferta laboral 2026", "peru_googlenews2", "PE", "es", 25),
     scrapeGoogleNews("US", "Perú convocatoria trabajo empresa privada cargo disponible 2026", "peru_googlenews3", "PE", "es", 25),
     scrapeGoogleNews("US", "Perú gobierno regional municipal empleo convocatoria vacante 2026", "peru_googlenews4", "PE", "es", 20),
+    scrapeGoogleNews("US", "Perú salud médico hospital enfermero empleo 2026", "peru_googlenews5", "PE", "es", 25),
+    scrapeGoogleNews("US", "Perú minería tecnología empresa empleo cargo 2026", "peru_googlenews6", "PE", "es", 25),
+    scrapeGoogleNews("US", "Perú empresa multinacional privada empleo trabajo 2026", "peru_googlenews7", "PE", "es", 25),
   ]);
-  const seen = new Set<string>();
-  const rows: ConcursoRow[] = [];
-  const errores: string[] = [];
-  for (const gn of [gn1, gn2, gn3, gn4]) {
-    for (const r of gn.rows) { if (!seen.has(r.fuente_id)) { seen.add(r.fuente_id); rows.push(r); } }
-    errores.push(...gn.errores);
-  }
+  for (const r of [ctPub, ctPriv, ind,
+    gn1, gn2, gn3, gn4, gn5, gn6, gn7]) { add(r.rows); errores.push(...r.errores); }
+
+  // Jooble multi-search: sector privado PE — 5 ciudades × 6 sectores = 30 queries
+  const PE_JB_CIUDADES = ["Lima", "Arequipa", "Trujillo", "Chiclayo", "Piura"];
+  const PE_JB_SECTORES = [
+    "ventas comercial", "tecnología sistemas", "administración",
+    "logística depósito", "salud enfermería", "minería construcción",
+  ];
+  const seenPE_JB = new Set<string>(rows.map(r => r.fuente_id));
+  const jbPE = await joobleMultiSearch("PE", "Perú", PE_JB_CIUDADES, PE_JB_SECTORES, "peru_jooble_multi", seenPE_JB);
+  add(jbPE);
   return { rows, errores };
 }
 
@@ -1532,10 +1629,10 @@ async function adzunaMultiSearch(
               organismo: empresa, descripcion: desc || null,
               requisitos: null, tipo_tarea: what, tipo_vinculo: "privado",
               lugar, fecha_inicio: fechaPub,
-              fecha_cierre: sumarDias(null, 30),
+              fecha_cierre: sumarDias(null, 7),
               puestos: 1,
-              url_detalle: String(j.redirect_url ?? ""),
-              url_postulacion: String(j.redirect_url ?? ""),
+              url_detalle: adzunaSearchUrl(titulo, empresa, pais),
+              url_postulacion: adzunaSearchUrl(titulo, empresa, pais),
               keywords: extraerKeywords(`${titulo} ${empresa ?? ""} ${what} ${where}`),
               activo: true,
             });

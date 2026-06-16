@@ -71,6 +71,14 @@ export default function TerminosScreen({ navigation }) {
             todas las actividades realizadas desde tu cuenta.
           </P>
           <P>
+            Al registrarte y completar tu perfil, declarás que eres mayor de 18 años y que
+            toda la información que proporcionás — incluyendo datos personales, formación,
+            experiencia y aptitudes — es verídica y exacta.{' '}
+            <Text style={ss.negrita}>Sos el único responsable de la veracidad o falsedad
+            de la información que cargás en la plataforma.</Text>{' '}
+            Nexu no verifica de forma independiente los datos ingresados por los usuarios.
+          </P>
+          <P>
             Nexu se reserva el derecho de suspender o cancelar cuentas que:
           </P>
           <Li>Proporcionen información falsa o engañosa.</Li>

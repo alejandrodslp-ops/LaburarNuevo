@@ -5,7 +5,7 @@ function generarCodigo() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-export async function registrar({ email, password, nombre, apellido1, apellido2, rol }) {
+export async function registrar({ email, password, nombre, apellido1, apellido2, rol, fecha_nac }) {
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw error;
   if (data.user) {
@@ -20,6 +20,7 @@ export async function registrar({ email, password, nombre, apellido1, apellido2,
       apellido1,
       apellido2: apellido2||'',
       rol,
+      fecha_nac: fecha_nac || null,
       codigo_referido: generarCodigo(),
       periodo_gratis_hasta: gratis,
     });
@@ -92,7 +93,7 @@ export async function acreditarReferido(codigoReferido, nuevoUserId) {
 export async function login({ email, password }) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
-  await supabase.auth.signOut({ scope: 'others' });
+  supabase.auth.signOut({ scope: 'others' }).catch(() => {});
   return data;
 }
 

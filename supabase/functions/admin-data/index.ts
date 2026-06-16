@@ -8,22 +8,64 @@ const CORS = {
 
 const SUPABASE_URL         = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_JWT_SECRET  = Deno.env.get("SUPABASE_JWT_SECRET")!;
 const ADMIN_EMAIL          = "alejandrodslp@gmail.com";
 
 function ok(data: unknown) {
   return new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json", ...CORS } });
 }
-function err(msg: string) {
-  return new Response(JSON.stringify({ error: msg }), { headers: { "Content-Type": "application/json", ...CORS } });
+function err(msg: string, status = 400) {
+  return new Response(JSON.stringify({ error: msg }), { status, headers: { "Content-Type": "application/json", ...CORS } });
 }
 
-// Verifica el JWT contra Supabase — valida firma criptográfica real
+// base64url → Uint8Array con padding correcto
+function b64url(s: string): Uint8Array {
+  const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - s.length % 4) % 4);
+  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+}
+
+// Extrae el payload del JWT sin verificar firma (solo para fallback)
+function jwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    return JSON.parse(new TextDecoder().decode(b64url(parts[1])));
+  } catch { return null; }
+}
+
+// Verifica el JWT: primero local (HMAC-SHA256), si falla usa red como fallback
 async function verificarAdmin(authHeader: string): Promise<{ email: string | null; sub: string | null }> {
   try {
     const token = authHeader.replace("Bearer ", "").trim();
-    if (!token) return { email: null, sub: null };
+    if (!token || token.split(".").length !== 3) return { email: null, sub: null };
+
+    const [headerB64, payloadB64, sigB64] = token.split(".");
+
+    // Intentar verificación local (sin red)
+    try {
+      const key = await crypto.subtle.importKey(
+        "raw",
+        new TextEncoder().encode(SUPABASE_JWT_SECRET),
+        { name: "HMAC", hash: "SHA-256" },
+        false,
+        ["verify"],
+      );
+      const valid = await crypto.subtle.verify(
+        "HMAC", key, b64url(sigB64),
+        new TextEncoder().encode(`${headerB64}.${payloadB64}`),
+      );
+      if (valid) {
+        const payload = JSON.parse(new TextDecoder().decode(b64url(payloadB64)));
+        return { email: payload.email ?? null, sub: payload.sub ?? null };
+      }
+    } catch { /* algoritmo distinto — continuar con fallback */ }
+
+    // Fallback: verificación por red con timeout de 4s
     const verifier = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    const { data: { user }, error } = await verifier.auth.getUser(token);
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000));
+    const result = await Promise.race([verifier.auth.getUser(token), timeout]);
+    if (!result) return { email: null, sub: null };
+    const { data: { user }, error } = result as Awaited<ReturnType<typeof verifier.auth.getUser>>;
     if (error || !user) return { email: null, sub: null };
     return { email: user.email ?? null, sub: user.id };
   } catch { return { email: null, sub: null }; }
@@ -350,13 +392,29 @@ async function consultas(db: ReturnType<typeof createClient>, params: any) {
       if (paisFlt2)  countQ = countQ.eq("pais", paisFlt2);
       if (cargoFlt2) countQ = countQ.or(`cargo.ilike.%${cargoFlt2}%,titulo.ilike.%${cargoFlt2}%`);
 
-      const [{ data: todos }, { count: totalReal }] = await Promise.all([q, countQ]);
+      // Sin filtros activos: usar RPC para breakdown real sobre los 239k+ concursos.
+      // Con filtros: usar conteo de la muestra cargada (aceptable para vistas filtradas).
+      const sinFiltros = !tipoVinculo && !paisFlt2 && !cargoFlt2;
+
+      const [{ data: todos }, { count: totalReal }, paisResult] = await Promise.all([
+        q,
+        countQ,
+        sinFiltros
+          ? db.rpc("count_concursos_por_pais").catch(() => ({ data: null }))
+          : Promise.resolve({ data: null }),
+      ]);
       const registros = (todos as any[]) ?? [];
 
-      // Breakdown por país para mostrar cobertura real
+      // Breakdown por país
       const por_pais: Record<string, number> = {};
-      for (const c of registros) {
-        if (c.pais) por_pais[c.pais] = (por_pais[c.pais] ?? 0) + 1;
+      if (sinFiltros && (paisResult as any)?.data) {
+        for (const row of (paisResult as any).data as any[]) {
+          if (row.pais) por_pais[row.pais] = Number(row.total);
+        }
+      } else {
+        for (const c of registros) {
+          if (c.pais) por_pais[c.pais] = (por_pais[c.pais] ?? 0) + 1;
+        }
       }
 
       return ok({ concursos: registros, por_pais, total: totalReal ?? registros.length, cargados: registros.length });

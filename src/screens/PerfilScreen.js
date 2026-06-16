@@ -148,50 +148,116 @@ export default function PerfilScreen({navigation}){
   }
 
   async function cargar(){
-    setCargando(true);
     try{
-      const{data:{user}}=await supabase.auth.getUser();
-      if(!user)return;
-      const{data}=await supabase.from('profiles').select('*').eq('id',user.id).single();
-      if(data){setNomada(data.nomada_digital||false);setIdiomas(data.idiomas_trabajo||[]);}
-      if(data){
-        // Verificar si vencio el periodo de prueba (admin exento)
-        const esAdmin = user.email === 'alejandrodslp@gmail.com';
-        if(!esAdmin && data.perfil_activo && data.perfil_activo_hasta){
-          const vencimiento=new Date(data.perfil_activo_hasta);
-          if(new Date()>vencimiento){
-            await supabase.from('profiles').update({perfil_activo:false}).eq('id',user.id);
-            data.perfil_activo=false;
-            const{usd}=precioConversion(data.pais);
-            setModalInactivo({visible:true,usd});
-          }
+      // PASO 1: leer identidad del storage — supabase.auth.token si existe, si no nexu_uid
+      let userId=null, userEmail=null;
+      try{
+        const raw=await AsyncStorage.getItem('supabase.auth.token');
+        if(raw){
+          const s=JSON.parse(raw);
+          userId=s.user?.id;
+          userEmail=s.user?.email;
+          // Persiste email y token en claves propias — no las borra GoTrueClient automáticamente
+          if(userEmail) AsyncStorage.setItem('nexu_user_email',userEmail).catch(()=>{});
+          if(s.access_token) AsyncStorage.setItem('nexu_access_token',s.access_token).catch(()=>{});
         }
-        if(esAdmin && data.perfil_activo_hasta && new Date()>new Date(data.perfil_activo_hasta)){
-          await supabase.from('profiles').update({perfil_activo:true,perfil_activo_hasta:null}).eq('id',user.id);
-          data.perfil_activo=true;
-        }
-        const esW=modoActivo==='worker';
-        setU({
-          nombre:data.nombre||'Tu perfil',
-          oficio:esW?(data.servicios?.[0]||data.profesiones?.[0]||''):(data.empleo_buscado||''),
-          zona:[data.barrio,data.ciudad,data.pais].filter(Boolean).join(', '),
-          email:user.email||'',
-          rating:data.rating||0,
-          valoraciones:data.total_valoraciones||0,
-          activo:esAdmin?true:(data.perfil_activo||false),
-          dias_restantes:data.periodo_gratis_hasta?Math.max(0,Math.ceil((new Date(data.periodo_gratis_hasta)-new Date())/(1000*60*60*24))):0,
-          codigo_referido:data.codigo_referido||'',
-          dias_extra:data.dias_extra||0,
-          fecha_activacion:data.fecha_activacion||null,
-          vistas:data.vistas||0,
-          contactos:data.contactos||0,
-          avatar:data.avatar_url||null,
-          telefono:data.telefono||'',
-          telefonoVerificado:data.telefono_verificado||false,
-          edad:calcularEdad(data.fecha_nac),
-        });
+      }catch{}
+      // Fallback: si la sesión ya fue borrada por GoTrueClient, usar la clave propia
+      if(!userEmail){
+        try{ userEmail=await AsyncStorage.getItem('nexu_user_email'); }catch{}
       }
-    }catch(e){console.log(e);}finally{setCargando(false);}
+
+      // PASO 2: mostrar cache o al menos el email/botón admin — sin red
+      if(userId){
+        const CACHE_KEY=`perfil_cache_${userId}`;
+        const cached=await AsyncStorage.getItem(CACHE_KEY);
+        if(cached){
+          const c=JSON.parse(cached);
+          const esAdminC=userEmail==='alejandrodslp@gmail.com';
+          const esW=modoActivo==='worker';
+          setNomada(c.nomada_digital||false);
+          setIdiomas(c.idiomas_trabajo||[]);
+          setU({
+            nombre:c.nombre||'Tu perfil',
+            oficio:esW?(c.servicios?.[0]||c.profesiones?.[0]||''):(c.empleo_buscado||''),
+            zona:[c.barrio,c.ciudad,c.pais].filter(Boolean).join(', '),
+            email:userEmail||'',
+            rating:c.rating||0,
+            valoraciones:c.total_valoraciones||0,
+            activo:esAdminC?true:(c.perfil_activo||false),
+            dias_restantes:c.periodo_gratis_hasta?Math.max(0,Math.ceil((new Date(c.periodo_gratis_hasta)-new Date())/(1000*60*60*24))):0,
+            codigo_referido:c.codigo_referido||'',
+            dias_extra:c.dias_extra||0,
+            fecha_activacion:c.fecha_activacion||null,
+            vistas:c.vistas||0,
+            contactos:c.contactos||0,
+            avatar:c.avatar_url||null,
+            telefono:c.telefono||'',
+            telefonoVerificado:c.telefono_verificado||false,
+            edad:calcularEdad(c.fecha_nac),
+          });
+        } else if(userEmail){
+          setU(prev=>({...prev,email:userEmail}));
+        }
+      } else if(userEmail){
+        // Sin userId (sesión borrada) pero tenemos email: mostrar botón admin al menos
+        setU(prev=>({...prev,email:userEmail}));
+      }
+    }catch(e){console.log(e);}finally{
+      // Siempre mostrar la pantalla luego de leer storage (< 100ms) — no esperar red
+      setCargando(false);
+    }
+    // Refrescar desde red en background — setTimeout garantiza que React renderice primero
+    setTimeout(refrescarPerfil, 0);
+  }
+
+  async function refrescarPerfil(){
+    try{
+      const{data:sessionData}=await supabase.auth.getSession();
+      const session=sessionData?.session;
+      const user=session?.user;
+      if(!user)return;
+      // Actualizar token guardado si la sesión se renovó con éxito
+      if(session.access_token) AsyncStorage.setItem('nexu_access_token',session.access_token).catch(()=>{});
+      if(user.email) AsyncStorage.setItem('nexu_user_email',user.email).catch(()=>{});
+      const CACHE_KEY=`perfil_cache_${user.id}`;
+      const{data}=await supabase.from('profiles').select('*').eq('id',user.id).single();
+      if(!data)return;
+      AsyncStorage.setItem(CACHE_KEY,JSON.stringify(data)).catch(()=>{});
+      setNomada(data.nomada_digital||false);
+      setIdiomas(data.idiomas_trabajo||[]);
+      const esAdmin=user.email==='alejandrodslp@gmail.com';
+      if(!esAdmin&&data.perfil_activo&&data.perfil_activo_hasta&&new Date()>new Date(data.perfil_activo_hasta)){
+        supabase.from('profiles').update({perfil_activo:false}).eq('id',user.id).then(()=>{});
+        data.perfil_activo=false;
+        const{usd}=precioConversion(data.pais);
+        setModalInactivo({visible:true,usd});
+      }
+      if(esAdmin&&data.perfil_activo_hasta&&new Date()>new Date(data.perfil_activo_hasta)){
+        supabase.from('profiles').update({perfil_activo:true,perfil_activo_hasta:null}).eq('id',user.id).then(()=>{});
+        data.perfil_activo=true;
+      }
+      const esW=modoActivo==='worker';
+      setU({
+        nombre:data.nombre||'Tu perfil',
+        oficio:esW?(data.servicios?.[0]||data.profesiones?.[0]||''):(data.empleo_buscado||''),
+        zona:[data.barrio,data.ciudad,data.pais].filter(Boolean).join(', '),
+        email:user.email||'',
+        rating:data.rating||0,
+        valoraciones:data.total_valoraciones||0,
+        activo:esAdmin?true:(data.perfil_activo||false),
+        dias_restantes:data.periodo_gratis_hasta?Math.max(0,Math.ceil((new Date(data.periodo_gratis_hasta)-new Date())/(1000*60*60*24))):0,
+        codigo_referido:data.codigo_referido||'',
+        dias_extra:data.dias_extra||0,
+        fecha_activacion:data.fecha_activacion||null,
+        vistas:data.vistas||0,
+        contactos:data.contactos||0,
+        avatar:data.avatar_url||null,
+        telefono:data.telefono||'',
+        telefonoVerificado:data.telefono_verificado||false,
+        edad:calcularEdad(data.fecha_nac),
+      });
+    }catch(e){console.log(e);}
   }
 
   async function cambiarContrasena(){
@@ -279,7 +345,7 @@ export default function PerfilScreen({navigation}){
   function cerrarSesion(){
     Alert.alert(t('cerrar_sesion_tit'),t('cerrar_sesion_confirm'),[
       {text:t('cancelar'),style:'cancel'},
-      {text:t('cerrar_sesion_tit'),style:'destructive',onPress:async()=>{await AsyncStorage.removeItem('welcome_visto');await supabase.auth.signOut();}},
+      {text:t('cerrar_sesion_tit'),style:'destructive',onPress:async()=>{await AsyncStorage.removeItem('welcome_visto');await AsyncStorage.removeItem('nexu_user_email');await AsyncStorage.removeItem('nexu_access_token');await supabase.auth.signOut();}},
     ]);
   }
 
