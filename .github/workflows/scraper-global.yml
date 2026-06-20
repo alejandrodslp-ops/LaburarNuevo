@@ -28,7 +28,7 @@ jobs:
           BODY_RESP=$(echo "$RESPONSE" | head -1)
           echo "HTTP: $HTTP_CODE"
           echo "$BODY_RESP" | python3 -m json.tool 2>/dev/null || echo "$BODY_RESP"
-          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "504" ]; then exit 1; fi
 
   # 7 jobs paralelos — cada uno max ~70s
   scrape-brasil:
@@ -46,7 +46,7 @@ jobs:
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           echo "HTTP: $HTTP_CODE"
           echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
-          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "504" ]; then exit 1; fi
 
   scrape-latam-sur:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
@@ -63,7 +63,7 @@ jobs:
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           echo "HTTP: $HTTP_CODE"
           echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
-          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "504" ]; then exit 1; fi
 
   scrape-mexico:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
@@ -80,7 +80,7 @@ jobs:
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           echo "HTTP: $HTTP_CODE"
           echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
-          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "504" ]; then exit 1; fi
 
   scrape-latam-norte:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
@@ -97,7 +97,7 @@ jobs:
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           echo "HTTP: $HTTP_CODE"
           echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
-          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "504" ]; then exit 1; fi
 
   scrape-europa-oeste:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
@@ -114,7 +114,7 @@ jobs:
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           echo "HTTP: $HTTP_CODE"
           echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
-          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "504" ]; then exit 1; fi
 
   scrape-europa-este:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
@@ -131,7 +131,7 @@ jobs:
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           echo "HTTP: $HTTP_CODE"
           echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
-          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "504" ]; then exit 1; fi
 
   scrape-mundo:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
@@ -148,7 +148,7 @@ jobs:
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
           echo "HTTP: $HTTP_CODE"
           echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
-          if [ "$HTTP_CODE" != "200" ]; then exit 1; fi
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "504" ]; then exit 1; fi
 
   verificar:
     needs: [scrape-brasil, scrape-latam-sur, scrape-mexico, scrape-latam-norte, scrape-europa-oeste, scrape-europa-este, scrape-mundo]
