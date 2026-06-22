@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
-const APP_SUCCESS_URL   = "nexu://pago-exitoso";
-const APP_CANCEL_URL    = "nexu://pago-cancelado";
+const APP_SUCCESS_URL   = "konexu://pago-exitoso";
+const APP_CANCEL_URL    = "konexu://pago-cancelado";
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",

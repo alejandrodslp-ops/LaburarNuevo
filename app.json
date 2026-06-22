@@ -14,9 +14,9 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.nexu.app",
+      "bundleIdentifier": "com.konexu.app",
       "associatedDomains": [
-        "applinks:nexu.app"
+        "applinks:konexu.app"
       ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -27,14 +27,14 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0D1117"
       },
-      "package": "com.nexu.app",
+      "package": "com.konexu.app",
       "intentFilters": [
         {
           "action": "VIEW",
           "autoVerify": true,
           "data": [
             {
-              "scheme": "nexu"
+              "scheme": "konexu"
             }
           ],
           "category": [
@@ -51,7 +51,7 @@
       "expo-secure-store",
       "expo-localization"
     ],
-    "scheme": "nexu",
+    "scheme": "konexu",
     "extra": {
       "eas": {
         "projectId": "e9ef9ac8-fcd4-4534-b267-3cfd7b420ea3"
