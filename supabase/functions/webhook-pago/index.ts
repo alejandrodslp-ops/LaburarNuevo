@@ -139,8 +139,8 @@ serve(async (req) => {
             metodo:              "mercadopago",
             referencia_externa:  String(paymentId),
             concepto:            tipo === "worker_activacion"
-              ? "Activación de perfil trabajador — Nexu (60 días)"
-              : `Visualizaciones de perfiles empleador — Nexu (${cantidadPerfiles} créditos)`,
+              ? "Activación de perfil trabajador — Konexu (60 días)"
+              : `Visualizaciones de perfiles empleador — Konexu (${cantidadPerfiles} créditos)`,
           },
         }).catch(() => {});
       }

@@ -11,7 +11,7 @@ export default function HomeEmpresaScreen({navigation}){
       <ScrollView showsVerticalScrollIndicator={false}>
         <LinearGradient colors={["#1A1F3A","#2D3561"]} style={ss.header}>
           <Text style={ss.saludo}>Panel de empresa</Text>
-          <Text style={ss.titulo}>🏢 Nexu Empresas</Text>
+          <Text style={ss.titulo}>🏢 Konexu Empresas</Text>
           {!suscripcionActiva&&(
             <TouchableOpacity style={ss.activarBtn} onPress={()=>navigation.navigate("BienvenidaEmpresa")}>
               <Text style={ss.activarTxt}>⚡ Activar suscripcion</Text>
@@ -21,7 +21,7 @@ export default function HomeEmpresaScreen({navigation}){
         {!suscripcionActiva&&(
           <View style={ss.sinSub}>
             <Text style={ss.sinSubTit}>Tu cuenta no esta activa</Text>
-            <Text style={ss.sinSubDesc}>Activa tu suscripcion para empezar a buscar trabajadores y acceder a todos los beneficios de Nexu.</Text>
+            <Text style={ss.sinSubDesc}>Activa tu suscripcion para empezar a buscar trabajadores y acceder a todos los beneficios de Konexu.</Text>
             <TouchableOpacity style={ss.sinSubBtn} onPress={()=>navigation.navigate("BienvenidaEmpresa")}>
               <Text style={ss.sinSubBtnTxt}>Ver planes y suscribirme</Text>
             </TouchableOpacity>

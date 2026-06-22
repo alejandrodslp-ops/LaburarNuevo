@@ -1665,7 +1665,7 @@ async function scrapeEspana(): Promise<{ rows: ConcursoRow[]; errores: string[] 
       const res = await fetch(
         `https://www.boe.es/datosabiertos/api/boe/sumario/${fecha}`,
         {
-          headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (compatible; Nexu/1.0)" },
+          headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (compatible; Konexu/1.0)" },
           signal: AbortSignal.timeout(12000),
         }
       );
@@ -1769,11 +1769,11 @@ async function scrapeItalia(): Promise<{ rows: ConcursoRow[]; errores: string[] 
   // InPA — WordPress REST API páginas 1 y 2 en paralelo
   const [res1, res2] = await Promise.all([
     fetch("https://www.inpa.gov.it/wp-json/wp/v2/posts?per_page=40&page=1&_fields=id,title,link,date", {
-      headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (compatible; Nexu/1.0)" },
+      headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (compatible; Konexu/1.0)" },
       signal: AbortSignal.timeout(12000),
     }).catch(() => null),
     fetch("https://www.inpa.gov.it/wp-json/wp/v2/posts?per_page=40&page=2&_fields=id,title,link,date", {
-      headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (compatible; Nexu/1.0)" },
+      headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (compatible; Konexu/1.0)" },
       signal: AbortSignal.timeout(12000),
     }).catch(() => null),
   ]);
@@ -1846,7 +1846,7 @@ async function scrapeAlemania(): Promise<{ rows: ConcursoRow[]; errores: string[
         headers: {
           "X-API-Key": "jobboerse-jobsuche",
           "Accept": "application/json",
-          "User-Agent": "Mozilla/5.0 (compatible; Nexu/1.0)",
+          "User-Agent": "Mozilla/5.0 (compatible; Konexu/1.0)",
         },
         signal: AbortSignal.timeout(12000),
       }
@@ -3083,7 +3083,7 @@ async function enviarResumenDiario(): Promise<void> {
 
   const html = `
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-  <h2 style="color:#E8785A;margin-bottom:4px">Nexu — Informe diario del scraper</h2>
+  <h2 style="color:#E8785A;margin-bottom:4px">Konexu — Informe diario del scraper</h2>
   <p style="color:#888;margin-top:0;font-size:13px">${fecha} ${hora} | Total: <b>${total}</b> llamados activos en <b>${TODOS_PAISES.length}</b> países</p>
 
   ${estadoGeneral}
@@ -3107,7 +3107,7 @@ async function enviarResumenDiario(): Promise<void> {
   ${seccionErrores}
 
   <p style="color:#bbb;font-size:11px;margin-top:24px;border-top:1px solid #eee;padding-top:12px">
-    Generado automáticamente por Nexu Scraper
+    Generado automáticamente por Konexu Scraper
   </p>
 </div>`;
 
@@ -3115,9 +3115,9 @@ async function enviarResumenDiario(): Promise<void> {
     method: "POST",
     headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: "Nexu Scraper <onboarding@resend.dev>",
+      from: "Konexu Scraper <onboarding@resend.dev>",
       to: ["alejandrodslp@gmail.com"],
-      subject: `📊 Nexu ${fecha} — ${total} llamados ${enRojo.length > 0 ? "| ⚠️ " + enRojo.length + " países con problemas" : "| ✅ Todo OK"}`,
+      subject: `📊 Konexu ${fecha} — ${total} llamados ${enRojo.length > 0 ? "| ⚠️ " + enRojo.length + " países con problemas" : "| ✅ Todo OK"}`,
       html,
     }),
     signal: AbortSignal.timeout(15000),

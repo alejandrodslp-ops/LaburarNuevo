@@ -53,14 +53,14 @@ serve(async (req) => {
     }).eq("id", perfil.id);
 
     // Registrar pago
-    await supabase.from("pagos").insert({
+    await Promise.resolve(supabase.from("pagos").insert({
       user_id:            perfil.id,
       monto:              15,
       moneda:             "BRL",
       estado:             "aprobado",
       metodo:             "pix_rendimento",
       referencia_externa: ref_label,
-    }).catch(() => {});
+    })).catch(() => {});
 
     // Generar comprobante (silencioso)
     supabase.functions.invoke("generar-comprobante", {
@@ -70,7 +70,7 @@ serve(async (req) => {
         moneda:             "BRL",
         metodo:             "pix_rendimento",
         referencia_externa: ref_label,
-        concepto:           "Ativacao perfil trabalhador Nexu - 60 dias",
+        concepto:           "Ativacao perfil trabalhador Konexu - 60 dias",
       },
     }).catch(() => {});
 

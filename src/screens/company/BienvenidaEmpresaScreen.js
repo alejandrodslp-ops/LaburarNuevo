@@ -34,12 +34,12 @@ export default function BienvenidaEmpresaScreen({navigation}){
         </View>
         <LinearGradient colors={["#1A1F3A","#2D3561"]} style={ss.hero}>
           <Text style={ss.heroEmoji}>🏢</Text>
-          <Text style={ss.heroTit}>Nexu para Empresas</Text>
+          <Text style={ss.heroTit}>Konexu para Empresas</Text>
           <Text style={ss.heroSub}>Acceda a mano de obra calificada en tiempo real. Sin intermediarios, sin publicaciones, sin demoras.</Text>
         </LinearGradient>
 
         <View style={ss.sec}>
-          <Text style={ss.stit}>POR QUE NEXU</Text>
+          <Text style={ss.stit}>POR QUE KONEXU</Text>
           {BENEFICIOS.map((b,i)=>(
             <View key={i} style={ss.beneficioCard}>
               <Text style={ss.beneficioIcono}>{b.icono}</Text>

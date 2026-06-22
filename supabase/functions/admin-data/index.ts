@@ -392,29 +392,32 @@ async function consultas(db: ReturnType<typeof createClient>, params: any) {
       if (paisFlt2)  countQ = countQ.eq("pais", paisFlt2);
       if (cargoFlt2) countQ = countQ.or(`cargo.ilike.%${cargoFlt2}%,titulo.ilike.%${cargoFlt2}%`);
 
-      // Sin filtros activos: usar RPC para breakdown real sobre los 239k+ concursos.
-      // Con filtros: usar conteo de la muestra cargada (aceptable para vistas filtradas).
+      // Sin filtros: RPC exact para total (misma fuente que la web) + breakdown por país.
+      // Con filtros: estimated de PostgREST (aceptable para vistas filtradas).
       const sinFiltros = !tipoVinculo && !paisFlt2 && !cargoFlt2;
 
-      const [{ data: todos }, { count: totalReal }, paisResult] = await Promise.all([
+      const [todosRes, totalRes] = await Promise.all([
         q,
-        countQ,
         sinFiltros
-          ? db.rpc("count_concursos_por_pais").catch(() => ({ data: null }))
-          : Promise.resolve({ data: null }),
+          ? Promise.resolve(db.rpc("count_concursos_activos")).catch(() => ({ data: null }))
+          : countQ,
       ]);
-      const registros = (todos as any[]) ?? [];
 
-      // Breakdown por país
+      // Si la query principal falló, devolver el error explícitamente
+      if ((todosRes as any)?.error) {
+        console.log("todos_llamados error:", JSON.stringify((todosRes as any).error));
+        return ok({ error: (todosRes as any).error.message ?? "Error en consulta de llamados" });
+      }
+
+      const registros = ((todosRes as any)?.data as any[]) ?? [];
+      const totalReal: number | null = sinFiltros
+        ? (typeof (totalRes as any)?.data === "number" ? (totalRes as any).data : null)
+        : ((totalRes as any)?.count ?? null);
+
+      // Breakdown por país calculado desde los registros retornados
       const por_pais: Record<string, number> = {};
-      if (sinFiltros && (paisResult as any)?.data) {
-        for (const row of (paisResult as any).data as any[]) {
-          if (row.pais) por_pais[row.pais] = Number(row.total);
-        }
-      } else {
-        for (const c of registros) {
-          if (c.pais) por_pais[c.pais] = (por_pais[c.pais] ?? 0) + 1;
-        }
+      for (const c of registros) {
+        if (c.pais) por_pais[c.pais] = (por_pais[c.pais] ?? 0) + 1;
       }
 
       return ok({ concursos: registros, por_pais, total: totalReal ?? registros.length, cargados: registros.length });
@@ -565,7 +568,7 @@ async function habilitarManualWaitlist(db: ReturnType<typeof createClient>, para
     fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(tokens.map((to: string) => ({ to, title: "🎉 ¡Tu lugar en Nexu está listo!", body: "Ya podés registrarte. Abrí la app y completá tu perfil.", sound: "default", data: { pantalla: "Register" } }))),
+      body: JSON.stringify(tokens.map((to: string) => ({ to, title: "🎉 ¡Tu lugar en Konexu está listo!", body: "Ya podés registrarte. Abrí la app y completá tu perfil.", sound: "default", data: { pantalla: "Register" } }))),
     }).catch(() => {});
   }
   await db.from("waitlist_config").update({ ultimo_lote_at: new Date().toISOString() }).eq("id", 1);
@@ -679,9 +682,9 @@ async function accionUsuario(db: ReturnType<typeof createClient>, params: any) {
   }
 }
 
-const NEXU_ID = "074e674b-c049-4d07-af89-70dc4ad48012"; // UUID real del admin — aparece como Nexu
+const NEXU_ID = "074e674b-c049-4d07-af89-70dc4ad48012"; // UUID real del admin — aparece como Konexu
 
-// ── Enviar mensaje directo (admin → usuario, aparece como Nexu) ───────────────
+// ── Enviar mensaje directo (admin → usuario, aparece como Konexu) ───────────────
 async function enviarMensajeDirecto(db: ReturnType<typeof createClient>, params: any) {
   const { user_id, texto } = params ?? {};
   if (!user_id || !texto?.trim()) return err("user_id y texto requeridos");
@@ -695,7 +698,7 @@ async function enviarMensajeDirecto(db: ReturnType<typeof createClient>, params:
   return ok({ ok: true, mensaje: "Mensaje enviado", msg_id: data?.id });
 }
 
-// ── Listar mensajes de Nexu a un usuario ─────────────────────────────────────
+// ── Listar mensajes de Konexu a un usuario ─────────────────────────────────────
 async function listarMensajesNexu(db: ReturnType<typeof createClient>, params: any) {
   const { user_id } = params ?? {};
   if (!user_id) return err("user_id requerido");
@@ -707,7 +710,7 @@ async function listarMensajesNexu(db: ReturnType<typeof createClient>, params: a
   return ok({ mensajes: data ?? [] });
 }
 
-// ── Eliminar mensaje(s) de Nexu ───────────────────────────────────────────────
+// ── Eliminar mensaje(s) de Konexu ───────────────────────────────────────────────
 async function eliminarMensajeNexu(db: ReturnType<typeof createClient>, params: any) {
   const { user_id, msg_id } = params ?? {};
   if (!user_id) return err("user_id requerido");
@@ -1100,7 +1103,8 @@ serve(async (req) => {
       default:                      return err("acción desconocida");
     }
   } catch (e) {
-    console.log("admin-data ERROR:", (e as Error).message);
-    return err((e as Error).message, 500);
+    const msg = (e as Error).message ?? String(e);
+    console.log("admin-data ERROR:", msg);
+    return ok({ error: msg });
   }
 });

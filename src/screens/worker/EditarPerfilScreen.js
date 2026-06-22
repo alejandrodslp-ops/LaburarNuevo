@@ -586,7 +586,7 @@ export default function EditarPerfilScreen({navigation,route}){
         <View style={ss.sec}>
           <Text style={[ss.stit,{fontWeight:"900",color:"#1A1020"}]}>BÚSQUEDA DIARIA DE LLAMADOS</Text>
           <Text style={{fontSize:13,color:"#A898B8",marginBottom:12,lineHeight:19}}>
-            Si no encontrás tu oficio en la lista de arriba, describí con tus palabras qué podés hacer. Nexu va a buscar oportunidades que coincidan en diarios y portales de tu zona.
+            Si no encontrás tu oficio en la lista de arriba, describí con tus palabras qué podés hacer. Konexu va a buscar oportunidades que coincidan en diarios y portales de tu zona.
           </Text>
           <CampoConSugerencias
             value={descripcionLibre}

@@ -88,7 +88,7 @@ export default function MensajesScreen({navigation}){
           tipo:"propuesta",
           id:"prop_"+p.id,
           propuesta:p,
-          nombre:"Nexu",
+          nombre:"Konexu",
           emoji:"🔔",
           ultimo:t('hay_oferta'),
           hora:formatHora(p.created_at),
@@ -120,7 +120,7 @@ export default function MensajesScreen({navigation}){
           const p=pm[pid]||{};
           const c=map[pid];
           const esNexu=pid===NEXU_ID;
-          const nombre=esNexu?"Nexu":(p.nombre
+          const nombre=esNexu?"Konexu":(p.nombre
             ?(p.apellido1?`${p.nombre} ${p.apellido1[0]}.`:p.nombre):"Contacto");
           const emoji=esNexu?"🔔":(p.rol==="employer"?"💼":p.rol==="company"?"🏢":"👤");
           const avatarUrl=p.avatar_url||null;

@@ -58,7 +58,7 @@ if(pass.length<8){Alert.alert("Error","La contrasena debe tener al menos 8 carac
 if(!fnDia||!fnMes||!fnAnio||fnAnio.length<4){Alert.alert("Error","Ingresa tu fecha de nacimiento completa");return;}
 const edadCalc=calcularEdadDesdeInputs(fnDia,fnMes,fnAnio);
 if(edadCalc===null){Alert.alert("Error","Fecha de nacimiento no válida");return;}
-if(edadCalc<18){Alert.alert("Acceso restringido","Debes ser mayor de edad para registrarte en Nexu.");return;}
+if(edadCalc<18){Alert.alert("Acceso restringido","Debes ser mayor de edad para registrarte en Konexu.");return;}
 if(!terminos){Alert.alert("Error","Debes aceptar los terminos y condiciones");return;}
 setLoad(true);
 // Verificar si la waitlist está activa y si este email está habilitado

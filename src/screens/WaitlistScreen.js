@@ -125,7 +125,7 @@ export default function WaitlistScreen({ navigation, route }) {
         </TouchableOpacity>
 
         <Text style={ss.bigEmoji}>🚀</Text>
-        <Text style={ss.tit}>Nexu está llegando</Text>
+        <Text style={ss.tit}>Konexu está llegando</Text>
         <Text style={ss.sub}>
           Hay mucha demanda. Anotate y te avisamos cuando sea tu turno.
         </Text>

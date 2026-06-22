@@ -23,7 +23,7 @@ serve(async (req) => {
     params.append("cancel_url",                         APP_CANCEL_URL);
     params.append("line_items[0][price_data][currency]", "usd");
     params.append("line_items[0][price_data][unit_amount]", String(Math.round((monto || 2) * 100)));
-    params.append("line_items[0][price_data][product_data][name]", descripcion || "Nexu — Ver perfiles");
+    params.append("line_items[0][price_data][product_data][name]", descripcion || "Konexu — Ver perfiles");
     params.append("line_items[0][quantity]",            "1");
     params.append("metadata[user_id]",                  user_id    ?? "");
     params.append("metadata[worker_id]",                worker_id  ?? "");

@@ -36,7 +36,7 @@ serve(async (req) => {
 
     const preference = {
       items: [{
-        title:      descripcion || "Nexu - Ver perfiles completos",
+        title:      descripcion || "Konexu - Ver perfiles completos",
         quantity:   1,
         unit_price: monto || 1,
         currency_id: "USD",

@@ -53,11 +53,11 @@ export async function generateMetadata({ params }) {
       },
     },
     openGraph: {
-      title: `${catNombre} en ${nombre} | Nexu`,
+      title: `${catNombre} en ${nombre} | Konexu`,
       description: desc,
       url: `/empleos/pais/${params.pais}/${params.categoria}`,
     },
-    twitter: { card: 'summary', title: `${catNombre} en ${nombre} | Nexu`, description: desc },
+    twitter: { card: 'summary', title: `${catNombre} en ${nombre} | Konexu`, description: desc },
   }
 }
 
@@ -138,7 +138,7 @@ export default async function CategoriaPage({ params }) {
       />
 
       <nav className="nav">
-        <Link href="/" className="nav-logo"><span>Nexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
+        <Link href="/" className="nav-logo"><span>Konexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
         <a href="/download" className="nav-btn">{t(lang, 'nav_download')}</a>
       </nav>
 
@@ -226,7 +226,7 @@ export default async function CategoriaPage({ params }) {
 
       <footer className="footer">
         <p>
-          © {new Date().getFullYear()} Nexu · nexu.fyi ·{' '}
+          © {new Date().getFullYear()} Konexu · nexu.fyi ·{' '}
           <Link href={`/empleos/pais/${params.pais}`} style={{ color: 'inherit' }}>{nombre}</Link>
           {' · '}
           <Link href="/empleos" style={{ color: 'inherit' }}>{t(lang, 'footer_jobs')}</Link>

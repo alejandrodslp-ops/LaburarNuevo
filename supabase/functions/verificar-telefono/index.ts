@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: FROM_EMAIL,
         to: user.email,
-        subject: "Tu código de verificación — Nexu",
+        subject: "Tu código de verificación — Konexu",
         html: `
           <div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:32px">
             <h2 style="color:#E8785A;margin-bottom:8px">Verificación de teléfono</h2>

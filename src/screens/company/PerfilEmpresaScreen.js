@@ -96,7 +96,7 @@ export default function PerfilEmpresaScreen({navigation}){
         </Sec>
 
         <Sec titulo="GENERAL">
-          <Fila icono="📤" titulo="Compartir Nexu" subtitulo="Invita a otros empresarios" onPress={()=>Share.share({message:'Descarga Nexu!'})}/>
+          <Fila icono="📤" titulo="Compartir Konexu" subtitulo="Invita a otros empresarios" onPress={()=>Share.share({message:'Descarga Konexu!'})}/>
           <Sep/>
           <Fila icono="❓" titulo="Ayuda y soporte" onPress={()=>Alert.alert('Proximamente')}/>
           <Sep/>
@@ -107,7 +107,7 @@ export default function PerfilEmpresaScreen({navigation}){
 
         <Sec titulo=""><Fila icono="🚪" titulo="Cerrar sesion" onPress={cerrarSesion} peligro/></Sec>
 
-        <Text style={ss.version}>Nexu v1.0.0</Text>
+        <Text style={ss.version}>Konexu v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );

@@ -111,7 +111,7 @@ export default function PagoScreen({navigation,route}){
       const{data:perfData}=await supabase.from('profiles').select('visualizaciones_disponibles').eq('id',user.id).single();
       prevVisualizacionesRef.current=perfData?.visualizaciones_disponibles||0;
       const{data,error}=await supabase.functions.invoke("crear-pago",{
-        body:{user_id:user.id,monto:montoPago,descripcion:"Nexu - "+pkg.cantidad+" perfiles",worker_id:perfil?.id||'',cantidad_perfiles:pkg.cantidad},
+        body:{user_id:user.id,monto:montoPago,descripcion:"Konexu - "+pkg.cantidad+" perfiles",worker_id:perfil?.id||'',cantidad_perfiles:pkg.cantidad},
       });
       if(error)throw error;
       await Linking.openURL(data.init_point);
@@ -128,7 +128,7 @@ export default function PagoScreen({navigation,route}){
       const{data:perfData}=await supabase.from('profiles').select('visualizaciones_disponibles').eq('id',user.id).single();
       prevVisualizacionesRef.current=perfData?.visualizaciones_disponibles||0;
       const{data,error}=await supabase.functions.invoke("crear-pago-stripe",{
-        body:{user_id:user.id,monto:montoPago,descripcion:"Nexu - "+pkg.cantidad+" perfiles",worker_id:perfil?.id||'',cantidad_perfiles:pkg.cantidad},
+        body:{user_id:user.id,monto:montoPago,descripcion:"Konexu - "+pkg.cantidad+" perfiles",worker_id:perfil?.id||'',cantidad_perfiles:pkg.cantidad},
       });
       if(error)throw error;
       await Linking.openURL(data.checkout_url);
@@ -147,7 +147,7 @@ export default function PagoScreen({navigation,route}){
         const{data:perfData}=await supabase.from('profiles').select('visualizaciones_disponibles').eq('id',user.id).single();
         prevVisualizacionesRef.current=perfData?.visualizaciones_disponibles||0;
       }
-      const{result}=await SMS.sendSMSAsync(["1234"],"NEXU PAGO");
+      const{result}=await SMS.sendSMSAsync(["1234"],"KONEXU PAGO");
       if(result==="sent"||result==="unknown") setEsperandoPago(true);
     }catch(e){Alert.alert("Error","No se pudo enviar el SMS.");}
     finally{setLoadingSMS(false);}
@@ -253,7 +253,7 @@ export default function PagoScreen({navigation,route}){
           </LinearGradient>
         </TouchableOpacity>
 
-        <Text style={ss.legal}>Al pagar aceptas los Terminos y Condiciones de Nexu. Los datos del profesional son confidenciales y no pueden compartirse con terceros.</Text>
+        <Text style={ss.legal}>Al pagar aceptas los Terminos y Condiciones de Konexu. Los datos del profesional son confidenciales y no pueden compartirse con terceros.</Text>
 
       </ScrollView>
     </SafeAreaView>

@@ -20,9 +20,10 @@ async function enviarPush(tokens: string[]) {
     await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      signal: AbortSignal.timeout(8000),
       body: JSON.stringify(tokens.map(to => ({
         to,
-        title: "🎉 ¡Tu lugar en Nexu está listo!",
+        title: "🎉 ¡Tu lugar en Konexu está listo!",
         body: "Ya podés registrarte. Abrí la app y completá tu perfil.",
         sound: "default",
         data: { pantalla: "Register" },
@@ -117,13 +118,13 @@ Deno.serve(async (req) => {
     await db.from("waitlist_config").update({ ultimo_lote_at: now, batch_size: nuevoBatch }).eq("id", 1);
 
     // ── 10. Guardar log del lote ──────────────────────────────────────────────
-    await db.from("waitlist_lotes").insert({
+    await Promise.resolve(db.from("waitlist_lotes").insert({
       cantidad:         ids.length,
       notificados:      tokens.length,
       activos_hora:     activosHora ?? 0,
       carga_pct:        Math.round(cargaPct * 100),
       batch_size_usado: batchSize,
-    }).catch(() => {});
+    })).catch(() => {});
 
     return ok({
       ok:                   true,

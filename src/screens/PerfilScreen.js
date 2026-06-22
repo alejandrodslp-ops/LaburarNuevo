@@ -152,7 +152,7 @@ export default function PerfilScreen({navigation}){
       // PASO 1: leer identidad del storage — supabase.auth.token si existe, si no nexu_uid
       let userId=null, userEmail=null;
       try{
-        const raw=await AsyncStorage.getItem('supabase.auth.token');
+        const raw=await AsyncStorage.getItem('sb-waevdcqdkovqaxkonlvj-auth-token');
         if(raw){
           const s=JSON.parse(raw);
           userId=s.user?.id;
@@ -338,7 +338,7 @@ export default function PerfilScreen({navigation}){
     try{
       const codigo=u.codigo_referido||'';
       const link=codigo?`https://nexu.app/download?r=${codigo}`:'https://nexu.app/download';
-      await Share.share({message:`${t('compartir_msg')}\n${link}`,title:'Nexu'});
+      await Share.share({message:`${t('compartir_msg')}\n${link}`,title:'Konexu'});
     }catch(e){}
   }
 

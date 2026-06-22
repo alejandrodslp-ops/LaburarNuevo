@@ -82,7 +82,7 @@ export async function scheduleRecordatoriosInactividad(fechaExpiracionISO) {
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: '¡Tus créditos SMS se pierden mañana!',
-        body: 'Tu plan telefónico tiene saldo que ya pagaste y no vas a poder recuperar. Usalo ahora para reactivar tu perfil Nexu y seguir recibiendo oportunidades laborales.',
+        body: 'Tu plan telefónico tiene saldo que ya pagaste y no vas a poder recuperar. Usalo ahora para reactivar tu perfil Konexu y seguir recibiendo oportunidades laborales.',
         sound: true,
         data: { pantalla: 'PagoActivacion', metodo: 'sms' },
       },

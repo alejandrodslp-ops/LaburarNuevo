@@ -46,7 +46,7 @@ export default async function EmpleosPage({ searchParams }) {
   return (
     <>
       <nav className="nav">
-        <Link href="/" className="nav-logo"><span>Nexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
+        <Link href="/" className="nav-logo"><span>Konexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
         <a href="/download" className="nav-btn">Descargar gratis</a>
       </nav>
 
@@ -67,8 +67,8 @@ export default async function EmpleosPage({ searchParams }) {
 
       <div className="bottom-cta">
         <p>¿Querés recibir alertas automáticas?</p>
-        <p>Registrate gratis en Nexu y te avisamos cuando salgan concursos para tu perfil.</p>
-        <a href="/download" className="btn-primary">📱 Descargar Nexu — Gratis</a>
+        <p>Registrate gratis en Konexu y te avisamos cuando salgan concursos para tu perfil.</p>
+        <a href="/download" className="btn-primary">📱 Descargar Konexu — Gratis</a>
       </div>
 
       {/* Contenido SEO — palabras clave para Google */}
@@ -78,7 +78,7 @@ export default async function EmpleosPage({ searchParams }) {
             Concursos públicos y empleos en Uruguay, Argentina y toda América Latina
           </h2>
           <p style={{ color: '#475569', fontSize: 14, lineHeight: 1.7, marginBottom: 16 }}>
-            Nexu reúne diariamente miles de <strong>concursos públicos</strong>, <strong>llamados de trabajo</strong> y <strong>vacantes</strong> de Uruguay (ONSC, Uruguay Concursa), Argentina, Brasil, Chile, Colombia, México y 27 países más. Tanto empleo público como privado, actualizados dos veces por día.
+            Konexu reúne diariamente miles de <strong>concursos públicos</strong>, <strong>llamados de trabajo</strong> y <strong>vacantes</strong> de Uruguay (ONSC, Uruguay Concursa), Argentina, Brasil, Chile, Colombia, México y 27 países más. Tanto empleo público como privado, actualizados dos veces por día.
           </p>
           <p style={{ color: '#475569', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
             Buscá por cargo o profesión para filtrar los resultados. Desde <strong>docentes y enfermeros</strong> hasta <strong>administrativos, ingenieros, plomeros y operarios</strong> — todos los rubros en un solo lugar.
@@ -102,7 +102,7 @@ export default async function EmpleosPage({ searchParams }) {
       </section>
 
       <footer className="footer">
-        <p>© {new Date().getFullYear()} Nexu · nexu.fyi</p>
+        <p>© {new Date().getFullYear()} Konexu · nexu.fyi</p>
       </footer>
     </>
   )

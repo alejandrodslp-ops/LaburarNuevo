@@ -53,7 +53,7 @@ async function generarPIX(email: string, userId: string, monto: number): Promise
     },
     body: JSON.stringify({
       transaction_amount: monto,
-      description:        "Nexu - Ativacao perfil trabalhador 60 dias",
+      description:        "Konexu - Ativacao perfil trabalhador 60 dias",
       payment_method_id:  "pix",
       external_reference: userId,
       metadata:           { tipo: "worker_activacion", user_id: userId, canal: "whatsapp" },
@@ -77,16 +77,16 @@ async function generarPIX(email: string, userId: string, monto: number): Promise
 function mensagemResposta(estado: "bienvenida" | "pix" | "activo" | "no_encontrado", dados?: Record<string, string>): string {
   switch (estado) {
     case "bienvenida":
-      return `Oi! Bem-vindo ao *Nexu* 👋\n\nSomos a plataforma que conecta trabalhadores e empregadores na America Latina.\n\nPara ativar seu perfil por 60 dias, envie seu *e-mail cadastrado* no Nexu.`;
+      return `Oi! Bem-vindo ao *Konexu* 👋\n\nSomos a plataforma que conecta trabalhadores e empregadores na America Latina.\n\nPara ativar seu perfil por 60 dias, envie seu *e-mail cadastrado* no Konexu.`;
 
     case "pix":
-      return `✅ *Pagamento via PIX*\n\nOla, *${dados?.nome ?? "trabalhador"}*!\n\nPara ativar seu perfil Nexu por 60 dias:\n\n💰 Valor: *R$ ${dados?.monto ?? "15"}*\n\n📋 *Chave PIX (Copia e Cola):*\n\`${dados?.qr_code}\`\n\nCopie a chave acima, abra seu banco e realize o pagamento pelo PIX.\n\n⏱️ Seu perfil sera ativado *automaticamente* em instantes apos o pagamento.\n\n_Qualquer duvida: soporte@nexu.app_`;
+      return `✅ *Pagamento via PIX*\n\nOla, *${dados?.nome ?? "trabalhador"}*!\n\nPara ativar seu perfil Konexu por 60 dias:\n\n💰 Valor: *R$ ${dados?.monto ?? "15"}*\n\n📋 *Chave PIX (Copia e Cola):*\n\`${dados?.qr_code}\`\n\nCopie a chave acima, abra seu banco e realize o pagamento pelo PIX.\n\n⏱️ Seu perfil sera ativado *automaticamente* em instantes apos o pagamento.\n\n_Qualquer duvida: soporte@nexu.app_`;
 
     case "activo":
       return `🎉 Seu perfil ja esta *ativo*!\n\nVoce aparece nos resultados de busca para empregadores. Boa sorte! 💪`;
 
     case "no_encontrado":
-      return `Nao encontrei esse e-mail no Nexu. Verifique o e-mail cadastrado ou baixe o app:\n\n📱 *nexu.app*`;
+      return `Nao encontrei esse e-mail no Konexu. Verifique o e-mail cadastrado ou baixe o app:\n\n📱 *nexu.app*`;
 
     default:
       return "Oi! Como posso ajudar?";
@@ -155,7 +155,7 @@ serve(async (req) => {
       const { qr_code, payment_id } = await generarPIX(authUser.email!, authUser.id, MONTO_BRL);
 
       // Guardar el telefono en el perfil para futuros mensajes
-      await supabase.from("profiles").update({ telefono_whatsapp: telefono }).eq("id", authUser.id).catch(() => {});
+      await Promise.resolve(supabase.from("profiles").update({ telefono_whatsapp: telefono }).eq("id", authUser.id)).catch(() => {});
 
       const nome = perfil?.nombre ?? authUser.email?.split("@")[0] ?? "trabalhador";
       await enviarWhatsApp(telefono, mensagemResposta("pix", {

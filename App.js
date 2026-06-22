@@ -393,7 +393,7 @@ function Navigation({navigationRef,onTabChange}){
       <LinearGradient colors={["#0D1117","#1A2640","#0D1F2D"]} style={{flex:1,justifyContent:"center",alignItems:"center",gap:16}}>
         <View style={{backgroundColor:"#0D1117",borderRadius:20,paddingHorizontal:18,paddingVertical:14,flexDirection:"row",alignItems:"center",borderWidth:2.5,borderColor:"#E8785A"}}>
           <View style={{position:"relative"}}>
-            <Text style={{fontSize:38,fontWeight:"900",color:"#E8785A",letterSpacing:-1}}>Nexu</Text>
+            <Text style={{fontSize:38,fontWeight:"900",color:"#E8785A",letterSpacing:-1}}>Konexu</Text>
             <Text style={{fontSize:16,position:"absolute",bottom:2,right:-8}}>🧩</Text>
           </View>
         </View>

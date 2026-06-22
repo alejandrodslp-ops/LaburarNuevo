@@ -82,7 +82,7 @@ export default function WelcomeScreen({ navigation }) {
           <View style={ss.logoWrap}>
             <View style={ss.logoBox}>
               <View style={{position:'relative'}}>
-                <Text style={ss.logoTxt}>Nexu</Text>
+                <Text style={ss.logoTxt}>Konexu</Text>
                 <Text style={ss.logoPuzzle}>🧩</Text>
               </View>
             </View>
@@ -131,7 +131,8 @@ export default function WelcomeScreen({ navigation }) {
               <Text style={ss.btnTxt}>Comenzar gratis →</Text>
             </LinearGradient>
           </TouchableOpacity>
-          <Text style={ss.footerNote}>10 días gratis · Sin tarjeta de crédito</Text>
+          <Text style={ss.footerNote}>10 días Gratis</Text>
+          <Text style={[ss.footerNote, {fontSize: 11}]}>sin la necesidad de registrar tu tarjeta de crédito</Text>
         </Animated.View>
 
       </SafeAreaView>

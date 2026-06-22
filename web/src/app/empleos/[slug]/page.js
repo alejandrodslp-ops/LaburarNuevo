@@ -37,7 +37,7 @@ export async function generateMetadata({ params }) {
   const org   = c.organismo ? ` en ${c.organismo}` : ''
   return {
     title: `${cargo}${org} — ${loc}`,
-    description: `Concurso para ${cargo}${org}. ${loc}. ${c.fecha_cierre ? `Cierre: ${fmtFecha(c.fecha_cierre)}.` : ''} Registrate gratis en Nexu.`,
+    description: `Concurso para ${cargo}${org}. ${loc}. ${c.fecha_cierre ? `Cierre: ${fmtFecha(c.fecha_cierre)}.` : ''} Registrate gratis en Konexu.`,
     alternates: { canonical: `${SITE}/empleos/${params.slug}` },
     openGraph: {
       title: `${cargo} — ${loc}`,
@@ -63,7 +63,7 @@ export default async function ConcursoPage({ params }) {
       c.lugar      ? `Lugar de desempeño: ${c.lugar}.`       : '',
       c.tipo_tarea ? `Tipo de tarea: ${c.tipo_tarea}.`       : '',
       c.requisitos ? c.requisitos                             : '',
-      `Registrate gratis en Nexu para recibir alertas de concursos similares.`,
+      `Registrate gratis en Konexu para recibir alertas de concursos similares.`,
     ].filter(Boolean).join(' ')
 
   // ─── BreadcrumbList ────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ export default async function ConcursoPage({ params }) {
     },
     identifier: {
       '@type': 'PropertyValue',
-      name: 'Nexu',
+      name: 'Konexu',
       value: c.id,
     },
     url: `${SITE}/empleos/${params.slug}`,
@@ -119,7 +119,7 @@ export default async function ConcursoPage({ params }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/<\/script>/gi, '<\\/script>') }} />
 
       <nav className="nav">
-        <Link href="/" className="nav-logo"><span>Nexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
+        <Link href="/" className="nav-logo"><span>Konexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
         <a href="/download" className="nav-btn">Descargar app</a>
       </nav>
 
@@ -215,7 +215,7 @@ export default async function ConcursoPage({ params }) {
             color: 'white', borderRadius: 8, padding: '14px 28px',
             fontSize: 15, fontWeight: 800, textDecoration: 'none',
           }}>
-            📱 Registrate gratis en Nexu
+            📱 Registrate gratis en Konexu
           </a>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 16, maxWidth: 380, margin: '16px auto 0' }}>
             Completá tu perfil y te avisamos cuando se publiquen concursos y oportunidades laborales en las cuales puedas aplicar o se ajusten a ti.
@@ -256,7 +256,7 @@ export default async function ConcursoPage({ params }) {
 
       <footer className="footer">
         <p>
-          © {new Date().getFullYear()} Nexu · nexu.fyi ·{' '}
+          © {new Date().getFullYear()} Konexu · nexu.fyi ·{' '}
           <Link href="/empleos" style={{ color: 'inherit' }}>Ver todos los empleos</Link>
         </p>
       </footer>

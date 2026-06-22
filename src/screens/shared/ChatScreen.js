@@ -149,7 +149,7 @@ export default function ChatScreen({navigation,route}){
       supabase.functions.invoke("notificar-propuesta",{
         body:{
           user_id:contactoId,
-          titulo:"Nuevo mensaje en Nexu 💬",
+          titulo:"Nuevo mensaje en Konexu 💬",
           cuerpo:texto.length>60?texto.slice(0,57)+"...":texto,
           pantalla:"Mensajes",
         },
@@ -236,7 +236,7 @@ export default function ChatScreen({navigation,route}){
           <View>
             <Text style={ss.hn}>{nombre||"Contacto"}</Text>
             <Text style={[ss.he,esNexu&&{color:"#1A3A5C"}]}>
-              {esNexu?"Comunicación oficial de Nexu":"Oferta de trabajo"}
+              {esNexu?"Comunicación oficial de Konexu":"Oferta de trabajo"}
             </Text>
           </View>
         </View>
@@ -255,7 +255,7 @@ export default function ChatScreen({navigation,route}){
         />
         {esNexu?(
           <View style={ss.nexuNota}>
-            <Text style={ss.nexuNotaTxt}>🔒 Este es un canal oficial de Nexu. No es posible responder.</Text>
+            <Text style={ss.nexuNotaTxt}>🔒 Este es un canal oficial de Konexu. No es posible responder.</Text>
           </View>
         ):(
           <View style={ss.iw}>

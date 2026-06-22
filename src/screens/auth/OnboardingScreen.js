@@ -7,7 +7,7 @@ import{useI18n}from '../../services/I18nContext';
 import{supabase}from '../../services/supabase';
 const{width}=Dimensions.get('window');
 const SLIDES_WORKER=[
-{emoji:'👋',color1:'#2DD4BF',color2:'#4E6098',titulo:'Bienvenido a Nexu',desc1:'10 días gratis · Sin necesidad de tarjeta\n\n45 segundos es todo lo que necesitas.\nCompleta tu perfil y empieza a recibir trabajos pensados para ti, cerca de tu zona, acorde a tus habilidades y experiencia.',promo:'🔥 Promoción solo por este mes',desc2:'Comparte la app con amigos que también quieran recibir ofertas:\n5 días gratis más por cada uno.\nHasta 3 amigos → 25 días gratis.'},
+{emoji:'👋',color1:'#2DD4BF',color2:'#4E6098',titulo:'Bienvenido a Konexu',desc1:'10 días gratis · Sin necesidad de tarjeta\n\n45 segundos es todo lo que necesitas.\nCompleta tu perfil y empieza a recibir trabajos pensados para ti, cerca de tu zona, acorde a tus habilidades y experiencia.',promo:'🔥 Promoción solo por este mes',desc2:'Comparte la app con amigos que también quieran recibir ofertas:\n5 días gratis más por cada uno.\nHasta 3 amigos → 25 días gratis.'},
 {emoji:'🔒',color1:'#C17A5E',color2:'#A86448',titulo:'Tu privacidad primero',desc:'El empleador solo podrá ver tu nombre de pila, datos profesionales y valoraciones.\n\nTu perfil completo, únicamente si manifestás interés por una oferta y aceptás el contacto.\n\nIdeal si tenés trabajo y estás evaluando opciones para mejorar de forma discreta, o sos estudiante buscando trabajo de medio horario.\n\nTambién analizamos tu perfil y lo cruzamos con llamados públicos abiertos — te avisamos cuando cumplís los requisitos.'},
 ];
 

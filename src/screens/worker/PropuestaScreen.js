@@ -47,7 +47,7 @@ export default function PropuestaScreen({navigation,route}){
       await supabase.from("mensajes").insert({
         sender_id:user.id,
         receiver_id:propuesta.employer_id,
-        texto:"Hola, vi tu propuesta laboral en Nexu y me interesa. ¿Cuándo podemos hablar para saber más detalles?",
+        texto:"Hola, vi tu propuesta laboral en Konexu y me interesa. ¿Cuándo podemos hablar para saber más detalles?",
         leido:false,
       });
 
@@ -92,9 +92,9 @@ export default function PropuestaScreen({navigation,route}){
 
       <ScrollView contentContainerStyle={ss.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Encabezado Nexu */}
+        {/* Encabezado Konexu */}
         <View style={ss.nexuCard}>
-          <View style={ss.nexuBadge}><Text style={ss.nexuBadgeTxt}>Nexu</Text></View>
+          <View style={ss.nexuBadge}><Text style={ss.nexuBadgeTxt}>Konexu</Text></View>
           <Text style={ss.nexuTit}>Hay una oferta que puede interesarte</Text>
           <Text style={ss.nexuSub}>
             <Text style={{fontWeight:"800"}}>{propuesta?.employer_nombre||"Un empleador"}</Text>

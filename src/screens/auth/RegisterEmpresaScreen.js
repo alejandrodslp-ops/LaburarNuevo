@@ -147,7 +147,7 @@ export default function RegisterEmpresaScreen({navigation}){
           <Text style={ss.termTxt}>Acepto los <Text style={ss.termLink}>Terminos y Condiciones</Text> y la <Text style={ss.termLink}>Politica de Privacidad</Text></Text>
         </TouchableOpacity>
 
-        <View style={ss.aviso}><Text style={ss.avisoTxt}>Tu empresa aparecera verificada en Nexu. Los trabajadores podran ver el nombre de tu empresa al postularse.</Text></View>
+        <View style={ss.aviso}><Text style={ss.avisoTxt}>Tu empresa aparecera verificada en Konexu. Los trabajadores podran ver el nombre de tu empresa al postularse.</Text></View>
 
         <TouchableOpacity style={ss.btnW} onPress={handleRegistrar} disabled={load}>
           <LinearGradient colors={["#3DA882","#2E9472"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>

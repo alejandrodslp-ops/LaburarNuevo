@@ -165,7 +165,7 @@ export default async function PaisPage({ params }) {
       />
 
       <nav className="nav">
-        <Link href="/" className="nav-logo"><span>Nexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
+        <Link href="/" className="nav-logo"><span>Konexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
         <a href="/download" className="nav-btn">{t(lang, 'nav_download')}</a>
       </nav>
 
@@ -227,7 +227,7 @@ export default async function PaisPage({ params }) {
 
       <footer className="footer">
         <p>
-          © {new Date().getFullYear()} Nexu · nexu.fyi ·{' '}
+          © {new Date().getFullYear()} Konexu · nexu.fyi ·{' '}
           <Link href="/empleos" style={{ color: 'inherit' }}>{t(lang, 'footer_jobs')}</Link>
         </p>
       </footer>

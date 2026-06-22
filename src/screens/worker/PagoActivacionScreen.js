@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SMS from 'expo-sms';
 
 const SMS_NUMERO='1234';
-const SMS_TEXTO='NEXU ACTIVAR';
+const SMS_TEXTO='KONEXU ACTIVAR';
 
 export default function PagoActivacionScreen({navigation}){
   const[loadingMP,setLoadingMP]=useState(false);
@@ -111,7 +111,7 @@ export default function PagoActivacionScreen({navigation}){
       prevHastaRef.current=perfil?.perfil_activo_hasta||null;
       await AsyncStorage.setItem('metodo_pago_worker',metodo);
       const{data,error}=await supabase.functions.invoke('crear-pago',{
-        body:{user_id:user.id,monto:1,descripcion:'Nexu - Activar perfil trabajador 60 días',tipo:'worker_activacion'},
+        body:{user_id:user.id,monto:1,descripcion:'Konexu - Activar perfil trabajador 60 días',tipo:'worker_activacion'},
       });
       if(error)throw error;
       await Linking.openURL(data.init_point);
@@ -152,7 +152,7 @@ export default function PagoActivacionScreen({navigation}){
 
         <LinearGradient colors={['#D6E4F0','#B8D4E8']} style={ss.hero}>
           <Text style={ss.heroEmoji}>🙌</Text>
-          <Text style={ss.heroTit}>Gracias por decidir formar parte de Nexu</Text>
+          <Text style={ss.heroTit}>Gracias por decidir formar parte de Konexu</Text>
           <Text style={ss.heroSub}>y abrir la puerta a tus oportunidades</Text>
           <Text style={ss.heroHint}>Elegí cómo querés pagar y listo.</Text>
         </LinearGradient>

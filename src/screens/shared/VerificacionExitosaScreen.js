@@ -12,7 +12,7 @@ export default function VerificacionExitosaScreen({navigation}){
         </View>
 
         <Text style={ss.titulo}>¡Email verificado!</Text>
-        <Text style={ss.sub}>Tu cuenta quedó confirmada. Ya podés usar Nexu.</Text>
+        <Text style={ss.sub}>Tu cuenta quedó confirmada. Ya podés usar Konexu.</Text>
 
         <TouchableOpacity
           style={ss.btnW}

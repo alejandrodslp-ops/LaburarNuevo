@@ -5,7 +5,7 @@ import { useI18n } from '../services/I18nContext';
 
 const ULTIMA_ACTUALIZACION = '1 de enero de 2025';
 const EMAIL_PRIVACIDAD = 'privacidad@nexu.app';
-const EMPRESA = 'Nexu S.A.S.';
+const EMPRESA = 'Konexu S.A.S.';
 
 function Seccion({ titulo, children }) {
   return (
@@ -57,7 +57,7 @@ export default function PrivacidadScreen({ navigation }) {
       <ScrollView contentContainerStyle={ss.content} showsVerticalScrollIndicator={false}>
         <Text style={ss.meta}>Última actualización: {ULTIMA_ACTUALIZACION}</Text>
         <Text style={ss.intro}>
-          En Nexu tomamos tu privacidad muy en serio. Esta Política explica qué datos recopilamos,
+          En Konexu tomamos tu privacidad muy en serio. Esta Política explica qué datos recopilamos,
           para qué los usamos y cómo los protegemos, en cumplimiento de la Ley N° 18.331 de la
           República Oriental del Uruguay, el Reglamento General de Protección de Datos (RGPD/GDPR)
           de la Unión Europea y la Lei Geral de Proteção de Dados (LGPD) de Brasil.
@@ -67,7 +67,7 @@ export default function PrivacidadScreen({ navigation }) {
           <P>
             {EMPRESA}, con domicilio en la ciudad de Montevideo, República Oriental del Uruguay,
             es el responsable del tratamiento de los datos personales recabados a través de la
-            plataforma Nexu.{'\n'}
+            plataforma Konexu.{'\n'}
             Contacto del responsable: {EMAIL_PRIVACIDAD}
           </P>
         </Seccion>
@@ -83,7 +83,7 @@ export default function PrivacidadScreen({ navigation }) {
             ['Foto de perfil', 'Imagen cargada por el usuario'],
             ['Uso', 'Búsquedas, vistas de perfil, clics, sesiones'],
             ['Dispositivo', 'Tipo, sistema operativo, idioma, token de push'],
-            ['Pago', 'Procesado por Stripe; Nexu no accede a datos de tarjeta'],
+            ['Pago', 'Procesado por Stripe; Konexu no accede a datos de tarjeta'],
           ]} />
         </Seccion>
 
@@ -109,7 +109,7 @@ export default function PrivacidadScreen({ navigation }) {
 
         <Seccion titulo="5. Compartición de Datos con Terceros">
           <P>
-            Nexu no vende tus datos personales. Compartimos información exclusivamente en los
+            Konexu no vende tus datos personales. Compartimos información exclusivamente en los
             siguientes supuestos:
           </P>
           <Li>
@@ -186,7 +186,7 @@ export default function PrivacidadScreen({ navigation }) {
 
         <Seccion titulo="9. Cookies y Tecnologías de Seguimiento">
           <P>
-            La aplicación móvil de Nexu no utiliza cookies de navegador. Sí puede usar
+            La aplicación móvil de Konexu no utiliza cookies de navegador. Sí puede usar
             identificadores de dispositivo y tokens de sesión para mantener tu sesión activa
             y enviarte notificaciones push. Podés revocar los permisos de notificaciones en
             los ajustes de tu dispositivo en cualquier momento.

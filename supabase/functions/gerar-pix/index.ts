@@ -11,7 +11,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const PIX_MERCHANT_NAME = "Nexu";
+const PIX_MERCHANT_NAME = "Konexu";
 const PIX_MERCHANT_CITY = "Montevideo";
 const MONTO_BRL         = "15.00";
 

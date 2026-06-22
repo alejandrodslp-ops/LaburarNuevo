@@ -53,18 +53,18 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: FROM_EMAIL,
         to: user.email,
-        subject: "Verificá tu cuenta en Nexu",
+        subject: "Verificá tu cuenta en Konexu",
         html: `
           <div style="font-family:sans-serif;max-width:440px;margin:0 auto;padding:40px 32px;background:#FBF8F4;border-radius:16px">
             <div style="text-align:center;margin-bottom:28px">
               <span style="font-size:48px">✉️</span>
             </div>
             <h2 style="color:#1A1020;font-size:22px;font-weight:900;text-align:center;margin-bottom:8px">Verificá tu email</h2>
-            <p style="color:#5A4E6A;text-align:center;margin-bottom:28px;font-size:15px">Tu código de verificación para Nexu es:</p>
+            <p style="color:#5A4E6A;text-align:center;margin-bottom:28px;font-size:15px">Tu código de verificación para Konexu es:</p>
             <div style="background:#FFFFFF;border:2.5px solid #E8785A;border-radius:16px;padding:24px;text-align:center;margin-bottom:28px">
               <span style="font-size:44px;font-weight:900;letter-spacing:12px;color:#1A1020;display:inline-block;padding:8px 0">${otp}</span>
             </div>
-            <p style="color:#A898B8;font-size:13px;text-align:center;line-height:20px">Válido por 10 minutos.<br>Si no creaste una cuenta en Nexu, ignorá este email.</p>
+            <p style="color:#A898B8;font-size:13px;text-align:center;line-height:20px">Válido por 10 minutos.<br>Si no creaste una cuenta en Konexu, ignorá este email.</p>
           </div>
         `,
       }),

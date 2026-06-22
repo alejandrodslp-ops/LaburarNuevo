@@ -41,14 +41,17 @@ function oficio(u) { return u?.servicios?.[0] || u?.profesiones?.[0] || '—'; }
 // Llamada a la Edge Function (service role → ve todos los datos sin RLS)
 // ─────────────────────────────────────────────────────────────────────────────
 async function callAdmin(accion, params = {}) {
-  // Leer el access_token directamente del storage — funciona aunque GoTrueClient
-  // haya borrado la sesión en memoria (504 en refresh). La edge function acepta tokens
-  // expirados con firma HMAC válida.
   let token = null;
   try {
-    const raw = await AsyncStorage.getItem('supabase.auth.token');
-    if (raw) token = JSON.parse(raw).access_token;
+    const { data } = await supabase.auth.getSession();
+    token = data.session?.access_token ?? null;
   } catch {}
+  if (!token) {
+    try {
+      const raw = await AsyncStorage.getItem('sb-waevdcqdkovqaxkonlvj-auth-token');
+      if (raw) token = JSON.parse(raw).access_token;
+    } catch {}
+  }
   if (!token) {
     try { token = await AsyncStorage.getItem('nexu_access_token'); } catch {}
   }
@@ -387,7 +390,7 @@ function DetalleModal({ visible, usuario, onClose }) {
                   </TouchableOpacity>
                 </View>
               )}
-              {/* Mensajes Nexu enviados */}
+              {/* Mensajes Konexu enviados */}
               <TouchableOpacity
                 style={[ss.accionBtn, { borderColor: '#8B5CF6', marginBottom: 6 }]}
                 onPress={() => { if (msgsNexu === null) cargarMensajesNexu(); else setMsgsNexu(null); }}
@@ -401,7 +404,7 @@ function DetalleModal({ visible, usuario, onClose }) {
                   {cargandoMsgs
                     ? <ActivityIndicator size="small" color="#8B5CF6" style={{ marginVertical: 8 }} />
                     : msgsNexu.length === 0
-                      ? <Text style={{ fontSize: 12, color: '#A898B8', paddingVertical: 6 }}>Sin mensajes enviados como Nexu</Text>
+                      ? <Text style={{ fontSize: 12, color: '#A898B8', paddingVertical: 6 }}>Sin mensajes enviados como Konexu</Text>
                       : msgsNexu.map(m => (
                           <View key={m.id} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#F2EDE6' }}>
                             <View style={{ flex: 1 }}>
@@ -1172,9 +1175,9 @@ function MensajeModal({ visible, cantidad, receiverIds, onClose, onEnviado }) {
     { id: 'libre',        emoji: '✏️', label: 'Libre' },
   ];
   const TEMPLATES = {
-    motivacional: '¡Hola! Tu perfil en Nexu tiene todo para destacar. Completalo y empezá a recibir más contactos. 💪',
+    motivacional: '¡Hola! Tu perfil en Konexu tiene todo para destacar. Completalo y empezá a recibir más contactos. 💪',
     propuesta:    '¡Hola! Tenemos oportunidades laborales disponibles que pueden interesarte. Ingresá a la app para ver los llamados activos. 💼',
-    incentivo:    '¡Hola! Como usuario de Nexu, tenés un beneficio especial esperándote. Ingresá y activá tu perfil hoy. 🎁',
+    incentivo:    '¡Hola! Como usuario de Konexu, tenés un beneficio especial esperándote. Ingresá y activá tu perfil hoy. 🎁',
   };
 
   function seleccionarTipo(t) {

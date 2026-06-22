@@ -7,8 +7,8 @@ export const metadata = {
   metadataBase: new URL(SITE),
   verification: { google: 'bX-NhuI-kz4WRQ0tcHhsNuz_DnS9duLSuX1HrLoPCPY' },
   title: {
-    default: 'Nexu — Concursos Públicos y Empleos en Uruguay, Argentina y LatAm',
-    template: '%s | Nexu',
+    default: 'Konexu — Concursos Públicos y Empleos en Uruguay, Argentina y LatAm',
+    template: '%s | Konexu',
   },
   description:
     'Miles de concursos públicos, llamados de trabajo y vacantes en Uruguay, Argentina, Brasil y toda LatAm. Sector público y privado. Actualizados diariamente. Gratis.',
@@ -34,17 +34,17 @@ export const metadata = {
     'vacantes gobierno','empleo público','public sector jobs',
   ],
   openGraph: {
-    title: 'Nexu — Concursos Públicos y Empleos en Uruguay, Argentina y LatAm',
+    title: 'Konexu — Concursos Públicos y Empleos en Uruguay, Argentina y LatAm',
     description: 'Miles de concursos públicos y vacantes en Uruguay, Argentina, Brasil y toda LatAm. Actualizados diariamente. Gratis.',
     url: '/',
-    siteName: 'Nexu',
+    siteName: 'Konexu',
     locale: 'es_UY',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     site: '@nexuapp',
-    title: 'Nexu — Concursos Públicos y Empleos en LatAm',
+    title: 'Konexu — Concursos Públicos y Empleos en LatAm',
     description: 'Concursos públicos y empleos en Uruguay, Argentina y toda LatAm. Actualizados diariamente. Gratis.',
   },
   robots: { index: true, follow: true },
@@ -54,7 +54,7 @@ export const metadata = {
 const websiteJsonLd = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
-  name: 'Nexu',
+  name: 'Konexu',
   url: SITE,
   description: 'Concursos y empleos en Uruguay, Argentina y toda LatAm.',
   potentialAction: {

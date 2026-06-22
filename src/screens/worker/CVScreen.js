@@ -665,7 +665,7 @@ function PreviewCV({ cv }) {
             </View>
           )}
 
-          <Text style={pv.footer}>Generado con Nexu🧩 · nexu.fyi</Text>
+          <Text style={pv.footer}>Generado con Konexu🧩 · nexu.fyi</Text>
         </View>
       </View>
     </ScrollView>

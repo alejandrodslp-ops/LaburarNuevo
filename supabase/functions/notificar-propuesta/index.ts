@@ -38,7 +38,7 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
       body: JSON.stringify({
         to: profile.push_token,
-        title: titulo || "Nueva notificación de Nexu 🔔",
+        title: titulo || "Nueva notificación de Konexu 🔔",
         body: cuerpo || "",
         sound: "default",
         data: { pantalla: pantalla || "Mensajes" },

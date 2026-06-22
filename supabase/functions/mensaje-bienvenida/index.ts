@@ -5,12 +5,12 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const NEXU_ID      = "43a7baf9-f88e-463b-8e4c-385bd3fb8151"; // cuenta sistema Nexu
+const NEXU_ID      = "43a7baf9-f88e-463b-8e4c-385bd3fb8151"; // cuenta sistema Konexu
 const ADMIN_SECRET = Deno.env.get("ADMIN_SECRET") ?? "";
 
-const MENSAJE_WORKER = "¡Bienvenido a Nexu! 🎉\n\nA partir de este momento trabajaremos para ayudarte a expandir tus posibilidades laborales.\n\nCompletá tu perfil para que podamos encontrar las oportunidades que mejor se adaptan a vos — cuanto más completo esté, más ofertas recibirás y mayor será el rango de concursos a los que podrás aplicar.\n\n¡Mucho éxito! 🚀";
-const MENSAJE_EMPLOYER = "¡Bienvenido a Nexu! 🎉\n\nTu próximo trabajador ya está aquí.\n\nHay personas en tu zona con las habilidades que buscas, disponibles y esperando una propuesta. Solo falta dar inicio a la búsqueda.\n\n¡Éxito en tu búsqueda! 🚀";
-const MENSAJE_COMPANY = "¡Bienvenida a Nexu! 🎉\n\nLas personas para el equipo que tu empresa necesita ya están aquí.\n\nProfesionales y servicios, listos para sumarse a un proyecto como el tuyo. Solo falta animarlos a ser parte con tu oferta laboral.\n\n¡Mucho éxito! 🚀";
+const MENSAJE_WORKER = "¡Bienvenido a Konexu! 🎉\n\nA partir de este momento trabajaremos para ayudarte a expandir tus posibilidades laborales.\n\nCompletá tu perfil para que podamos encontrar las oportunidades que mejor se adaptan a vos — cuanto más completo esté, más ofertas recibirás y mayor será el rango de concursos a los que podrás aplicar.\n\n¡Mucho éxito! 🚀";
+const MENSAJE_EMPLOYER = "¡Bienvenido a Konexu! 🎉\n\nTu próximo trabajador ya está aquí.\n\nHay personas en tu zona con las habilidades que buscas, disponibles y esperando una propuesta. Solo falta dar inicio a la búsqueda.\n\n¡Éxito en tu búsqueda! 🚀";
+const MENSAJE_COMPANY = "¡Bienvenida a Konexu! 🎉\n\nLas personas para el equipo que tu empresa necesita ya están aquí.\n\nProfesionales y servicios, listos para sumarse a un proyecto como el tuyo. Solo falta animarlos a ser parte con tu oferta laboral.\n\n¡Mucho éxito! 🚀";
 
 async function enviarA(db: any, receiverId: string, rol?: string): Promise<boolean> {
   const { data: existing } = await db

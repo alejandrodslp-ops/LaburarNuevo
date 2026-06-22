@@ -31,9 +31,9 @@ export default function ActivacionExitosaModal({visible,onClose}){
       const link=codigo?`${BASE_URL}?r=${codigo}`:BASE_URL;
       const esBR=data?.pais==='BR';
       const mensaje=esBR
-        ?`Milhares de trabalhadores já estão recebendo ofertas de emprego pelo Nexu. Não fique de fora — baixe o app grátis e ative seu perfil agora:\n${link}`
-        :`Miles de trabajadores ya están recibiendo ofertas de empleo por empresas en Nexu. No te quedés afuera — descargá la app gratis y activá tu perfil ahora:\n${link}`;
-      await Share.share({message:mensaje,title:'Nexu'});
+        ?`Milhares de trabalhadores já estão recebendo ofertas de emprego pelo Konexu. Não fique de fora — baixe o app grátis e ative seu perfil agora:\n${link}`
+        :`Miles de trabajadores ya están recibiendo ofertas de empleo por empresas en Konexu. No te quedés afuera — descargá la app gratis y activá tu perfil ahora:\n${link}`;
+      await Share.share({message:mensaje,title:'Konexu'});
     }catch(e){}
   }
 

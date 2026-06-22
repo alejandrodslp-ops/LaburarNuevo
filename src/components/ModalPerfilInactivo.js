@@ -54,7 +54,7 @@ export default function ModalPerfilInactivo({visible,usd,onActivar,onCerrar}){
 
             <Text style={ss.intro}>
               Esperamos que tu experiencia con{' '}
-              <Text style={ss.nexuTxt}>Nexu</Text>
+              <Text style={ss.nexuTxt}>Konexu</Text>
               {' '}haya sido de tu agrado.
             </Text>
 

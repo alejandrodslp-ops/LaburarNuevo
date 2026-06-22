@@ -137,7 +137,7 @@ export default async function PulsoLatam() {
     name:'Pulso Laboral LatAm',
     description:'Vacantes activas por país en América Latina, actualizadas diariamente.',
     url:'https://www.nexu.fyi/pulso-latam',
-    creator:{'@type':'Organization',name:'Nexu',url:'https://www.nexu.fyi'},
+    creator:{'@type':'Organization',name:'Konexu',url:'https://www.nexu.fyi'},
     temporalCoverage:'2026/..',
   }
 
@@ -246,7 +246,7 @@ export default async function PulsoLatam() {
 
     {/* NAV */}
     <nav className="nav">
-      <Link href="/" className="nav-logo">Nexu<span style={{fontSize:9,marginLeft:'-7px',verticalAlign:'bottom'}}>🧩</span></Link>
+      <Link href="/" className="nav-logo">Konexu<span style={{fontSize:9,marginLeft:'-7px',verticalAlign:'bottom'}}>🧩</span></Link>
       <div style={{display:'flex',gap:10,alignItems:'center'}}>
         <Link href="/empleos" style={{fontSize:13,fontWeight:600,color:'#4A5568'}}>Ver empleos</Link>
         <a href="/download" className="nav-btn">App gratis</a>
@@ -495,7 +495,7 @@ export default async function PulsoLatam() {
       <div className="cta-box">
         <p style={{fontSize:11,fontWeight:800,color:'#E8785A',letterSpacing:'1.5px',textTransform:'uppercase',marginBottom:12}}>¿Buscás trabajo en LatAm o Europa?</p>
         <p style={{fontSize:'clamp(18px,2.5vw,24px)',fontWeight:900,color:'#F1F5F9',letterSpacing:'-.5px',marginBottom:10}}>
-          Nexu monitorea todos estos mercados por vos
+          Konexu monitorea todos estos mercados por vos
         </p>
         <p style={{fontSize:14,color:'#4A5568',marginBottom:28,lineHeight:1.65}}>
           Empleos de América Latina y Europa, todos en un solo lugar.<br/>
@@ -514,7 +514,7 @@ export default async function PulsoLatam() {
     {/* FOOTER */}
     <footer style={{borderTop:'1px solid #111827',padding:'22px 40px',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10}}>
       <Link href="/" style={{fontSize:18,fontWeight:900,color:'#E8785A',letterSpacing:'-.5px'}}>
-        Nexu<span style={{fontSize:8,marginLeft:'-7px',verticalAlign:'bottom'}}>🧩</span>
+        Konexu<span style={{fontSize:8,marginLeft:'-7px',verticalAlign:'bottom'}}>🧩</span>
       </Link>
       <p style={{fontSize:12,color:'#1E293B'}}>
         <Link href="/pulso-latam" style={{color:'#2D3748'}}>Pulso Laboral</Link>

@@ -8,13 +8,13 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Genera el n&uacute;mero correlativo del comprobante: NEXU-2026-000001
+// Genera el n&uacute;mero correlativo del comprobante: KONEXU-2026-000001
 async function generarNumero(sb: ReturnType<typeof createClient>): Promise<string> {
   const { count } = await sb
     .from("comprobantes")
     .select("*", { count: "exact", head: true });
   const n = String((count ?? 0) + 1).padStart(6, "0");
-  return `NEXU-${new Date().getFullYear()}-${n}`;
+  return `KONEXU-${new Date().getFullYear()}-${n}`;
 }
 
 // HTML del comprobante &mdash; dise&ntilde;o profesional imprimible
@@ -47,7 +47,7 @@ function generarHTML(data: {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Comprobante ${data.numero} &mdash; Nexu</title>
+<title>Comprobante ${data.numero} &mdash; Konexu</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
   body{font-family:Arial,Helvetica,sans-serif;background:#EDEBE8;min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;}
@@ -99,7 +99,7 @@ function generarHTML(data: {
 
   <div class="hdr">
     <div>
-      <div class="hdr-logo">Nexu</div>
+      <div class="hdr-logo">Konexu</div>
       <div class="hdr-sub">nexu.app &middot; Plataforma de empleo</div>
     </div>
     <div class="hdr-right">
@@ -119,7 +119,7 @@ function generarHTML(data: {
     <div class="billing">
       <div class="bill-col">
         <div class="bill-lbl">De</div>
-        <div class="bill-name">Nexu</div>
+        <div class="bill-name">Konexu</div>
         <div class="bill-detail">nexu.app<br>soporte@nexu.app</div>
       </div>
       <div class="bill-col">
@@ -168,7 +168,7 @@ function generarHTML(data: {
   </div>
 
   <div class="footer">
-    <p>Comprobante v&aacute;lido emitido por Nexu &middot; soporte@nexu.app &middot; nexu.app</p>
+    <p>Comprobante v&aacute;lido emitido por Konexu &middot; soporte@nexu.app &middot; nexu.app</p>
     <p>${data.numero} &middot; Generado autom&aacute;ticamente el ${fecha}</p>
   </div>
 
@@ -195,7 +195,7 @@ serve(async (req) => {
     moneda = "USD",
     metodo,
     referencia_externa,
-    concepto = "Suscripci&oacute;n Nexu &mdash; Visualizaciones de perfiles",
+    concepto = "Suscripci&oacute;n Konexu &mdash; Visualizaciones de perfiles",
   } = await req.json();
 
   if (!employer_id || !monto || !metodo) {
@@ -258,9 +258,9 @@ serve(async (req) => {
       method: "POST",
       headers: { "Authorization": `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from:    "Nexu <onboarding@resend.dev>",
+        from:    "Konexu <onboarding@resend.dev>",
         to:      [email],
-        subject: `Comprobante de pago ${numero} - Nexu`,
+        subject: `Comprobante de pago ${numero} - Konexu`,
         html:    html,
       }),
       signal: AbortSignal.timeout(10000),

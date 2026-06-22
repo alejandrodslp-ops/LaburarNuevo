@@ -20,7 +20,7 @@ export default function NexuWatermark() {
           fontSize: 13,
           fontWeight: '800',
           letterSpacing: 4,
-        }}>NEXU</Text>
+        }}>KONEXU</Text>
       );
     }
   }

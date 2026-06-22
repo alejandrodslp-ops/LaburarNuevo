@@ -44,12 +44,12 @@ export function AppProvider({children}){
       try{
         const tokenResult=await Notifications.getExpoPushTokenAsync({
           projectId: Constants.expoConfig?.extra?.eas?.projectId,
-        }).catch(e=>{ if(__DEV__) console.warn("[Nexu] push token error:",e?.message); return null; });
+        }).catch(e=>{ if(__DEV__) console.warn("[Konexu] push token error:",e?.message); return null; });
         const token=tokenResult?.data;
         const{data}=await supabase.auth.getUser();
         const user=data?.user;
         if(user&&token) await supabase.from("profiles").update({push_token:token}).eq("id",user.id);
-      }catch(e){ if(__DEV__) console.warn("[Nexu] push setup error:",e?.message); }
+      }catch(e){ if(__DEV__) console.warn("[Konexu] push setup error:",e?.message); }
     });
     supabase.auth.getSession().then(({data:{session}})=>{setSession(session);});
     const{data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>{setSession(session);});

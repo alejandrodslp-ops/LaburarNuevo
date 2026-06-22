@@ -25,11 +25,11 @@ async function getRecentJobs() {
 }
 
 export const metadata = {
-  title: 'Nexu — Concursos Públicos y Empleos en Uruguay, Argentina y toda LatAm',
+  title: 'Konexu — Concursos Públicos y Empleos en Uruguay, Argentina y toda LatAm',
   description: 'Encontrá concursos públicos, llamados de trabajo y vacantes en Uruguay, Argentina, Brasil y 30 países más. Actualizados todos los días. Gratis para trabajadores.',
   keywords: ['concursos públicos Uruguay','empleos Uruguay','llamados trabajo Uruguay','ONSC concursos','Uruguay Concursa','empleos Argentina','vacantes gobierno','empleo público','trabajo LatAm'],
   openGraph: {
-    title: 'Nexu — Concursos Públicos y Empleos en LatAm',
+    title: 'Konexu — Concursos Públicos y Empleos en LatAm',
     description: 'Miles de concursos públicos y vacantes en Uruguay, Argentina, Brasil y toda LatAm. Actualizados diariamente. Gratis.',
   },
 }
@@ -58,7 +58,7 @@ export default async function Home() {
 
       {/* NAV */}
       <nav className="nav">
-        <Link href="/" className="nav-logo"><span>Nexu</span><span style={{fontSize:'0.42em',marginLeft:'-9px',lineHeight:1,marginBottom:'3px'}}>🧩</span></Link>
+        <Link href="/" className="nav-logo"><span>Konexu</span><span style={{fontSize:'0.42em',marginLeft:'-9px',lineHeight:1,marginBottom:'3px'}}>🧩</span></Link>
         <div style={{ display:'flex', gap:12, alignItems:'center' }}>
           <Link href="/pulso-latam" style={{ color:'#94A3B8', fontSize:13, fontWeight:600 }}>Pulso Laboral</Link>
           <Link href="/empleos" style={{ color:'#94A3B8', fontSize:13, fontWeight:600 }}>Ver empleos</Link>
@@ -153,13 +153,13 @@ export default async function Home() {
       {/* FEATURES */}
       <section style={{ background:'#080D12', padding:'64px 24px', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ maxWidth:900, margin:'0 auto' }}>
-          <h2 style={{ fontSize:'clamp(22px,4vw,34px)', fontWeight:900, color:'#F1F5F9', textAlign:'center', marginBottom:10, letterSpacing:-1 }}>¿Qué es Nexu?</h2>
+          <h2 style={{ fontSize:'clamp(22px,4vw,34px)', fontWeight:900, color:'#F1F5F9', textAlign:'center', marginBottom:10, letterSpacing:-1 }}>¿Qué es Konexu?</h2>
           <p style={{ color:'#64748B', textAlign:'center', marginBottom:48, fontSize:15 }}>Una plataforma diseñada para el mercado laboral de América Latina</p>
           <div className="feature-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
             {[
               { icon:'🔍', tit:'Buscá empleos', desc:'Concursos públicos, convocatorias y vacantes privadas de 33 países. Todo en un solo lugar, actualizado todos los días.' },
               { icon:'👤', tit:'Creá tu perfil', desc:'Los empleadores te encuentran a vos. Sin intermediarios, sin comisiones. Gratis para registrarte.' },
-              { icon:'🔔', tit:'Alertas diarias', desc:'Configurá tu perfil y Nexu te avisa cuando aparezca una oportunidad que se ajuste a lo que buscás.' },
+              { icon:'🔔', tit:'Alertas diarias', desc:'Configurá tu perfil y Konexu te avisa cuando aparezca una oportunidad que se ajuste a lo que buscás.' },
               { icon:'🏛️', tit:'Concursa', desc:'Llamados del sector público, ONSC, convocatorias gubernamentales. Todo comparado con tu perfil.' },
             ].map((f, i) => (
               <div key={i} className="feature-card">
@@ -190,10 +190,10 @@ export default async function Home() {
       {/* FOOTER */}
       <footer style={{ background:'#0D1117', borderTop:'1px solid rgba(255,255,255,0.06)', padding:'32px 24px', textAlign:'center' }}>
         <Link href="/" style={{ color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-1, textDecoration:'none' }}>
-          <span>Nexu</span><span style={{fontSize:'0.42em', marginLeft:'-9px', lineHeight:1, marginBottom:'3px'}}>🧩</span>
+          <span>Konexu</span><span style={{fontSize:'0.42em', marginLeft:'-9px', lineHeight:1, marginBottom:'3px'}}>🧩</span>
         </Link>
         <p style={{ color:'#475569', fontSize:12, marginTop:8 }}>
-          © {new Date().getFullYear()} Nexu ·{' '}
+          © {new Date().getFullYear()} Konexu ·{' '}
           <Link href="/empleos" style={{ color:'#64748B' }}>Ver empleos</Link> ·{' '}
           <a href="/download" style={{ color:'#64748B' }}>App gratis</a> ·{' '}
           soporte@nexu.fyi

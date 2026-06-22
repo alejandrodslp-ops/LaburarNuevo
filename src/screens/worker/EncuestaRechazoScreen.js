@@ -42,7 +42,7 @@ export default function EncuestaRechazoScreen({navigation,route}){
         body:{
           user_id:propuesta.employer_id,
           titulo:"El trabajador no está disponible",
-          cuerpo:"Respondió que por ahora no puede tomar la propuesta. Podés seguir buscando en Nexu.",
+          cuerpo:"Respondió que por ahora no puede tomar la propuesta. Podés seguir buscando en Konexu.",
           pantalla:"Mensajes",
         },
       }).catch(()=>{});

@@ -5,8 +5,8 @@ import WaitlistForm from '../../components/WaitlistForm'
 export const revalidate = 3600
 
 export const metadata = {
-  title: 'Descargá Nexu — Acceso anticipado',
-  description: 'Miles de personas quieren descargar Nexu. Anotate para recibir tu acceso antes que el resto.',
+  title: 'Descargá Konexu — Acceso anticipado',
+  description: 'Miles de personas quieren descargar Konexu. Anotate para recibir tu acceso antes que el resto.',
 }
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
@@ -28,7 +28,7 @@ export default async function DownloadPage() {
         position: 'sticky', top: 0, zIndex: 100,
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
-        <Link href="/" style={{ display:'inline-flex', alignItems:'flex-end', background:'#151c2c', border:'2.5px solid #E8785A', borderRadius:14, padding:'4px 14px', color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-0.5, textDecoration:'none' }}><span>Nexu</span><span style={{fontSize:'0.42em',marginLeft:'-9px',lineHeight:1,marginBottom:'3px'}}>🧩</span></Link>
+        <Link href="/" style={{ display:'inline-flex', alignItems:'flex-end', background:'#151c2c', border:'2.5px solid #E8785A', borderRadius:14, padding:'4px 14px', color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-0.5, textDecoration:'none' }}><span>Konexu</span><span style={{fontSize:'0.42em',marginLeft:'-9px',lineHeight:1,marginBottom:'3px'}}>🧩</span></Link>
         <Link href="/empleos" style={{ color: '#94A3B8', fontSize: 13, fontWeight: 600 }}>Ver empleos →</Link>
       </nav>
 
@@ -99,7 +99,7 @@ export default async function DownloadPage() {
         textAlign: 'center', padding: '24px', fontSize: 13,
         borderTop: '1px solid rgba(255,255,255,0.06)',
       }}>
-        <p>© {new Date().getFullYear()} Nexu · <Link href="/empleos" style={{ color: 'inherit' }}>Ver empleos</Link></p>
+        <p>© {new Date().getFullYear()} Konexu · <Link href="/empleos" style={{ color: 'inherit' }}>Ver empleos</Link></p>
       </footer>
     </>
   )

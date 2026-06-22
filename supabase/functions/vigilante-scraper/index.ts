@@ -84,7 +84,7 @@ async function enviarAlerta(
 
   const html = `
 <div style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto">
-  <h2 style="color:#E8785A">Nexu — Caida detectada en ${filas.length} pais(es)</h2>
+  <h2 style="color:#E8785A">Konexu — Caida detectada en ${filas.length} pais(es)</h2>
   <p style="color:#555;font-size:13px">El vigilante detecto una caida sustancial y relanzó el scraper automaticamente.</p>
   <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:16px">
     <thead><tr style="background:#1A1020;color:#fff">
@@ -98,7 +98,7 @@ async function enviarAlerta(
     <tbody>${rows}</tbody>
   </table>
   <p style="color:#bbb;font-size:11px;margin-top:24px;border-top:1px solid #eee;padding-top:12px">
-    Nexu Vigilante - ${new Date().toISOString()}
+    Konexu Vigilante - ${new Date().toISOString()}
   </p>
 </div>`;
 
@@ -106,9 +106,9 @@ async function enviarAlerta(
     method:  "POST",
     headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
     body:    JSON.stringify({
-      from:    "Nexu Scraper <onboarding@resend.dev>",
+      from:    "Konexu Scraper <onboarding@resend.dev>",
       to:      ["alejandrodslp@gmail.com"],
-      subject: `⚠️ Nexu — Caida en ${filas.map(f => f.pais).join(", ")} (auto-relanzado)`,
+      subject: `⚠️ Konexu — Caida en ${filas.map(f => f.pais).join(", ")} (auto-relanzado)`,
       html,
     }),
     signal: AbortSignal.timeout(10000),
