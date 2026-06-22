@@ -3,7 +3,7 @@ import{View,Text,TouchableOpacity,StyleSheet,Modal,Animated,Share}from 'react-na
 import{LinearGradient}from 'expo-linear-gradient';
 import{supabase}from '../services/supabase';
 
-const BASE_URL='https://nexu.app/download';
+const BASE_URL='https://konexu.app/download';
 
 export default function ActivacionExitosaModal({visible,onClose}){
   const slideAnim=useRef(new Animated.Value(400)).current;

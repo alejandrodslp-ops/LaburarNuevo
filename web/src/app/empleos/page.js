@@ -6,7 +6,7 @@ import JobsRealtime from '../JobsRealtime'
 
 export const revalidate = 600
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.fyi'
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://kokonexu.app'
 
 export async function generateMetadata({ searchParams }) {
   const q = (searchParams?.q || '').slice(0, 60)
@@ -102,7 +102,7 @@ export default async function EmpleosPage({ searchParams }) {
       </section>
 
       <footer className="footer">
-        <p>© {new Date().getFullYear()} Konexu · nexu.fyi</p>
+        <p>© {new Date().getFullYear()} Konexu · kokonexu.app</p>
       </footer>
     </>
   )

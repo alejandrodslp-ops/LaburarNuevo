@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useI18n } from '../services/I18nContext';
 
 const ULTIMA_ACTUALIZACION = '1 de enero de 2025';
-const EMAIL_LEGAL = 'legal@nexu.app';
+const EMAIL_LEGAL = 'legal@konexu.app';
 const EMPRESA = 'Konexu S.A.S.';
 const PAIS = 'República Oriental del Uruguay';
 

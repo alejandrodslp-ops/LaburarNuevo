@@ -6,7 +6,7 @@ import AppCta from '../../AppCta'
 
 export const revalidate = 3600
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.fyi'
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://kokonexu.app'
 
 async function getConcurso(slug) {
   const id = idFromSlug(slug)
@@ -256,7 +256,7 @@ export default async function ConcursoPage({ params }) {
 
       <footer className="footer">
         <p>
-          © {new Date().getFullYear()} Konexu · nexu.fyi ·{' '}
+          © {new Date().getFullYear()} Konexu · kokonexu.app ·{' '}
           <Link href="/empleos" style={{ color: 'inherit' }}>Ver todos los empleos</Link>
         </p>
       </footer>

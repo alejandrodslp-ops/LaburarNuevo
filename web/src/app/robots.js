@@ -1,4 +1,4 @@
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://nexu.fyi'
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://kokonexu.app'
 
 export default function robots() {
   return {

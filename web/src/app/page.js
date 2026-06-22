@@ -196,7 +196,7 @@ export default async function Home() {
           © {new Date().getFullYear()} Konexu ·{' '}
           <Link href="/empleos" style={{ color:'#64748B' }}>Ver empleos</Link> ·{' '}
           <a href="/download" style={{ color:'#64748B' }}>App gratis</a> ·{' '}
-          soporte@nexu.fyi
+          soporte@kokonexu.app
         </p>
       </footer>
     </>

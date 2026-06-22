@@ -162,8 +162,8 @@ const TR = {
     bio_activada:           'Biometría activada',
     bio_activada_msg:       'Ahora podés usar huella o Face ID para confirmar acciones en la app.',
     bio_error_msg:          'No se pudo activar la biometría. Intentá de nuevo.',
-    compartir_msg:          'Hacé que las oportunidades te encuentren, de forma gratis, fácil y segura. Descargá Konexu 👉 https://nexu.app',
-    email_soporte:          'soporte@nexu.app',
+    compartir_msg:          'Hacé que las oportunidades te encuentren, de forma gratis, fácil y segura. Descargá Konexu 👉 https://konexu.app',
+    email_soporte:          'soporte@konexu.app',
 
     // ── SoporteModal ─────────────────────────────────────────────────
     sop_categoria_lbl:        'Categoría',
@@ -506,8 +506,8 @@ const TR = {
     bio_activada:           'Biometria ativada',
     bio_activada_msg:       'Agora você pode usar impressão digital ou Face ID para confirmar ações no app.',
     bio_error_msg:          'Não foi possível ativar a biometria. Tente novamente.',
-    compartir_msg:          'Faça as oportunidades te encontrarem, de forma gratuita, fácil e segura. Baixe o Konexu 👉 https://nexu.app',
-    email_soporte:          'soporte@nexu.app',
+    compartir_msg:          'Faça as oportunidades te encontrarem, de forma gratuita, fácil e segura. Baixe o Konexu 👉 https://konexu.app',
+    email_soporte:          'soporte@konexu.app',
 
     // ── SoporteModal ─────────────────────────────────────────────────
     sop_categoria_lbl:        'Categoria',
@@ -851,8 +851,8 @@ const TR = {
     bio_activada:           'Biometrics enabled',
     bio_activada_msg:       'You can now use fingerprint or Face ID to confirm actions in the app.',
     bio_error_msg:          'Could not enable biometrics. Please try again.',
-    compartir_msg:          'Let opportunities find you, for free, easy and secure. Download Konexu 👉 https://nexu.app',
-    email_soporte:          'soporte@nexu.app',
+    compartir_msg:          'Let opportunities find you, for free, easy and secure. Download Konexu 👉 https://konexu.app',
+    email_soporte:          'soporte@konexu.app',
 
     // ── SoporteModal ─────────────────────────────────────────────────
     sop_categoria_lbl:        'Category',
@@ -1195,8 +1195,8 @@ const TR = {
     bio_activada:           'Biométrie activée',
     bio_activada_msg:       "Vous pouvez maintenant utiliser l'empreinte ou Face ID pour confirmer des actions dans l'app.",
     bio_error_msg:          "Impossible d'activer la biométrie. Veuillez réessayer.",
-    compartir_msg:          "Trouvez du travail avec Konexu ! L'app qui connecte travailleurs et employeurs de manière anonyme et sécurisée. Téléchargez gratuitement 👉 https://nexu.app",
-    email_soporte:          'soporte@nexu.app',
+    compartir_msg:          "Trouvez du travail avec Konexu ! L'app qui connecte travailleurs et employeurs de manière anonyme et sécurisée. Téléchargez gratuitement 👉 https://konexu.app",
+    email_soporte:          'soporte@konexu.app',
 
     // ── SoporteModal ─────────────────────────────────────────────────
     sop_categoria_lbl:        'Catégorie',
@@ -1539,8 +1539,8 @@ const TR = {
     bio_activada:           'Biometria attivata',
     bio_activada_msg:       "Ora puoi usare l'impronta digitale o Face ID per confermare le azioni nell'app.",
     bio_error_msg:          'Impossibile attivare la biometria. Riprova.',
-    compartir_msg:          "Trova lavoro con Konexu! L'app che connette lavoratori e datori di lavoro in modo anonimo e sicuro. Scarica gratuitamente 👉 https://nexu.app",
-    email_soporte:          'soporte@nexu.app',
+    compartir_msg:          "Trova lavoro con Konexu! L'app che connette lavoratori e datori di lavoro in modo anonimo e sicuro. Scarica gratuitamente 👉 https://konexu.app",
+    email_soporte:          'soporte@konexu.app',
 
     // ── SoporteModal ─────────────────────────────────────────────────
     sop_categoria_lbl:        'Categoria',
@@ -1883,8 +1883,8 @@ const TR = {
     bio_activada:           'Biometrie aktiviert',
     bio_activada_msg:       'Du kannst jetzt Fingerabdruck oder Face ID verwenden, um Aktionen in der App zu bestätigen.',
     bio_error_msg:          'Biometrie konnte nicht aktiviert werden. Versuche es erneut.',
-    compartir_msg:          'Finde deinen nächsten Job mit Konexu! Die App, die Arbeitnehmer und Arbeitgeber anonym und sicher verbindet. Kostenlos herunterladen 👉 https://nexu.app',
-    email_soporte:          'soporte@nexu.app',
+    compartir_msg:          'Finde deinen nächsten Job mit Konexu! Die App, die Arbeitnehmer und Arbeitgeber anonym und sicher verbindet. Kostenlos herunterladen 👉 https://konexu.app',
+    email_soporte:          'soporte@konexu.app',
 
     // ── SoporteModal ─────────────────────────────────────────────────
     sop_categoria_lbl:        'Kategorie',
@@ -2212,8 +2212,8 @@ const TR = {
     bio_activada:           'Biometri aktiverad',
     bio_activada_msg:       'Du kan nu använda fingeravtryck eller Face ID för att bekräfta åtgärder i appen.',
     bio_error_msg:          'Kunde inte aktivera biometri. Försök igen.',
-    compartir_msg:          'Låt möjligheterna hitta dig, gratis, enkelt och säkert. Ladda ner Konexu 👉 https://nexu.app',
-    email_soporte:          'soporte@nexu.app',
+    compartir_msg:          'Låt möjligheterna hitta dig, gratis, enkelt och säkert. Ladda ner Konexu 👉 https://konexu.app',
+    email_soporte:          'soporte@konexu.app',
     sop_categoria_lbl:        'Kategori',
     sop_cat_cuenta:           'Mitt konto',
     sop_cat_pago:             'Betalningar',
@@ -2515,8 +2515,8 @@ const TR = {
     bio_activada:           'Biometri aktivert',
     bio_activada_msg:       'Du kan nå bruke fingeravtrykk eller Face ID for å bekrefte handlinger i appen.',
     bio_error_msg:          'Kunne ikke aktivere biometri. Prøv igjen.',
-    compartir_msg:          'La mulighetene finne deg, gratis, enkelt og sikkert. Last ned Konexu 👉 https://nexu.app',
-    email_soporte:          'soporte@nexu.app',
+    compartir_msg:          'La mulighetene finne deg, gratis, enkelt og sikkert. Last ned Konexu 👉 https://konexu.app',
+    email_soporte:          'soporte@konexu.app',
     sop_categoria_lbl:        'Kategori',
     sop_cat_cuenta:           'Min konto',
     sop_cat_pago:             'Betalinger',
@@ -2818,8 +2818,8 @@ const TR = {
     bio_activada:           '生体認証が有効になりました',
     bio_activada_msg:       'アプリでの操作確認に指紋またはFace IDを使用できるようになりました。',
     bio_error_msg:          '生体認証を有効にできませんでした。再試行してください。',
-    compartir_msg:          '無料・簡単・安全に仕事の機会を見つけよう。Nexuをダウンロード 👉 https://nexu.app',
-    email_soporte:          'soporte@nexu.app',
+    compartir_msg:          '無料・簡単・安全に仕事の機会を見つけよう。Konexuをダウンロード 👉 https://konexu.app',
+    email_soporte:          'soporte@konexu.app',
     sop_categoria_lbl:        'カテゴリ',
     sop_cat_cuenta:           'マイアカウント',
     sop_cat_pago:             '支払い',
@@ -3121,8 +3121,8 @@ const TR = {
     bio_activada:           'बायोमेट्रिक्स सक्रिय',
     bio_activada_msg:       'अब आप ऐप में कार्यों की पुष्टि के लिए फ़िंगरप्रिंट या Face ID का उपयोग कर सकते हैं।',
     bio_error_msg:          'बायोमेट्रिक्स सक्रिय नहीं हो सका। पुनः प्रयास करें।',
-    compartir_msg:          'मुफ़्त, आसान और सुरक्षित तरीके से अवसर पाएँ। Konexu डाउनलोड करें 👉 https://nexu.app',
-    email_soporte:          'soporte@nexu.app',
+    compartir_msg:          'मुफ़्त, आसान और सुरक्षित तरीके से अवसर पाएँ। Konexu डाउनलोड करें 👉 https://konexu.app',
+    email_soporte:          'soporte@konexu.app',
     sop_categoria_lbl:        'श्रेणी',
     sop_cat_cuenta:           'मेरा खाता',
     sop_cat_pago:             'भुगतान',

@@ -337,7 +337,7 @@ export default function PerfilScreen({navigation}){
   async function compartirNexu(){
     try{
       const codigo=u.codigo_referido||'';
-      const link=codigo?`https://nexu.app/download?r=${codigo}`:'https://nexu.app/download';
+      const link=codigo?`https://konexu.app/download?r=${codigo}`:'https://konexu.app/download';
       await Share.share({message:`${t('compartir_msg')}\n${link}`,title:'Konexu'});
     }catch(e){}
   }

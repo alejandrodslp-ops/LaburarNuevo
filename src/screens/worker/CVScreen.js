@@ -351,7 +351,7 @@ export default function CVScreen({ navigation }) {
 </td>
 </tr></table>
 
-<div class="wm">nexu.fyi</div>
+<div class="wm">konexu.app</div>
 </body>
 </html>`;
   }
@@ -665,7 +665,7 @@ function PreviewCV({ cv }) {
             </View>
           )}
 
-          <Text style={pv.footer}>Generado con Konexu🧩 · nexu.fyi</Text>
+          <Text style={pv.footer}>Generado con Konexu🧩 · konexu.app</Text>
         </View>
       </View>
     </ScrollView>
