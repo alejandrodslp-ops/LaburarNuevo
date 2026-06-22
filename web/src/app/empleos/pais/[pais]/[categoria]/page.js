@@ -9,7 +9,7 @@ import JobsRealtime from '../../../../JobsRealtime'
 
 export const dynamic = 'force-dynamic'
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://kokonexu.app'
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://konexu.app'
 
 const SLUG_A_CODIGO = {
   uruguay:'UY', argentina:'AR', chile:'CL', peru:'PE', colombia:'CO',
@@ -226,7 +226,7 @@ export default async function CategoriaPage({ params }) {
 
       <footer className="footer">
         <p>
-          © {new Date().getFullYear()} Konexu · kokonexu.app ·{' '}
+          © {new Date().getFullYear()} Konexu · konexu.app ·{' '}
           <Link href={`/empleos/pais/${params.pais}`} style={{ color: 'inherit' }}>{nombre}</Link>
           {' · '}
           <Link href="/empleos" style={{ color: 'inherit' }}>{t(lang, 'footer_jobs')}</Link>

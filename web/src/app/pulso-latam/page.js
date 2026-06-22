@@ -136,8 +136,8 @@ export default async function PulsoLatam() {
     '@context':'https://schema.org','@type':'Dataset',
     name:'Pulso Laboral LatAm',
     description:'Vacantes activas por país en América Latina, actualizadas diariamente.',
-    url:'https://www.kokonexu.app/pulso-latam',
-    creator:{'@type':'Organization',name:'Konexu',url:'https://www.kokonexu.app'},
+    url:'https://www.konexu.app/pulso-latam',
+    creator:{'@type':'Organization',name:'Konexu',url:'https://www.konexu.app'},
     temporalCoverage:'2026/..',
   }
 
@@ -520,7 +520,7 @@ export default async function PulsoLatam() {
         <Link href="/pulso-latam" style={{color:'#2D3748'}}>Pulso Laboral</Link>
         {' · '}
         <Link href="/empleos" style={{color:'#2D3748'}}>Empleos</Link>
-        {' · '}soporte@kokonexu.app
+        {' · '}soporte@konexu.app
       </p>
     </footer>
   </>)

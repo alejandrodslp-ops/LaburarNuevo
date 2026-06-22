@@ -8,7 +8,7 @@ import JobsRealtime from '../../../JobsRealtime'
 
 export const dynamic = 'force-dynamic'
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://kokonexu.app'
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://konexu.app'
 
 // Slug en URL → código ISO 2 letras
 const SLUG_A_CODIGO = {
@@ -227,7 +227,7 @@ export default async function PaisPage({ params }) {
 
       <footer className="footer">
         <p>
-          © {new Date().getFullYear()} Konexu · kokonexu.app ·{' '}
+          © {new Date().getFullYear()} Konexu · konexu.app ·{' '}
           <Link href="/empleos" style={{ color: 'inherit' }}>{t(lang, 'footer_jobs')}</Link>
         </p>
       </footer>
