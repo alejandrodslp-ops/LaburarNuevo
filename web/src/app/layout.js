@@ -5,7 +5,7 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.konexu.app'
 
 export const metadata = {
   metadataBase: new URL(SITE),
-  verification: { google: 'bX-NhuI-kz4WRQ0tcHhsNuz_DnS9duLSuX1HrLoPCPY' },
+  verification: { google: '_SAuqYOvEejtcDQsVXJ0rDLXvBnTO-Yhr0cgiwO4B4g' },
   title: {
     default: 'Konexu — Concursos Públicos y Empleos en Uruguay, Argentina y LatAm',
     template: '%s | Konexu',
