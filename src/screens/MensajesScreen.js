@@ -24,7 +24,7 @@ function Row({item,onPress,onLongPress}){
     <TouchableOpacity style={ss.row} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.75}>
       <View style={[ss.av,item.esNexu&&ss.avNexu]}>
         {item.esNexu
-          ?<Text style={ss.avNexuTxt}>N</Text>
+          ?<Text style={ss.avNexuTxt}>K</Text>
           :item.avatarUrl
             ?<Image source={{uri:item.avatarUrl}} style={ss.avImg}/>
             :<Text style={{fontSize:22}}>{item.emoji}</Text>

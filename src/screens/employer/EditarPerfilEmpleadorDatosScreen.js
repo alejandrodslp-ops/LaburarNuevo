@@ -76,7 +76,7 @@ export default function EditarPerfilEmpleadorDatosScreen({navigation}){
     setBarriosDisp([]);
     const mapaBarrios={"Brasil":"Brazil","México":"Mexico","Perú":"Peru","Panamá":"Panama","Argentina":"Argentina","Uruguay":"Uruguay","Chile":"Chile","Colombia":"Colombia","Bolivia":"Bolivia","Paraguay":"Paraguay","Ecuador":"Ecuador","Venezuela":"Venezuela"};const paisNom=mapaBarrios[pais]||pais;
     fetch(`https://nominatim.openstreetmap.org/search?q=neighbourhood+${encodeURIComponent(ciudad)}+${encodeURIComponent(paisNom)}&format=json&limit=30&addressdetails=1`,{
-      headers:{'Accept-Language':'es','User-Agent':'NexuApp/1.0'}
+      headers:{'Accept-Language':'es','User-Agent':'KonexuApp/1.0'}
     })
     .then(r=>r.json())
     .then(data=>{
