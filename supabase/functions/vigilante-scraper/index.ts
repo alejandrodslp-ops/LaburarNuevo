@@ -106,7 +106,7 @@ async function enviarAlerta(
     method:  "POST",
     headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
     body:    JSON.stringify({
-      from:    "Konexu Scraper <onboarding@resend.dev>",
+      from:    "Konexu Scraper <noreply@konexu.app>",
       to:      ["alejandrodslp@gmail.com"],
       subject: `⚠️ Konexu — Caida en ${filas.map(f => f.pais).join(", ")} (auto-relanzado)`,
       html,

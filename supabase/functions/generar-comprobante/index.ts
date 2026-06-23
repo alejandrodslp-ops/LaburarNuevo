@@ -258,7 +258,7 @@ serve(async (req) => {
       method: "POST",
       headers: { "Authorization": `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from:    "Konexu <onboarding@resend.dev>",
+        from:    "Konexu <noreply@konexu.app>",
         to:      [email],
         subject: `Comprobante de pago ${numero} - Konexu`,
         html:    html,

@@ -7,7 +7,7 @@ const CORS = {
 const URL = Deno.env.get("SUPABASE_URL")!;
 const KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESEND_KEY = Deno.env.get("RESEND_API_KEY") || "";
-const FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") || "onboarding@resend.dev";
+const FROM_EMAIL = Deno.env.get("RESEND_FROM_EMAIL") || "noreply@konexu.app";
 
 function ok(d: unknown) {
   return new Response(JSON.stringify(d), { headers: { "Content-Type": "application/json", ...CORS } });

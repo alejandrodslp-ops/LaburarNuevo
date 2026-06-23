@@ -3115,7 +3115,7 @@ async function enviarResumenDiario(): Promise<void> {
     method: "POST",
     headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: "Konexu Scraper <onboarding@resend.dev>",
+      from: "Konexu Scraper <noreply@konexu.app>",
       to: ["alejandrodslp@gmail.com"],
       subject: `📊 Konexu ${fecha} — ${total} llamados ${enRojo.length > 0 ? "| ⚠️ " + enRojo.length + " países con problemas" : "| ✅ Todo OK"}`,
       html,
