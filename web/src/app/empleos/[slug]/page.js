@@ -17,13 +17,14 @@ async function getConcurso(slug) {
 }
 
 async function getSimilares(c) {
-  const term = (c.cargo || c.titulo || '').split(' ')[0]
-  if (!term || term.length < 3) return []
+  const kw = (c.keywords ?? []).slice(0, 3)
+  if (!kw.length) return []
   const { data } = await db
     .from('concursos')
     .select('id,titulo,cargo,organismo,pais,lugar,fecha_cierre')
     .eq('activo', true)
-    .ilike('titulo', `%${term}%`)
+    .eq('pais', c.pais)
+    .overlaps('keywords', kw)
     .neq('id', c.id)
     .limit(3)
   return data ?? []
