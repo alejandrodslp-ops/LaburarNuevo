@@ -13,8 +13,11 @@ Se va actualizando a medida que avanza el desarrollo.
   - [x] **Etapa 1 — `visualizaciones_disponibles` (plata)** protegida con trigger `trg_proteger_profiles` (2026-06-26).
     Un atacante ya no puede regalarse perfiles pagos. Webhook/RPC siguen acreditando. Verificado.
     SQL: `supabase/sql/seguridad_etapa1_visualizaciones.sql`
-  - [ ] **Etapa 2 — `perfil_activo` / prueba gratis:** mover `activarPerfilSuap` (PerfilScreen) a edge function
-    que permita una sola prueba por usuario; luego sumar esa columna al trigger.
+  - [x] **Etapa 2 — `perfil_activo` / prueba gratis** (2026-06-26). Prueba gratis = UNA SOLA VEZ.
+    Activación movida a edge function `activar-prueba` (usa `fecha_activacion` como marca). El guardián
+    bloquea que el cliente se active (false→true) o extienda `perfil_activo_hasta`; sí permite pausarse.
+    Verificado. ⚠️ La app debe estar actualizada (usa la edge function) para activar la prueba.
+    SQL: `supabase/sql/seguridad_etapa2_perfil_activo.sql`
   - [ ] **Etapa 3 — `rating`/`estrellas`/`vistas`/`contactos`:** mover calificar y contadores
     (PerfilTrabajadorScreen) a edge functions/RPC; luego sumarlas al trigger.
   - [ ] **Etapa 4 — `referido_por`/`codigo_referido`** a edge function (ver migración Hetzner);

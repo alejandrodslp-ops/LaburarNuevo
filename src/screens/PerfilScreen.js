@@ -137,15 +137,13 @@ export default function PerfilScreen({navigation}){
 
   async function activarPerfilSuap(){
     try{
-      const{data:{user}}=await supabase.auth.getUser();
-      if(!user)return;
-      const{data}=await supabase.from('profiles').select('perfil_activo,perfil_activo_hasta').eq('id',user.id).single();
-      // Si ya tiene perfil activo con fecha futura, no sobreescribir
-      if(data?.perfil_activo&&data?.perfil_activo_hasta&&new Date(data.perfil_activo_hasta)>new Date())return;
-      const hasta=new Date(Date.now()+(10*24*60*60*1000)).toISOString();
-      await supabase.from('profiles').update({perfil_activo:true,perfil_activo_hasta:hasta}).eq('id',user.id);
-      await scheduleTrialExpiry(hasta);
-    }catch(e){}
+      // La activación de la prueba (regla "una sola vez") la decide el servidor.
+      const{data,error}=await supabase.functions.invoke('activar-prueba');
+      if(error)return;
+      if((data?.activado||data?.ya_activo)&&data?.hasta){
+        await scheduleTrialExpiry(data.hasta);
+      }
+    }catch(e){logError('Perfil.activarPrueba',e);}
   }
 
   async function cargar(){
