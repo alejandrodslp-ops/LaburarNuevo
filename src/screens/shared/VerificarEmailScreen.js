@@ -69,11 +69,20 @@ export default function VerificarEmailScreen({navigation,route}){
     <SafeAreaView style={ss.c} edges={["top"]}>
       <KeyboardAvoidingView style={{flex:1}} behavior={Platform.OS==="ios"?"padding":"height"}>
       <View style={ss.hdr}>
-        <TouchableOpacity onPress={async()=>{
-          await AsyncStorage.removeItem("ir_a_editar_perfil");
-          navigation.goBack();
+        <TouchableOpacity onPress={()=>{
+          Alert.alert(
+            "Salir de la verificación",
+            "Necesitás verificar tu email para usar Konexu. Si salís ahora vas a tener que iniciar sesión de nuevo. ¿Querés salir?",
+            [
+              {text:"Cancelar",style:"cancel"},
+              {text:"Salir",style:"destructive",onPress:async()=>{
+                await AsyncStorage.removeItem("ir_a_editar_perfil");
+                await supabase.auth.signOut();
+              }},
+            ]
+          );
         }}>
-          <Text style={ss.back}>Volver</Text>
+          <Text style={ss.back}>Salir</Text>
         </TouchableOpacity>
         <Text style={ss.tit}>Verificar email</Text>
         <View style={{width:50}}/>

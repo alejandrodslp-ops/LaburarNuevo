@@ -2,8 +2,10 @@ import React from "react";
 import{View,Text,StyleSheet,TouchableOpacity}from "react-native";
 import{SafeAreaView}from "react-native-safe-area-context";
 import{LinearGradient}from "expo-linear-gradient";
+import{useApp}from "../../services/AppContext";
 
 export default function VerificacionExitosaScreen({navigation}){
+  const{marcarEmailVerificado}=useApp();
   return(
     <SafeAreaView style={ss.c} edges={["top","bottom"]}>
       <View style={ss.body}>
@@ -16,7 +18,7 @@ export default function VerificacionExitosaScreen({navigation}){
 
         <TouchableOpacity
           style={ss.btnW}
-          onPress={()=>navigation.popToTop()}
+          onPress={()=>marcarEmailVerificado()}
           activeOpacity={0.85}
         >
           <LinearGradient

@@ -263,6 +263,18 @@ function AuthStack(){
   );
 }
 
+// Gate de verificación: mientras el email no esté verificado, esta es la ÚNICA pantalla disponible.
+function VerifEmailStack(){
+  const{session}=useApp();
+  const email=session?.user?.email||"";
+  return(
+    <Stack.Navigator screenOptions={{headerShown:false}}>
+      <Stack.Screen name="VerificarEmail" component={VerificarEmailScreen} initialParams={{email}}/>
+      <Stack.Screen name="VerificacionExitosa" component={VerificacionExitosaScreen}/>
+    </Stack.Navigator>
+  );
+}
+
 const FRASES_SPLASH={
   worker:"Solo hay una emoción peor que no tener la vida que deseas, es tener que reconocer que no estás haciendo nada para cambiarla.",
   employer:"El equipo que construís hoy define el negocio que tenés mañana. Las personas correctas no se encuentran solas — hay que ir a buscarlas.",
@@ -294,7 +306,7 @@ function PantallaFrase({onContinuar, mensajeExtra, modo}){
 }
 
 function Navigation({navigationRef,onTabChange}){
-  const{session,modoActivo}=useApp();
+  const{session,modoActivo,emailVerificado}=useApp();
   const[cargando,setCargando]=useState(true);
   const[splashVisible,setSplashVisible]=useState(true);
 
@@ -408,6 +420,8 @@ function Navigation({navigationRef,onTabChange}){
   }
 
   const esEmpleador=modoActivo==="employer"||modoActivo==="company";
+  const esAdmin=session?.user?.email==='alejandrodslp@gmail.com';
+  const necesitaVerificarEmail=!!session&&!esAdmin&&emailVerificado===false;
 
   return(
     <NavigationContainer ref={navigationRef} onStateChange={()=>{
@@ -415,7 +429,7 @@ function Navigation({navigationRef,onTabChange}){
       const activeTab=st?.routes?.[st.index]?.name;
       onTabChange?.(activeTab);
     }}>
-      {session?(modoActivo==="company"?<CompanyStack/>:(esEmpleador?<EmployerTabs/>:<WorkerTabs/>)):<AuthStack/>}
+      {session?(necesitaVerificarEmail?<VerifEmailStack/>:(modoActivo==="company"?<CompanyStack/>:(esEmpleador?<EmployerTabs/>:<WorkerTabs/>))):<AuthStack/>}
     </NavigationContainer>
   );
 }

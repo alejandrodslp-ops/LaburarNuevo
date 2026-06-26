@@ -18,6 +18,8 @@ const AppContext=createContext({
   recargarSinLeer:()=>{},
   perfilCompleto:null,
   marcarPerfilCompleto:()=>{},
+  emailVerificado:null,
+  marcarEmailVerificado:()=>{},
   empleadorDatosCompletos:null,
   marcarEmpleadorDatosCompletos:()=>{},
   emailPendiente:false,
@@ -35,6 +37,7 @@ export function AppProvider({children}){
   const[emailPendiente,setEmailPendiente]=useState(false);
   const[mensajesSinLeer,setMensajesSinLeer]=useState(0);
   const[perfilCompleto,setPerfilCompleto]=useState(null);
+  const[emailVerificado,setEmailVerificado]=useState(null);
   const[empleadorDatosCompletos,setEmpleadorDatosCompletos]=useState(null);
   const[calificacionPendiente,setCalificacionPendiente]=useState(null);
 
@@ -117,6 +120,7 @@ export function AppProvider({children}){
         }
       });
       verificarPerfilCompleto(session.user.id);
+      verificarEmailVerificado(session.user.id);
       verificarEmpleadorDatos(session.user.id);
       verificarCalificacionesPendientes(session.user.id);
       // Verificar si hay coach mark pendiente (nuevo usuario)
@@ -191,6 +195,13 @@ export function AppProvider({children}){
     }catch{setPerfilCompleto(false);}
   }
 
+  async function verificarEmailVerificado(userId){
+    try{
+      const{data}=await supabase.from("profiles").select("email_verificado").eq("id",userId).single();
+      setEmailVerificado(!!data?.email_verificado);
+    }catch{setEmailVerificado(false);}
+  }
+
   async function verificarEmpleadorDatos(userId){
     try{
       const{data}=await supabase.from("profiles")
@@ -208,6 +219,7 @@ export function AppProvider({children}){
   }
 
   const marcarPerfilCompleto=useCallback(()=>setPerfilCompleto(true),[]);
+  const marcarEmailVerificado=useCallback(()=>setEmailVerificado(true),[]);
   const marcarEmpleadorDatosCompletos=useCallback(()=>setEmpleadorDatosCompletos(true),[]);
   const dismissCoach=useCallback(()=>setCoachPendiente(false),[]);
   const activarCoachEditar=useCallback(()=>setCoachEditarPendiente(true),[]);
@@ -226,11 +238,12 @@ export function AppProvider({children}){
     session,modoActivo,cambiarModo,suscripcionActiva,setSuscripcionActiva,
     coachPendiente,dismissCoach,coachEditarPendiente,activarCoachEditar,dismissCoachEditar,
     mensajesSinLeer,recargarSinLeer,perfilCompleto,marcarPerfilCompleto,
+    emailVerificado,marcarEmailVerificado,
     empleadorDatosCompletos,marcarEmpleadorDatosCompletos,
     emailPendiente,clearEmailPendiente,calificacionPendiente,completarCalificacion,
   }),[
     session,modoActivo,suscripcionActiva,coachPendiente,coachEditarPendiente,
-    mensajesSinLeer,perfilCompleto,empleadorDatosCompletos,emailPendiente,calificacionPendiente,
+    mensajesSinLeer,perfilCompleto,emailVerificado,empleadorDatosCompletos,emailPendiente,calificacionPendiente,
   ]);
 
   return(
