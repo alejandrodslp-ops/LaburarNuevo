@@ -30,11 +30,12 @@ Se va actualizando a medida que avanza el desarrollo.
     `profiles` es abierto: una cuenta gratis puede leer todos los teléfonos por API directa. Requiere
     revocar la lectura de `telefono` al cliente + edge function que lo entregue solo tras pago/desbloqueo
     + ajustar la app donde lo muestra. Es **lectura**, no escritura — el guardián no aplica acá.
-  - [ ] **(bug aparte, no seguridad)** El RPC `sumar_visualizaciones` rechaza `cantidad <= 0`, así que el
-    "restar -1" del cliente (PerfilTrabajadorScreen) nunca descuenta. Revisar cómo se descuenta una vista.
-  - [ ] **(bug aparte, no seguridad)** Calificar desde PerfilTrabajadorScreen inserta `rol_calificador='empleador'`,
-    pero el check exige `'employer'/'worker'/'company'` → el insert falla y no se puede calificar. Cambiar a `'employer'`.
-    (CalificacionModal.js usa una variable, revisar que pase un valor válido.)
+  - [x] **(bug de plata, 2026-06-26)** El descuento de visualizaciones nunca funcionaba (el cliente
+    llamaba `sumar_visualizaciones(-1)`, sin permiso y con check `<=0`) → un empleador veía perfiles
+    infinitos con una sola compra. Arreglado con RPC `consumir_visualizacion(p_worker)` (auth.uid,
+    atómico, idempotente, descuenta del propio saldo). SQL: `supabase/sql/fix_consumir_visualizacion.sql`
+  - [x] **(bug, 2026-06-26)** Calificar insertaba `rol_calificador='empleador'` (inválido) → cambiado a
+    `'employer'` en PerfilTrabajadorScreen. (CalificacionModal ya usaba el valor correcto por variable.)
 
 - [ ] **Google Cloud — registrar tarjeta de crédito**
   La Vision API key (moderación de fotos de perfil) está configurada pero sin método de pago.

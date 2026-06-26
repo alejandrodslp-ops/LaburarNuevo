@@ -31,7 +31,7 @@ function CalificarModal({visible,workerId,propuestaId,onClose,onDone}){
       const promedio=((comunicacion+cumplimiento+recomendacion)/3).toFixed(2);
       await supabase.from('calificaciones').insert({
         propuesta_id:propuestaId,calificador_id:user.id,calificado_id:workerId,
-        rol_calificador:'empleador',factor_comunicacion:comunicacion,
+        rol_calificador:'employer',factor_comunicacion:comunicacion,
         factor_cumplimiento:cumplimiento,factor_recomendacion:recomendacion,promedio,
       });
       // El rating/total se recalculan en el servidor (trigger on_calificacion_insert).
@@ -249,18 +249,9 @@ export default function PerfilTrabajadorScreen({navigation,route}){
       const{data:{user}}=await supabase.auth.getUser();
       if(!user||!perfil?.id)return;
 
-      // Si ya fue registrada esta visualización (ej: viene del historial), no cobrar de nuevo
-      const{data:existente}=await supabase
-        .from('visualizaciones')
-        .select('employer_id')
-        .eq('employer_id',user.id)
-        .eq('worker_id',perfil.id)
-        .maybeSingle();
-      if(existente)return;
-
-      await supabase.from('visualizaciones').insert({employer_id:user.id,worker_id:perfil.id});
-      await supabase.rpc('sumar_visualizaciones',{employer_id:user.id,cantidad:-1});
-      // 'vistas' se incrementa en el servidor (trigger on_visualizacion_insert).
+      // El servidor verifica saldo, registra la visualización (idempotente: no cobra dos veces
+      // el mismo perfil) y descuenta 1. 'vistas' lo incrementa el trigger on_visualizacion_insert.
+      await supabase.rpc('consumir_visualizacion',{p_worker:perfil.id});
     }catch(e){}
   }
 
