@@ -1,4 +1,5 @@
 import React,{useState,useEffect} from 'react';
+import {logError} from '../../services/logError';
 import{View,Text,StyleSheet,TouchableOpacity,TextInput,ScrollView,Alert,KeyboardAvoidingView,Platform}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{LinearGradient}from 'expo-linear-gradient';
@@ -127,7 +128,7 @@ export default function EditarPerfilEmpleadorScreen({navigation}){
           if(data.barrio)setBarrio(data.barrio);
           if(data.empleo_buscado)setEmpleoBuscado(data.empleo_buscado);
         }
-      }catch(e){console.log(e);}
+      }catch(e){logError('EditarPerfilEmpleador',e);}
     }
     cargar();
   },[]);

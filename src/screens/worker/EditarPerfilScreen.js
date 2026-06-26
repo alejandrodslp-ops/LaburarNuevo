@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useRef,useCallback} from "react";
+import {logError} from '../../services/logError';
 import*as Localization from "expo-localization";
 import{View,Text,StyleSheet,TouchableOpacity,TextInput,ScrollView,Alert,Switch,Image,KeyboardAvoidingView,Platform}from "react-native";
 import*as ImagePicker from "expo-image-picker";
@@ -398,7 +399,7 @@ export default function EditarPerfilScreen({navigation,route}){
       Alert.alert(t('foto_actualizada_tit'),t('foto_actualizada_msg'));
     }catch(e){
       Alert.alert(t('error'),t('error_foto_msg'));
-      console.log(e);
+      logError('EditarPerfil.foto',e);
     }finally{setAvatarUploading(false);}
   }
 

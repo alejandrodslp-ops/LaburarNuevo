@@ -83,7 +83,7 @@ export default function PrivacidadScreen({ navigation }) {
             ['Foto de perfil', 'Imagen cargada por el usuario'],
             ['Uso', 'Búsquedas, vistas de perfil, clics, sesiones'],
             ['Dispositivo', 'Tipo, sistema operativo, idioma, token de push'],
-            ['Pago', 'Procesado por Stripe; Konexu no accede a datos de tarjeta'],
+            ['Pago', 'Procesado por MercadoPago; Konexu no accede a datos de tarjeta'],
           ]} />
         </Seccion>
 
@@ -118,7 +118,7 @@ export default function PrivacidadScreen({ navigation }) {
             aceptás ser contactado.
           </Li>
           <Li>
-            <Text style={ss.negrita}>Proveedores de servicios</Text>: Stripe (pagos), Supabase
+            <Text style={ss.negrita}>Proveedores de servicios</Text>: MercadoPago (pagos), Supabase
             (infraestructura cloud), servicios de analítica. Todos operan bajo contratos que
             garantizan protección equivalente de datos.
           </Li>

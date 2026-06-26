@@ -1,4 +1,5 @@
 import React,{useState,useEffect} from 'react';
+import {logError} from '../services/logError';
 import NexuWatermark from '../components/NexuWatermark';
 import{View,Text,ScrollView,TouchableOpacity,StyleSheet,Switch,Alert,Share,Image}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
@@ -203,7 +204,7 @@ export default function PerfilScreen({navigation}){
         // Sin userId (sesión borrada) pero tenemos email: mostrar botón admin al menos
         setU(prev=>({...prev,email:userEmail}));
       }
-    }catch(e){console.log(e);}finally{
+    }catch(e){logError('Perfil',e);}finally{
       // Siempre mostrar la pantalla luego de leer storage (< 100ms) — no esperar red
       setCargando(false);
     }
@@ -257,7 +258,7 @@ export default function PerfilScreen({navigation}){
         telefonoVerificado:data.telefono_verificado||false,
         edad:calcularEdad(data.fecha_nac),
       });
-    }catch(e){console.log(e);}
+    }catch(e){logError('Perfil',e);}
   }
 
   async function cambiarContrasena(){

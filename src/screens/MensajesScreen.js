@@ -1,4 +1,5 @@
 import React,{useState,useEffect} from "react";
+import {logError} from '../services/logError';
 import NexuWatermark from '../components/NexuWatermark';
 import{View,Text,StyleSheet,FlatList,TouchableOpacity,ActivityIndicator,Image,Alert}from "react-native";
 import{SafeAreaView}from "react-native-safe-area-context";
@@ -142,7 +143,7 @@ export default function MensajesScreen({navigation}){
 
       setItems(lista);
       recargarSinLeer();
-    }catch(e){console.log(e);}
+    }catch(e){logError('Mensajes',e);}
     finally{setLoading(false);}
   }
 

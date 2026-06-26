@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import {logError} from '../services/logError';
 import {
   View, Text, Modal, TextInput, TouchableOpacity,
   StyleSheet, Pressable, ActivityIndicator, Alert, KeyboardAvoidingView, Platform,
@@ -48,7 +49,7 @@ export default function SoporteModal({ visible, onClose, email, nombre }) {
       if (error) throw error;
       setEnviado(true);
     } catch (e) {
-      console.log('soporte error:', e.message);
+      logError('Soporte',e);
       Alert.alert(t('error'), t('sop_error_msg'));
     } finally {
       setEnviando(false);

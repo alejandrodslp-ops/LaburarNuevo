@@ -4,7 +4,7 @@ import{KeyboardAwareScrollView}from "react-native-keyboard-aware-scroll-view";
 import{SafeAreaView}from "react-native-safe-area-context";
 import{LinearGradient}from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import{login}from "../../services/auth";
+import{login,recuperarPassword}from "../../services/auth";
 import{useI18n}from "../../services/I18nContext";
 
 const ROLES=[{id:"worker",label:"Trabajador",emoji:"💼"},{id:"employer",label:"Empleador",emoji:"🏠"}];
@@ -16,6 +16,17 @@ const[email,setEmail]=useState("");
 const[pass,setPass]=useState("");
 const[ver,setVer]=useState(false);
 const[load,setLoad]=useState(false);
+
+async function handleRecuperar(){
+const emailClean=email.trim().toLowerCase();
+if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailClean)){
+Alert.alert(t('error'),'Escribí tu email arriba primero y volvé a tocar aquí.');return;}
+try{
+await recuperarPassword(emailClean);
+Alert.alert('Correo enviado','Te enviamos un enlace a '+emailClean+' para crear una contraseña nueva. Revisá tu bandeja de entrada y la carpeta de spam.');
+}catch(e){
+Alert.alert(t('error'),e.message||'No se pudo enviar el correo. Intentá de nuevo en unos minutos.');
+}}
 
 async function handleLogin(){
 const emailClean=email.trim().toLowerCase();
@@ -59,7 +70,7 @@ return(
 <View style={ss.iw}><Text style={ss.lbl}>{t('contrasena')}</Text>
 <View style={ss.ib}><Text>🔑</Text><TextInput style={ss.input} placeholder={t('contrasena_placeholder')} placeholderTextColor="#D0C8DC" value={pass} onChangeText={setPass} secureTextEntry={!ver} autoCapitalize="none"/>
 <TouchableOpacity onPress={()=>setVer(!ver)}><Text style={{fontSize:16}}>{ver?"🙈":"👁️"}</Text></TouchableOpacity></View></View>
-<TouchableOpacity style={ss.forgot} onPress={()=>Alert.alert(t('proximamente'),t('recuperacion_prox'))}><Text style={ss.forgotTxt}>{t('olvide_contrasena')}</Text></TouchableOpacity>
+<TouchableOpacity style={ss.forgot} onPress={handleRecuperar}><Text style={ss.forgotTxt}>{t('olvide_contrasena')}</Text></TouchableOpacity>
 <TouchableOpacity style={ss.btnW} onPress={handleLogin} disabled={load}>
 <LinearGradient colors={["#E8785A","#D4614A"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
 {load?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>{t('iniciar_sesion_btn')}</Text>}

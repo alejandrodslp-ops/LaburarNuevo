@@ -1,4 +1,5 @@
 import React,{useState,useEffect} from 'react';
+import {logError} from '../../services/logError';
 import{View,Text,ScrollView,TouchableOpacity,StyleSheet,Alert,Share}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{LinearGradient}from 'expo-linear-gradient';
@@ -54,7 +55,7 @@ export default function PerfilEmpresaScreen({navigation}){
           email:user.email||'',
         });
       }
-    }catch(e){console.log(e);}
+    }catch(e){logError('PerfilEmpresa',e);}
   }
 
   function cerrarSesion(){

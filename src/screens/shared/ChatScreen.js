@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useRef} from "react";
+import {logError} from '../../services/logError';
 import{View,Text,StyleSheet,TouchableOpacity,TextInput,FlatList,KeyboardAvoidingView,Platform,Alert,Image}from "react-native";
 import{SafeAreaView}from "react-native-safe-area-context";
 import{supabase}from "../../services/supabase";
@@ -73,7 +74,7 @@ export default function ChatScreen({navigation,route}){
         .order("created_at",{ascending:true});
       setMsgs(data||[]);
       setTimeout(()=>flatRef.current?.scrollToEnd({animated:false}),200);
-    }catch(e){console.log(e);}
+    }catch(e){logError('ChatEmpleador',e);}
   }
 
   async function cargarOferta(){

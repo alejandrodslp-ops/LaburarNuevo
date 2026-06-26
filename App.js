@@ -3,7 +3,6 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { StatusBar } from "expo-status-bar";
-import { StripeProvider } from "@stripe/stripe-react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, Text, StyleSheet, ActivityIndicator, Linking, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -474,15 +473,13 @@ export default function App(){
   return(
     <I18nProvider>
       <AppProvider>
-        <StripeProvider publishableKey="pk_test_51TSkzUD0pEHJeBo6QBkfbngTviGNvb21g7oPmykcVgsnvZxsI4H8aBltMdVnxEsBUy9ShdjTsm9jN7pUzggSGyMY0030LgkEM1">
-          <SafeAreaProvider>
-            <StatusBar style="auto"/>
-            <Navigation navigationRef={navigationRef} onTabChange={()=>{}}/>
-            <EmailVerifCheck navigationRef={navigationRef}/>
-            <CoachMark navigationRef={navigationRef}/>
-            <CalificacionOverlay/>
-          </SafeAreaProvider>
-        </StripeProvider>
+        <SafeAreaProvider>
+          <StatusBar style="auto"/>
+          <Navigation navigationRef={navigationRef} onTabChange={()=>{}}/>
+          <EmailVerifCheck navigationRef={navigationRef}/>
+          <CoachMark navigationRef={navigationRef}/>
+          <CalificacionOverlay/>
+        </SafeAreaProvider>
       </AppProvider>
     </I18nProvider>
   );

@@ -1,4 +1,5 @@
 import React,{useState,useEffect} from 'react';
+import {logError} from '../../services/logError';
 import{View,Text,StyleSheet,TouchableOpacity,TextInput,Alert}from 'react-native';
 import{KeyboardAwareScrollView}from 'react-native-keyboard-aware-scroll-view';
 import{SafeAreaView}from 'react-native-safe-area-context';
@@ -84,7 +85,6 @@ export default function EditarPerfilEmpleadorDatosScreen({navigation}){
         const a=d.address;
         return a.neighbourhood||a.suburb||a.quarter||a.city_district||'';
       }).filter(Boolean))];
-      console.log("Barrios encontrados:",nombres);
       setBarriosDisp(nombres);
     })
     .catch(()=>setBarriosDisp([]));
@@ -127,7 +127,7 @@ export default function EditarPerfilEmpleadorDatosScreen({navigation}){
           if(data.direccion)setDireccion(data.direccion);
           if(data.telefono)setTelefono(data.telefono);
         }
-      }catch(e){console.log(e);}
+      }catch(e){logError('EditarPerfilEmpleadorDatos',e);}
     }
     cargar();
   },[]);

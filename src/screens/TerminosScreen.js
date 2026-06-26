@@ -133,7 +133,7 @@ export default function TerminosScreen({ navigation }) {
             confidencialidad.
           </Li>
           <Li>
-            <Text style={ss.negrita}>Datos de pago</Text>: procesados exclusivamente por Stripe Inc.
+            <Text style={ss.negrita}>Datos de pago</Text>: procesados exclusivamente por MercadoPago
             bajo sus propios estándares PCI-DSS. Konexu no almacena datos de tarjetas de crédito.
           </Li>
           <P>

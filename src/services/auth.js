@@ -102,6 +102,15 @@ export async function logout() {
   if (error) throw error;
 }
 
+// Envía el correo de recuperación. El enlace aterriza en la página web
+// konexu.app/recuperar donde el usuario crea su contraseña nueva.
+export async function recuperarPassword(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://www.konexu.app/recuperar',
+  });
+  if (error) throw error;
+}
+
 export async function getUser() {
   const { data: { user } } = await supabase.auth.getUser();
   return user;

@@ -8,7 +8,7 @@ import * as SMS from "expo-sms";
 const PAISES_SA=["AR","BO","BR","CL","CO","EC","PY","PE","UY","VE","MX","GT","HN","SV","NI","CR","PA","CU","HT","DO","PR","BZ","GY","SR","TT","JM","BB","LC","VC","GD","AG","DM","KN"];
 const PAISES_DEVALUADOS=["IN"];
 const MONEDAS={"AR":{simbolo:"ARS",tasa:1200},"BO":{simbolo:"BOB",tasa:6.9},"BR":{simbolo:"BRL",tasa:5.1},"CL":{simbolo:"CLP",tasa:950},"CO":{simbolo:"COP",tasa:4100},"EC":{simbolo:"USD",tasa:1},"PY":{simbolo:"PYG",tasa:7400},"PE":{simbolo:"PEN",tasa:3.8},"UY":{simbolo:"UYU",tasa:41},"VE":{simbolo:"USD",tasa:1},"MX":{simbolo:"MXN",tasa:17},"GT":{simbolo:"GTQ",tasa:7.8},"HN":{simbolo:"HNL",tasa:24.8},"SV":{simbolo:"USD",tasa:1},"NI":{simbolo:"NIO",tasa:36.6},"CR":{simbolo:"CRC",tasa:520},"PA":{simbolo:"USD",tasa:1}};
-// Stripe pendiente de configurar — por ahora solo MercadoPago para todos los países
+// Pagos: MercadoPago para todos los países (acepta tarjetas internacionales). Stripe descartado.
 
 export default function PagoScreen({navigation,route}){
   const perfil=route?.params?.perfil||null;
@@ -120,23 +120,6 @@ export default function PagoScreen({navigation,route}){
     finally{metodo==='mp'?setLoadingMP(false):setLoadingTarjeta(false);}
   }
 
-  async function iniciarPagoStripe(){
-    setLoadingTarjeta(true);
-    try{
-      const{data:{user}}=await supabase.auth.getUser();
-      if(!user){Alert.alert("Error","Debés iniciar sesión");setLoadingTarjeta(false);return;}
-      const{data:perfData}=await supabase.from('profiles').select('visualizaciones_disponibles').eq('id',user.id).single();
-      prevVisualizacionesRef.current=perfData?.visualizaciones_disponibles||0;
-      const{data,error}=await supabase.functions.invoke("crear-pago-stripe",{
-        body:{user_id:user.id,monto:montoPago,descripcion:"Konexu - "+pkg.cantidad+" perfiles",worker_id:perfil?.id||'',cantidad_perfiles:pkg.cantidad},
-      });
-      if(error)throw error;
-      await Linking.openURL(data.checkout_url);
-      setEsperandoPago(true);
-    }catch(e){Alert.alert("Error","No se pudo conectar con el sistema de pagos.");}
-    setLoadingTarjeta(false);
-  }
-
   async function handleSMS(){
     setLoadingSMS(true);
     try{
@@ -225,22 +208,15 @@ export default function PagoScreen({navigation,route}){
         <Text style={ss.metodosTit}>ELEGIR METODO DE PAGO</Text>
 
         {esSudamerica?(
-          <>
-            {/* LatAm: MercadoPago como opción principal */}
-            <TouchableOpacity style={ss.btnWrap} onPress={()=>iniciarPagoMP('mp')} disabled={loadingMP||esperandoPago}>
-              <LinearGradient colors={["#009EE3","#0077B6"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
-                {loadingMP?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 MercadoPago</Text>}
-              </LinearGradient>
-            </TouchableOpacity>
-            <TouchableOpacity style={ss.btnWrap} onPress={iniciarPagoStripe} disabled={loadingTarjeta||esperandoPago}>
-              <LinearGradient colors={["#2DD4BF","#14B8A6"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
-                {loadingTarjeta?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 Tarjeta internacional</Text>}
-              </LinearGradient>
-            </TouchableOpacity>
-          </>
+          /* LatAm: MercadoPago (acepta tarjetas de cualquier país) */
+          <TouchableOpacity style={ss.btnWrap} onPress={()=>iniciarPagoMP('mp')} disabled={loadingMP||esperandoPago}>
+            <LinearGradient colors={["#009EE3","#0077B6"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
+              {loadingMP?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 MercadoPago</Text>}
+            </LinearGradient>
+          </TouchableOpacity>
         ):(
-          /* Resto del mundo: Stripe (tarjeta internacional) */
-          <TouchableOpacity style={ss.btnWrap} onPress={iniciarPagoStripe} disabled={loadingTarjeta||esperandoPago}>
+          /* Resto del mundo: MercadoPago acepta tarjeta internacional */
+          <TouchableOpacity style={ss.btnWrap} onPress={()=>iniciarPagoMP('tarjeta')} disabled={loadingTarjeta||esperandoPago}>
             <LinearGradient colors={["#6366F1","#4F46E5"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
               {loadingTarjeta?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 Pagar con tarjeta</Text>}
             </LinearGradient>

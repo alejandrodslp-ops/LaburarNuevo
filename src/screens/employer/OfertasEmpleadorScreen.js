@@ -1,4 +1,5 @@
 import React,{useState,useEffect,useCallback}from 'react';
+import {logError} from '../../services/logError';
 import NexuWatermark from '../../components/NexuWatermark';
 import{View,Text,StyleSheet,TouchableOpacity,FlatList,ActivityIndicator,Alert,Switch}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
@@ -59,7 +60,7 @@ export default function OfertasEmpleadorScreen({navigation}){
         .eq('employer_id',user.id)
         .order('created_at',{ascending:false});
       setOfertas(data||[]);
-    }catch(e){console.log(e);}
+    }catch(e){logError('OfertasEmpleador',e);}
     finally{setLoading(false);}
   },[]);
 

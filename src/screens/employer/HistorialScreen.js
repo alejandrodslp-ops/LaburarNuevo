@@ -1,4 +1,5 @@
 import React,{useState,useEffect} from 'react';
+import {logError} from '../../services/logError';
 import{View,Text,ScrollView,TouchableOpacity,StyleSheet,ActivityIndicator}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{supabase}from '../../services/supabase';
@@ -50,7 +51,7 @@ export default function HistorialScreen({navigation}){
         .order('created_at',{ascending:false});
 
       if(e1){
-        console.log('[Historial] error vis:',e1.message);
+        logError('Historial.visualizaciones',e1);
         return;
       }
       if(!vis||vis.length===0){
@@ -83,7 +84,7 @@ export default function HistorialScreen({navigation}){
         .select('id,nombre,apellido1,fecha_nac,ciudad,pais,servicios,profesiones,disponibilidad,rating,total_valoraciones,referencias,anios_experiencia,perfil_visible')
         .in('id',workerIds);
 
-      if(e2)console.log('[Historial] error perfiles:',e2.message);
+      if(e2)logError('Historial.perfiles',e2);
 
       const pm={};
       (perfiles||[]).forEach(p=>{pm[p.id]=p;});
@@ -104,7 +105,7 @@ export default function HistorialScreen({navigation}){
 
       setConectados(listaConectados);
       setRecientes(listaRecientes);
-    }catch(e){console.log('[Historial] catch:',e);}
+    }catch(e){logError('Historial',e);}
     finally{setLoading(false);}
   }
 
