@@ -7,6 +7,21 @@ Se va actualizando a medida que avanza el desarrollo.
 
 ## 🔴 BLOQUEANTES — sin esto la app no funciona o genera pérdidas
 
+- [ ] **SEGURIDAD — escrituras del cliente a columnas sensibles de profiles** (por etapas)
+  La política RLS de UPDATE en profiles es abierta: cualquier cuenta autenticada podía modificar
+  columnas sensibles (suyas y de otros). Se cierra por etapas, moviendo cada flujo al servidor.
+  - [x] **Etapa 1 — `visualizaciones_disponibles` (plata)** protegida con trigger `trg_proteger_profiles` (2026-06-26).
+    Un atacante ya no puede regalarse perfiles pagos. Webhook/RPC siguen acreditando. Verificado.
+    SQL: `supabase/sql/seguridad_etapa1_visualizaciones.sql`
+  - [ ] **Etapa 2 — `perfil_activo` / prueba gratis:** mover `activarPerfilSuap` (PerfilScreen) a edge function
+    que permita una sola prueba por usuario; luego sumar esa columna al trigger.
+  - [ ] **Etapa 3 — `rating`/`estrellas`/`vistas`/`contactos`:** mover calificar y contadores
+    (PerfilTrabajadorScreen) a edge functions/RPC; luego sumarlas al trigger.
+  - [ ] **Etapa 4 — `referido_por`/`codigo_referido`** a edge function (ver migración Hetzner);
+    y **lectura de teléfono** solo tras pago confirmado (hoy el SELECT de profiles es abierto).
+  - [ ] **(bug aparte, no seguridad)** El RPC `sumar_visualizaciones` rechaza `cantidad <= 0`, así que el
+    "restar -1" del cliente (PerfilTrabajadorScreen:266) nunca descuenta. Revisar cómo se descuenta una vista.
+
 - [ ] **Google Cloud — registrar tarjeta de crédito**
   La Vision API key (moderación de fotos de perfil) está configurada pero sin método de pago.
   Sin tarjeta, Google bloquea la key cuando supera las 1.000 imágenes/mes gratis.
