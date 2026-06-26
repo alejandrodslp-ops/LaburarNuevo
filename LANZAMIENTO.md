@@ -22,8 +22,14 @@ Se va actualizando a medida que avanza el desarrollo.
     `recalcular_estrellas` ampliado (rating+total_valoraciones), `on_visualizacion_insert` (vistas),
     `on_propuesta_insert` (contactos). El cliente ya no las escribe; el guardián las protege. Verificado.
     SQL: `supabase/sql/seguridad_etapa3_metricas.sql`
-  - [ ] **Etapa 4 — `referido_por`/`codigo_referido`** a edge function (ver migración Hetzner);
-    y **lectura de teléfono** solo tras pago confirmado (hoy el SELECT de profiles es abierto).
+  - [x] **Etapa 4A — referidos** (2026-06-26). `acreditarReferido` movido a edge function
+    `acreditar-referido` (service_role). Reparó de paso el premio de referidos que Etapa 2 había
+    roto sin querer. Guardián protege `referido_por`/`codigo_referido`/`periodo_gratis_hasta`. Verificado.
+    SQL: `supabase/sql/seguridad_etapa4_referidos.sql`
+  - [ ] **Etapa 4B — teléfono visible sin pagar** (pendiente; arquitectura aparte). El SELECT de
+    `profiles` es abierto: una cuenta gratis puede leer todos los teléfonos por API directa. Requiere
+    revocar la lectura de `telefono` al cliente + edge function que lo entregue solo tras pago/desbloqueo
+    + ajustar la app donde lo muestra. Es **lectura**, no escritura — el guardián no aplica acá.
   - [ ] **(bug aparte, no seguridad)** El RPC `sumar_visualizaciones` rechaza `cantidad <= 0`, así que el
     "restar -1" del cliente (PerfilTrabajadorScreen) nunca descuenta. Revisar cómo se descuenta una vista.
   - [ ] **(bug aparte, no seguridad)** Calificar desde PerfilTrabajadorScreen inserta `rol_calificador='empleador'`,

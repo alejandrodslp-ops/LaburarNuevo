@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import{KeyboardAwareScrollView}from "react-native-keyboard-aware-scroll-view";
 import{SafeAreaView}from "react-native-safe-area-context";
 import{LinearGradient}from "expo-linear-gradient";
-import{registrar,acreditarReferido}from "../../services/auth";
+import{registrar}from "../../services/auth";
 import{supabase}from "../../services/supabase";
 import{useI18n}from "../../services/I18nContext";
 
@@ -80,7 +80,7 @@ const resultado=await registrar({email:emailClean,password:pass,nombre:nombre1Cl
 // Marcar como registrado en la waitlist (silencioso)
 supabase.functions.invoke('waitlist',{body:{accion:'registrado',email:email.trim().toLowerCase()}}).catch(()=>{});
 const refCode=await AsyncStorage.getItem("referral_code");
-if(refCode){await acreditarReferido(refCode,resultado?.user?.id);await AsyncStorage.removeItem("referral_code");}
+if(refCode){await supabase.functions.invoke('acreditar-referido',{body:{codigo_referido:refCode,nuevo_user_id:resultado?.user?.id}}).catch(()=>{});await AsyncStorage.removeItem("referral_code");}
 if(resultado?.user?.id){supabase.functions.invoke("mensaje-bienvenida",{body:{user_id:resultado.user.id,rol}}).catch(()=>{});}
 // Si hay session automatica, AppContext detecta el flag y navega a VerificarEmail
 }catch(e){

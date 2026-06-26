@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { rescheduleTrialExpiry } from './notifications';
 
 function generarCodigo() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -33,62 +32,9 @@ export async function registrar({ email, password, nombre, apellido1, apellido2,
   return data;
 }
 
-// Acredita 5 días extra al usuario que compartió el link, máximo 3 veces.
-// nuevoUserId: id del usuario recién registrado (para registrar su referido_por).
-export async function acreditarReferido(codigoReferido, nuevoUserId) {
-  if (!codigoReferido) return;
-  try {
-    // Buscar al referente por su código
-    const { data: referente } = await supabase
-      .from('profiles')
-      .select('id, perfil_activo_hasta, periodo_gratis_hasta')
-      .eq('codigo_referido', codigoReferido)
-      .single();
-
-    if (!referente) return;
-
-    // Contar cuántos ya se registraron con este referente
-    const { count } = await supabase
-      .from('profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('referido_por', referente.id);
-
-    if ((count || 0) >= 3) return;
-
-    // Registrar el referido_por en el perfil del nuevo usuario
-    if (nuevoUserId) {
-      await supabase
-        .from('profiles')
-        .update({ referido_por: referente.id })
-        .eq('id', nuevoUserId);
-    }
-
-    // Suma 5 días desde la fecha de vencimiento actual del referente
-    const baseActivo = referente.perfil_activo_hasta
-      ? new Date(Math.max(new Date(referente.perfil_activo_hasta).getTime(), Date.now()))
-      : new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
-    const nuevaFechaActivo = new Date(baseActivo.getTime() + 5 * 24 * 60 * 60 * 1000);
-
-    const baseGratis = referente.periodo_gratis_hasta
-      ? new Date(Math.max(new Date(referente.periodo_gratis_hasta).getTime(), Date.now()))
-      : baseActivo;
-    const nuevaFechaGratis = new Date(baseGratis.getTime() + 5 * 24 * 60 * 60 * 1000);
-
-    const activoISO = nuevaFechaActivo.toISOString();
-    const gratisISO = nuevaFechaGratis.toISOString();
-
-    await supabase
-      .from('profiles')
-      .update({
-        perfil_activo_hasta: activoISO,
-        periodo_gratis_hasta: gratisISO,
-        perfil_activo: true,
-      })
-      .eq('id', referente.id);
-
-    await rescheduleTrialExpiry(activoISO);
-  } catch (e) {}
-}
+// El sistema de referidos se acredita server-side en la edge function
+// `acreditar-referido` (invocada desde RegisterScreen). Misma lógica de antes
+// (+5 días, máximo 3), movida al servidor para poder escribir las columnas protegidas.
 
 export async function login({ email, password }) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
