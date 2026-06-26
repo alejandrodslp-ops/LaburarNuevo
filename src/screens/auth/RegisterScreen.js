@@ -1,4 +1,4 @@
-import React,{useState} from "react";
+import React,{useState,useRef} from "react";
 import{View,Text,StyleSheet,TouchableOpacity,TextInput,Alert,ActivityIndicator,Keyboard}from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import{KeyboardAwareScrollView}from "react-native-keyboard-aware-scroll-view";
@@ -33,6 +33,8 @@ const[load,setLoad]=useState(false);
 const[fnDia,setFnDia]=useState("");
 const[fnMes,setFnMes]=useState("");
 const[fnAnio,setFnAnio]=useState("");
+const mesRef=useRef(null);
+const anioRef=useRef(null);
 const ROLES={worker:"Trabajador",employer:"Empleador",company:"Empresa"};
 
 function calcularEdadDesdeInputs(dia,mes,anio){
@@ -135,9 +137,9 @@ return(
 <View style={ss.iw}>
 <Text style={ss.lbl}>Fecha de nacimiento <Text style={{color:"#E8785A"}}>*</Text></Text>
 <View style={{flexDirection:"row",gap:8}}>
-<View style={[ss.ib,{flex:1}]}><TextInput style={ss.input} placeholder="DD" placeholderTextColor="#D0C8DC" value={fnDia} onChangeText={t=>setFnDia(t.replace(/\D/g,'').slice(0,2))} keyboardType="number-pad" maxLength={2}/></View>
-<View style={[ss.ib,{flex:1}]}><TextInput style={ss.input} placeholder="MM" placeholderTextColor="#D0C8DC" value={fnMes} onChangeText={t=>setFnMes(t.replace(/\D/g,'').slice(0,2))} keyboardType="number-pad" maxLength={2}/></View>
-<View style={[ss.ib,{flex:2}]}><TextInput style={ss.input} placeholder="AAAA" placeholderTextColor="#D0C8DC" value={fnAnio} onChangeText={t=>setFnAnio(t.replace(/\D/g,'').slice(0,4))} keyboardType="number-pad" maxLength={4}/></View>
+<View style={[ss.ib,{flex:1}]}><TextInput style={ss.input} placeholder="DD" placeholderTextColor="#D0C8DC" value={fnDia} onChangeText={t=>{const v=t.replace(/\D/g,'').slice(0,2);setFnDia(v);if(v.length===2)mesRef.current?.focus();}} keyboardType="number-pad" maxLength={2} returnKeyType="next"/></View>
+<View style={[ss.ib,{flex:1}]}><TextInput ref={mesRef} style={ss.input} placeholder="MM" placeholderTextColor="#D0C8DC" value={fnMes} onChangeText={t=>{const v=t.replace(/\D/g,'').slice(0,2);setFnMes(v);if(v.length===2)anioRef.current?.focus();}} keyboardType="number-pad" maxLength={2} returnKeyType="next"/></View>
+<View style={[ss.ib,{flex:2}]}><TextInput ref={anioRef} style={ss.input} placeholder="AAAA" placeholderTextColor="#D0C8DC" value={fnAnio} onChangeText={t=>setFnAnio(t.replace(/\D/g,'').slice(0,4))} keyboardType="number-pad" maxLength={4}/></View>
 </View>
 <Text style={{fontSize:11,color:"#A898B8",marginTop:4}}>Debés ser mayor de 18 años para registrarte.</Text>
 </View>
