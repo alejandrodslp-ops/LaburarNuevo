@@ -18,12 +18,17 @@ Se va actualizando a medida que avanza el desarrollo.
     bloquea que el cliente se active (false→true) o extienda `perfil_activo_hasta`; sí permite pausarse.
     Verificado. ⚠️ La app debe estar actualizada (usa la edge function) para activar la prueba.
     SQL: `supabase/sql/seguridad_etapa2_perfil_activo.sql`
-  - [ ] **Etapa 3 — `rating`/`estrellas`/`vistas`/`contactos`:** mover calificar y contadores
-    (PerfilTrabajadorScreen) a edge functions/RPC; luego sumarlas al trigger.
+  - [x] **Etapa 3 — `rating`/`estrellas`/`vistas`/`contactos`** (2026-06-26). Pasaron a triggers server-side:
+    `recalcular_estrellas` ampliado (rating+total_valoraciones), `on_visualizacion_insert` (vistas),
+    `on_propuesta_insert` (contactos). El cliente ya no las escribe; el guardián las protege. Verificado.
+    SQL: `supabase/sql/seguridad_etapa3_metricas.sql`
   - [ ] **Etapa 4 — `referido_por`/`codigo_referido`** a edge function (ver migración Hetzner);
     y **lectura de teléfono** solo tras pago confirmado (hoy el SELECT de profiles es abierto).
   - [ ] **(bug aparte, no seguridad)** El RPC `sumar_visualizaciones` rechaza `cantidad <= 0`, así que el
-    "restar -1" del cliente (PerfilTrabajadorScreen:266) nunca descuenta. Revisar cómo se descuenta una vista.
+    "restar -1" del cliente (PerfilTrabajadorScreen) nunca descuenta. Revisar cómo se descuenta una vista.
+  - [ ] **(bug aparte, no seguridad)** Calificar desde PerfilTrabajadorScreen inserta `rol_calificador='empleador'`,
+    pero el check exige `'employer'/'worker'/'company'` → el insert falla y no se puede calificar. Cambiar a `'employer'`.
+    (CalificacionModal.js usa una variable, revisar que pase un valor válido.)
 
 - [ ] **Google Cloud — registrar tarjeta de crédito**
   La Vision API key (moderación de fotos de perfil) está configurada pero sin método de pago.

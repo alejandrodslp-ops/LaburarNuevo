@@ -34,11 +34,7 @@ function CalificarModal({visible,workerId,propuestaId,onClose,onDone}){
         rol_calificador:'empleador',factor_comunicacion:comunicacion,
         factor_cumplimiento:cumplimiento,factor_recomendacion:recomendacion,promedio,
       });
-      const{data:cals}=await supabase.from('calificaciones').select('promedio').eq('calificado_id',workerId);
-      if(cals&&cals.length>0){
-        const avg=cals.reduce((s,c)=>s+Number(c.promedio),0)/cals.length;
-        await supabase.from('profiles').update({estrellas:avg.toFixed(2),rating:avg,total_calificaciones:cals.length,total_valoraciones:cals.length}).eq('id',workerId);
-      }
+      // El rating/total se recalculan en el servidor (trigger on_calificacion_insert).
       Alert.alert('¡Gracias!','Tu calificación fue enviada.');
       onDone();onClose();
     }catch(e){Alert.alert('Error',e?.message||'No se pudo enviar');}
@@ -264,8 +260,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
 
       await supabase.from('visualizaciones').insert({employer_id:user.id,worker_id:perfil.id});
       await supabase.rpc('sumar_visualizaciones',{employer_id:user.id,cantidad:-1});
-      const{data:w}=await supabase.from('profiles').select('vistas').eq('id',perfil.id).single();
-      await supabase.from('profiles').update({vistas:(w?.vistas||0)+1}).eq('id',perfil.id);
+      // 'vistas' se incrementa en el servidor (trigger on_visualizacion_insert).
     }catch(e){}
   }
 
@@ -316,9 +311,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
       });
       if(error)throw error;
 
-      // Incrementar contactos en el perfil del trabajador
-      const{data:w}=await supabase.from('profiles').select('contactos').eq('id',perfil.id).single();
-      await supabase.from('profiles').update({contactos:(w?.contactos||0)+1}).eq('id',perfil.id);
+      // 'contactos' se incrementa en el servidor (trigger on_propuesta_insert).
 
       // Notificar al trabajador por push
       supabase.functions.invoke('notificar-propuesta',{
