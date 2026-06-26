@@ -1,4 +1,4 @@
-# Nexu — Checklist de lanzamiento
+# Konexu — Checklist de lanzamiento
 
 Todo lo que hay que tener listo antes de abrir al público.
 Se va actualizando a medida que avanza el desarrollo.
@@ -12,29 +12,18 @@ Se va actualizando a medida que avanza el desarrollo.
   Sin tarjeta, Google bloquea la key cuando supera las 1.000 imágenes/mes gratis.
   → https://console.cloud.google.com/billing
 
-- [x] **Supabase — `backend/.env`** ✅ No aplica
-  El `backend/server.js` no se usa — la app conecta directo a Supabase Edge Functions.
-
 - [x] **Supabase — SQL del schema aplicado en producción** ✅
   14/14 statements OK — índices, columnas updated_at, triggers, fecha_cierre→TIMESTAMPTZ
 
-- [ ] **MercadoPago — credenciales de producción**
-  Actualmente la app usa credenciales de prueba (`TEST-...`). Antes de lanzar:
-  1. Completar evaluación de integración en el panel de MP
-  2. Activar credenciales productivas
-  3. Actualizar `MP_ACCESS_TOKEN` en Supabase Edge Functions Secrets
-  → https://www.mercadopago.com.ar/developers/panel
+- [x] **MercadoPago — credenciales de producción** ✅
+  Token productivo activo en Supabase Secrets. Pagos funcionando en producción. (2026-06-22)
 
-- [ ] **MercadoPago — `MP_WEBHOOK_SECRET` en producción**
-  El secret configurado es del entorno de prueba. Al activar producción, MP genera un nuevo
-  secret para el webhook productivo. Actualizar en Supabase Secrets.
+- [x] **MercadoPago — `MP_WEBHOOK_SECRET` en producción** ✅
+  Secret productivo configurado en Supabase Secrets. (2026-06-22)
 
-- [ ] **Stripe — configurar claves reales**
-  `backend/.env` tiene placeholders para `STRIPE_SECRET_KEY` y `STRIPE_WEBHOOK_SECRET`.
-  Reemplazar con las claves productivas desde https://dashboard.stripe.com
-
-- [x] **App móvil — `HASH_SALT`** ✅ No aplica
-  No se referencia en ningún archivo del código móvil.
+- [x] **Stripe — DESCARTADO** ✅ No aplica
+  Stripe no es operable desde Uruguay. Pagos por tarjeta internacional van por MercadoPago.
+  PIX + saldo celular irán por Boku (requiere SAS — ver sección negocio).
 
 - [x] **Supabase — key rotada** ✅
   Key vieja revocada. Nueva key activa en .env.local, scraper-sa/.env.local y cron jobs.
@@ -43,9 +32,8 @@ Se va actualizando a medida que avanza el desarrollo.
 
 ## 🟠 IMPORTANTES — afectan la experiencia del usuario
 
-- [ ] **Email real para notificaciones**
-  Actualmente se usa `onboarding@resend.dev` (dominio de prueba de Resend).
-  Crear dominio propio (ej: nexu.app) y verificarlo en Resend para usar `noreply@nexu.app`.
+- [x] **Email real para notificaciones** ✅
+  Dominio konexu.app verificado en Resend (sa-east-1). Emails salen desde noreply@konexu.app. (2026-06-22)
 
 - [ ] **Deep links nativos configurados (`nexu://`)**
   Los redirects de MercadoPago y el flujo de verificación de email usan `nexu://`.
@@ -60,14 +48,10 @@ Se va actualizando a medida que avanza el desarrollo.
   Configurar en el panel de EAS y en los dashboards de Apple/Google.
   Requerido para que `notificar-matches` y `notificar-propuesta` lleguen a los usuarios.
 
-- [ ] **Stripe — integrar `PaymentSheet` en mobile**
-  El backend ya tiene `/payments/stripe-intent`. La pantalla `PagoActivacionScreen`
-  obtiene el `client_secret` pero falta integrar `@stripe/stripe-react-native` con
-  el `PaymentSheet`. Requiere dev build de Expo.
-
-- [ ] **Abitab / Saldo celular — integrar proveedores locales**
-  `PagoActivacionScreen` muestra estos métodos pero tiran error "próximamente".
-  Integrar cuando haya acuerdo con los proveedores.
+- [ ] **Saldo celular / PIX — Boku**
+  `PagoActivacionScreen` muestra estos métodos pero tiran "próximamente".
+  Requiere: SAS Uruguay constituida → contactar cspub@boku.com → aprobación 4-8 semanas por país.
+  Países: Uruguay, Brasil (PIX + DCB), México, Argentina.
 
 ---
 
@@ -76,10 +60,8 @@ Se va actualizando a medida que avanza el desarrollo.
 - [x] **Configurar `RESEND_API_KEY` en Supabase Edge Functions Secrets** ✅
   Funcionando — comprobantes, alertas y reportes diarios llegan correctamente.
 
-- [ ] **Cron jobs de scraper — verificar que estén activos**
-  Los 4 jobs (`scraper-concursos-manana`, `-resumen`, `-mediodia`, `-noche`) se crearon
-  via edge function. Confirmar en:
-  → https://supabase.com/dashboard/project/waevdcqdkovqaxkonlvj/integrations/cron
+- [x] **Cron jobs de scraper — activos y verificados** ✅ (2026-06-17)
+  Los 4 jobs están corriendo: manana(06:00 UTC), resumen(06:30), mediodia(15:00), noche(23:00)
 
 - [ ] **Google Vision API — configurar límite de gasto mensual**
   Agregar un budget alert en Google Cloud para no recibir sorpresas.
@@ -88,6 +70,51 @@ Se va actualizando a medida que avanza el desarrollo.
 - [ ] **Variables de entorno en producción del backend Node.js**
   Si se despliega `backend/server.js` en un hosting (Railway, Render, etc.), configurar
   todas las variables de `backend/.env` en el panel del hosting.
+
+---
+
+## 🏢 NEGOCIO — para operar formalmente y recibir pagos sin tarjeta
+
+- [ ] **Google Play Developer account** — USD 25, pago único. Sin esto no se puede publicar en Android.
+  → play.google.com/console. Solo necesitás cuenta Google + tarjeta. No requiere empresa.
+
+- [ ] **Apple Developer account** — USD 99/año. Sin esto no hay build iOS ni publicación en App Store.
+  → developer.apple.com. Podés empezar como Individual (persona física, sin empresa).
+  Si querés cuenta Organization necesitás DUNS number (requiere empresa).
+
+- [ ] **SAS Uruguay** — ~USD 60 solo (con firma electrónica avanzada en cédula).
+  Necesaria para: abrir cuenta bancaria empresarial + registrarse en Boku.
+  No abrir hasta estar cerca del primer cobro real — los costos corren desde el primer mes (~USD 400/mes entre BPS + DGI + contador).
+  Proceso 100% online desde la Mac en gub.uy → Registro SAS.
+
+- [ ] **Boku (PIX + saldo celular)** — contactar cspub@boku.com después de tener la SAS.
+  Portal: merchants-portal.boku.com. Proceso: registro → integración SDK (1 semana) → aprobación operadoras (4-8 semanas/país).
+  Documentos que van a pedir: certificado SAS, prueba de domicilio, extracto bancario empresarial, DNI del director, URL del servicio + T&C.
+
+- [ ] **Trademark — extender a Brasil y México** — plazo límite 2026-12-22 (Convenio de París).
+  No requiere empresa, se hace como persona física.
+  - Brasil (INPI): R$ 880 (~USD 170) por las 2 clases (35+42). Persona física tiene 50% de descuento automático. Incluye 10 años. → inpi.gov.br
+  - México (IMPI): ~$5,628 MXN (~USD 290) por las 2 clases online (10% descuento por trámite web). → impi.gob.mx
+  - Argentina (INPI AR): consultar aranceles actuales → portaltramites.inpi.gob.ar/InfoPortal/Aranceles (valores en pesos argentinos cambian frecuentemente)
+
+  **Cómo presentar — NO como primaria, sino como reivindicación de prioridad:**
+  En Brasil y México NO se presenta como solicitud nueva/primaria. Se usa el mecanismo del
+  Convenio de París (Art. 4): "reivindicación de prioridad unionista".
+  Esto le dice a cada país que la fecha de prioridad es la de Uruguay (2026-06-22).
+
+  Que la solicitud uruguaya esté pendiente (sin resolución aún) es normal y esperado —
+  el Convenio de París no exige que el país de origen haya aprobado, solo que hayas presentado.
+  No la van a rechazar por eso.
+
+  Datos que hay que presentar en cada país:
+  - País de origen: Uruguay
+  - Número de solicitud uruguaya (el que se recibió al registrar)
+  - Fecha: 2026-06-22
+  - Copia del documento: se obtiene vía WIPO DAS (sistema electrónico entre oficinas, sin papel físico)
+  - México agrega un pago extra por el estudio de reconocimiento de la prioridad extranjera
+
+  Seleccionar la opción "reivindicación de prioridad" en el formulario online de cada oficina
+  e ingresar los datos de la solicitud uruguaya. No presentar como primaria.
 
 ---
 

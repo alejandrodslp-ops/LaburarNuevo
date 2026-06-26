@@ -1,0 +1,11 @@
+actions-runner
+scraper-sa
+scraper-privado
+cf-proxy
+ios
+android
+.expo
+dist
+assets
+web/.next
+web/node_modules

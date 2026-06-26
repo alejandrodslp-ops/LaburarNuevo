@@ -39,7 +39,7 @@ serve(async (req) => {
         pix_key:  Deno.env.get("PIX_KEY_ESTATICA") ?? "soporte@nexu.app",
         monto:    monto_brl,
         moeda:    "BRL",
-        descricao: `Nexu - ${tipo === "worker_activacion" ? "Ativacao 60 dias" : "Creditos"}`,
+        descricao: `Konexu - ${tipo === "worker_activacion" ? "Ativacao 60 dias" : "Creditos"}`,
         referencia: user.id.slice(0, 8).toUpperCase(),
         instrucoes: `Pague R$ ${monto_brl} via PIX para a chave acima. Coloque seu ID no campo "descricao": ${user.id.slice(0, 8).toUpperCase()}`,
       }), { headers: { "Content-Type": "application/json", ...CORS } });
@@ -55,7 +55,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         transaction_amount: monto_brl,
-        description:        `Nexu - ${tipo === "worker_activacion" ? "Ativacao perfil 60 dias" : "Creditos visualizacoes"}`,
+        description:        `Konexu - ${tipo === "worker_activacion" ? "Ativacao perfil 60 dias" : "Creditos visualizacoes"}`,
         payment_method_id:  "pix",
         external_reference: user.id,
         metadata:           { tipo, user_id: user.id },

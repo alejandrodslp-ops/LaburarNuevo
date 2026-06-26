@@ -23,6 +23,7 @@ Mantenelo actualizado desde Obsidian. Es la memoria del proyecto.
 **Repo:** github.com/alejandrodslp-ops/LaburarNuevo
 **Proyecto real:** `/Users/usuario/Desktop/Nexu/LaburarNuevo`
 **IGNORAR:** `/Users/usuario/Desktop/IGNORAR_NO_USAR` — proyecto viejo, nunca usar
+**NO TOCAR:** `backend-hetzner/` — carpeta de migración futura, solo activar cuando el usuario diga "migrar a Hetzner"
 
 ---
 
@@ -78,12 +79,20 @@ Mantenelo actualizado desde Obsidian. Es la memoria del proyecto.
 
 ## PENDIENTES URGENTES
 
-- [ ] Ejecutar `fix_notificaciones.sql` en Supabase
-- [ ] Ejecutar `fix_rls_completo.sql` en Supabase
-- [ ] Ejecutar `supabase/fix_cron_definitivo.sql` (cron jobs con URLs reales)
-- [ ] Implementar Stripe PaymentSheet en PagoActivacionScreen
-- [ ] EAS Project ID no configurado en app.json
-- [ ] Rotar service_role key (fue expuesta)
+- [x] `fix_notificaciones.sql` — push_token en profiles ✅, realtime propuestas/mensajes ✅ (2026-06-17)
+- [x] `fix_rls_completo.sql` — RLS profiles/ofertas/pagos ya estaba correcto en producción ✅ (2026-06-17)
+- [x] `fix_cron_definitivo.sql` — 4 cron jobs activos y corriendo ✅ (ya estaban)
+- [x] EAS Project ID — ya estaba configurado en app.json ✅
+- [x] Rotar service_role key — hecho en sesión anterior ✅
+- [ ] Implementar Stripe PaymentSheet en PagoActivacionScreen (requiere EAS dev build)
+
+## PARA LANZAR — ACCIONES MANUALES PENDIENTES
+
+- [ ] **Google Cloud:** registrar tarjeta de crédito → console.cloud.google.com/billing
+- [ ] **MercadoPago:** activar credenciales de producción + actualizar MP_ACCESS_TOKEN y MP_WEBHOOK_SECRET
+- [ ] **Stripe:** configurar claves reales de producción
+- [ ] **Email:** crear dominio propio (nexu.app o similar) y verificar en Resend
+- [ ] **EAS Build:** generar build nativo para push notifications y deep links
 
 ---
 

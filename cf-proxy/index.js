@@ -1,4 +1,20 @@
 const ALLOWED_HOSTS = [
+  // Computrabajo — todos los países LatAm
+  "computrabajo.com",
+  "bo.computrabajo.com",
+  "ec.computrabajo.com",
+  "py.computrabajo.com",
+  "ve.computrabajo.com",
+  "cr.computrabajo.com",
+  "sv.computrabajo.com",
+  "ni.computrabajo.com",
+  "pa.computrabajo.com",
+  "do.computrabajo.com",
+  "ar.computrabajo.com",
+  "cl.computrabajo.com",
+  "co.computrabajo.com",
+  "pe.computrabajo.com",
+  "mx.computrabajo.com",
   // México
   "dof.gob.mx",
   "www.dof.gob.mx",

@@ -6,6 +6,8 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
+let _lastUpsertError: string | null = null;
+
 const USAJOBS_API_KEY  = Deno.env.get("USAJOBS_API_KEY")  ?? "";
 const CF_PROXY         = Deno.env.get("CF_PROXY_URL")     ?? "https://www.nexu.fyi/api/proxy?url=";
 const PROXY_SECRET     = Deno.env.get("PROXY_SECRET")     ?? "";
@@ -544,6 +546,8 @@ async function joobleMultiSearch(
 
         const desc = String(j.snippet ?? "").replace(/<[^>]+>/g, " ").trim().slice(0, 600);
         const link = String(j.link ?? "");
+        const updatedRaw = String(j.updated ?? "");
+        const fechaInicio = updatedRaw ? parseFecha(updatedRaw) : null;
 
         allRows.push({
           fuente_id, fuente, pais,
@@ -554,12 +558,12 @@ async function joobleMultiSearch(
           descripcion: desc || null,
           requisitos: null, tipo_tarea: null, tipo_vinculo: "privado",
           lugar: String(j.location ?? location),
-          fecha_inicio: null,
-          fecha_cierre: sumarDias(null, 30),
+          fecha_inicio: fechaInicio,
+          fecha_cierre: (() => { const hoy = new Date().toISOString().slice(0,10); return (fechaInicio && fechaInicio >= hoy) ? sumarDias(fechaInicio, 30) : sumarDias(null, 30); })(),
           puestos: 1,
           url_detalle: link || null,
           url_postulacion: link || null,
-          keywords: extraerKeywords(titulo),
+          keywords: extraerKeywords(titulo + " " + desc),
           activo: true,
         });
       }
@@ -649,7 +653,7 @@ function parseComputrabajo(
   const artRe = /<article[^>]*>([\s\S]*?)<\/article>/gi;
   let m: RegExpExecArray | null;
   while ((m = artRe.exec(html)) !== null && rows.length < 60) {
-    const block = m[1];
+    const block = m[1].replace(/&#xA0;/gi, '-').replace(/&nbsp;/gi, '-');
     // Allow optional #fragment after the slug (Computrabajo now appends #lc=...)
     const linkM = block.match(new RegExp(`href="(${LINK_RE.source})(?:#[^"]*)??"`, "i"));
     if (!linkM) continue;
@@ -678,7 +682,7 @@ function parseComputrabajo(
       fuente_id, fuente, pais,
       numero_llamado: null, titulo, cargo: titulo,
       organismo: compM ? compM[1].trim() : null,
-      descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: null,
+      descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: "empleo",
       lugar: cityM ? cityM[1].trim() : null,
       fecha_inicio: fechaPub,
       fecha_cierre: sumarDias(fechaPub, 45),
@@ -871,6 +875,58 @@ async function scrapeArgentina(): Promise<{ rows: ConcursoRow[]; errores: string
   return { rows, errores };
 }
 
+// BNE (Bolsa Nacional de Empleo) Chile — 5900+ ofertas, JSON-LD por job
+async function scrapeBNE_Chile(): Promise<{ rows: ConcursoRow[]; errores: string[] }> {
+  const rows: ConcursoRow[] = [];
+  const errores: string[] = [];
+  const sitemapXml = await fetchUrl("https://www.bne.gob.cl/sitemap.xml", 15000);
+  if (!sitemapXml || !sitemapXml.includes("/oferta/")) {
+    errores.push("CL: BNE sitemap inaccesible");
+    return { rows, errores };
+  }
+  const urlMatches = [...sitemapXml.matchAll(/<loc>(https:\/\/www\.bne\.gob\.cl\/oferta\/((\d{4})-(\d+)))<\/loc>/g)];
+  const jobs = urlMatches
+    .map(m => ({ url: m[1], fullId: m[2], numId: parseInt(m[4], 10) }))
+    .sort((a, b) => b.numId - a.numId)
+    .slice(0, 60);
+  const hoy = new Date().toISOString().slice(0, 10);
+  for (let i = 0; i < jobs.length; i += 10) {
+    const batch = jobs.slice(i, i + 10);
+    const results = await Promise.all(
+      batch.map(job => fetchUrl(job.url, 12000).then(html => ({ job, html })).catch(() => ({ job, html: null as string | null })))
+    );
+    for (const { job, html } of results) {
+      if (!html) continue;
+      const tituloMatch = html.match(/<h1>([^<]+)<\/h1>/);
+      const titulo = tituloMatch?.[1]?.trim() ?? "";
+      if (!titulo || titulo.length < 3) continue;
+      const fuente_id = `bne_${job.fullId}`;
+      if (rows.some(r => r.fuente_id === fuente_id)) continue;
+      const datePosted  = html.match(/"datePosted"\s*:\s*"([^"]+)"/)?.[1] ?? null;
+      const validThrough = html.match(/"validThrough"\s*:\s*"([^"]+)"/)?.[1] ?? null;
+      const locality    = html.match(/"addressLocality"\s*:\s*"([^"]+)"/)?.[1] ?? null;
+      const region      = html.match(/"addressRegion"\s*:\s*"([^"]+)"/)?.[1] ?? null;
+      const lugar       = [locality, region].filter(Boolean).join(", ") || "Chile";
+      const cierre      = validThrough && validThrough >= hoy ? validThrough : sumarDias(null, 45);
+      rows.push({
+        fuente_id, fuente: "chile_bne", pais: "CL",
+        numero_llamado: job.fullId,
+        titulo, cargo: titulo, organismo: null,
+        descripcion: null, requisitos: null, tipo_tarea: null, tipo_vinculo: "publico",
+        lugar,
+        fecha_inicio: datePosted ? parseFecha(datePosted) : null,
+        fecha_cierre: cierre,
+        puestos: 1,
+        url_detalle: job.url, url_postulacion: job.url,
+        keywords: extraerKeywords(`${titulo} ${lugar}`),
+        activo: true,
+      });
+    }
+  }
+  console.log(`CL BNE: ${rows.length} resultados`);
+  return { rows, errores };
+}
+
 // ─────────────────────────────────────────────────────────────
 // PARSER: Chile — Indeed + Servicio Civil RSS fallback
 // ─────────────────────────────────────────────────────────────
@@ -911,15 +967,16 @@ async function scrapeChile(): Promise<{ rows: ConcursoRow[]; errores: string[] }
     }
   }
 
-  // 4. Google News + Indeed en paralelo
-  const [gn1, gn2, gn3, gn4, ind] = await Promise.all([
+  // 4. Google News + Indeed + BNE en paralelo
+  const [gn1, gn2, gn3, gn4, ind, bne] = await Promise.all([
     scrapeGoogleNews("CL", "concurso público Chile cargo vacante gobierno 2026", "chile_googlenews", "CL", "es", 25),
     scrapeGoogleNews("CL", "Chile trabajo empleo Santiago Valparaíso Concepción 2026", "chile_googlenews2", "CL", "es", 25),
     scrapeGoogleNews("CL", "Chile empleo empresa privada oferta laboral cargo 2026", "chile_googlenews3", "CL", "es", 25),
     scrapeGoogleNews("CL", "Chile postulación trabajo Servicio Civil municipal 2026", "chile_googlenews4", "CL", "es", 20),
     scrapeIndeed("cl", "empleo trabajo vacante Chile Santiago", "CL", "chile_indeed"),
+    scrapeBNE_Chile(),
   ]);
-  for (const r of [gn1, gn2, gn3, gn4, ind]) { addRows(r.rows); errores.push(...r.errores); }
+  for (const r of [gn1, gn2, gn3, gn4, ind, bne]) { addRows(r.rows); errores.push(...r.errores); }
 
   // Jooble multi-search: sector privado CL — 5 ciudades × 6 sectores = 30 queries
   const CL_JB_CIUDADES = ["Santiago", "Valparaíso", "Concepción", "Antofagasta", "Temuco"];
@@ -976,12 +1033,11 @@ async function scrapeColombia(): Promise<{ rows: ConcursoRow[]; errores: string[
     return cnscRows;
   })();
 
-  // Todas las fuentes en paralelo
-  const [cnscRows, ct, ctPriv, ind,
+  // Todas las fuentes en paralelo (CT privado eliminado: /empleos redirige al homepage en co.computrabajo.com)
+  const [cnscRows, ct, ind,
     gn1, gn2, gn3, gn4, gn5, gn6, gn7, gn8, gn9, gn10] = await Promise.all([
     cnscPromise,
-    scrapeComputrabajoPaginado("co", "CO", "colombia_concursar", 8),
-    scrapeComputrabajoPrivado("co", "CO", "colombia_privado", 5),
+    scrapeComputrabajoPaginado("co", "CO", "colombia_concursar", 10),
     scrapeIndeed("co", "empleo trabajo vacante Bogotá Colombia", "CO", "colombia_indeed"),
     scrapeGoogleNews("US", "Colombia empleo convocatoria concurso público cargo vacante 2026", "colombia_googlenews", "CO", "es", 25),
     scrapeGoogleNews("US", "Colombia empleo trabajo empresa privada cargo disponible 2026", "colombia_googlenews2", "CO", "es", 25),
@@ -995,14 +1051,15 @@ async function scrapeColombia(): Promise<{ rows: ConcursoRow[]; errores: string[
     scrapeGoogleNews("US", "Colombia Medellín Cali Barranquilla empresa empleo vacante 2026", "colombia_googlenews10", "CO", "es", 25),
   ]);
   add(cnscRows);
-  for (const r of [ct, ctPriv, ind,
+  for (const r of [ct, ind,
     gn1, gn2, gn3, gn4, gn5, gn6, gn7, gn8, gn9, gn10]) { add(r.rows); errores.push(...r.errores); }
 
-  // Jooble multi-search: sector privado CO — 5 ciudades × 6 sectores = 30 queries
-  const CO_JB_CIUDADES = ["Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena"];
+  // Jooble: 6 ciudades × 6 sectores = 36 queries
+  const CO_JB_CIUDADES = ["Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena", "Bucaramanga"];
   const CO_JB_SECTORES = [
-    "ventas comercial", "tecnología sistemas", "administración",
-    "logística", "salud enfermería", "educación",
+    "ventas comercial", "tecnología sistemas",
+    "administración", "salud enfermería",
+    "logística depósito", "construcción ingeniería",
   ];
   const seenCO_JB = new Set<string>(rows.map(r => r.fuente_id));
   const jbCO = await joobleMultiSearch("CO", "Colombia", CO_JB_CIUDADES, CO_JB_SECTORES, "colombia_jooble_multi", seenCO_JB);
@@ -1207,7 +1264,7 @@ async function scrapeBrasil(): Promise<{ rows: ConcursoRow[]; errores: string[] 
           const lugar   = (j.location as Record<string,string>)?.display_name ?? where;
           const desc    = String(j.description ?? "").replace(/<[^>]+>/g," ").trim().slice(0,600);
           const fechaPublicacion = String(j.created ?? "").slice(0, 10) || null;
-          const fechaCierreEstimada = sumarDias(null, 7); // Adzuna: URLs expiran rápido, 7 días max
+          const fechaCierreEstimada = sumarDias(null, 30);
 
           result.push({
             fuente_id, fuente: "adzuna_br", pais: "BR",
@@ -1296,12 +1353,22 @@ async function scrapeParaguay(): Promise<{ rows: ConcursoRow[]; errores: string[
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ct, ctPriv, ind] = await Promise.all([
-    scrapeComputrabajoPaginado("py", "PY", "paraguay_concursar", 5),
-    scrapeComputrabajoPrivado("py", "PY", "paraguay_privado", 3),
+  const [ct, ctPriv, ind, gn1, gn2, gn3] = await Promise.all([
+    scrapeComputrabajoPaginado("py", "PY", "paraguay_ct", 10),
+    scrapeComputrabajoPrivado("py", "PY", "paraguay_ct_privado", 6),
     scrapeIndeed("py", "empleo trabajo vacante Paraguay", "PY", "paraguay_indeed"),
+    scrapeGoogleNews("US", "Paraguay empleo convocatoria cargo público vacante 2026", "paraguay_googlenews", "PY", "es", 25),
+    scrapeGoogleNews("US", "Paraguay trabajo oferta laboral empresa Asunción 2026", "paraguay_googlenews2", "PY", "es", 20),
+    scrapeGoogleNews("US", "Paraguay concurso público gobierno empleo oportunidad 2026", "paraguay_googlenews3", "PY", "es", 15),
   ]);
-  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind, gn1, gn2, gn3]) { add(r.rows); errores.push(...r.errores); }
+
+  const seenPY = new Set<string>(rows.map(r => r.fuente_id));
+  const jbPY = await joobleMultiSearch("PY", "Paraguay",
+    ["Asunción", "Ciudad del Este", "Encarnación"],
+    ["ventas administración", "tecnología sistemas", "logística depósito", "salud construcción"],
+    "paraguay_jooble_multi", seenPY);
+  add(jbPY);
   return { rows, errores };
 }
 
@@ -1311,12 +1378,22 @@ async function scrapeBolivia(): Promise<{ rows: ConcursoRow[]; errores: string[]
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ct, ctPriv, ind] = await Promise.all([
-    scrapeComputrabajoPaginado("bo", "BO", "bolivia_concursar", 5),
-    scrapeComputrabajoPrivado("bo", "BO", "bolivia_privado", 3),
+  const [ct, ctPriv, ind, gn1, gn2, gn3] = await Promise.all([
+    scrapeComputrabajoPaginado("bo", "BO", "bolivia_ct", 10),
+    scrapeComputrabajoPrivado("bo", "BO", "bolivia_ct_privado", 6),
     scrapeIndeed("bo", "empleo trabajo vacante Bolivia", "BO", "bolivia_indeed"),
+    scrapeGoogleNews("US", "Bolivia empleo convocatoria cargo público vacante 2026", "bolivia_googlenews", "BO", "es", 25),
+    scrapeGoogleNews("US", "Bolivia trabajo oferta laboral empresa La Paz Cochabamba 2026", "bolivia_googlenews2", "BO", "es", 20),
+    scrapeGoogleNews("US", "Bolivia concurso público gobierno empleo oportunidad 2026", "bolivia_googlenews3", "BO", "es", 15),
   ]);
-  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind, gn1, gn2, gn3]) { add(r.rows); errores.push(...r.errores); }
+
+  const seenBO = new Set<string>(rows.map(r => r.fuente_id));
+  const jbBO = await joobleMultiSearch("BO", "Bolivia",
+    ["La Paz", "Cochabamba", "Santa Cruz"],
+    ["ventas administración", "tecnología sistemas", "logística depósito", "salud construcción"],
+    "bolivia_jooble_multi", seenBO);
+  add(jbBO);
   return { rows, errores };
 }
 
@@ -1326,12 +1403,22 @@ async function scrapeEcuador(): Promise<{ rows: ConcursoRow[]; errores: string[]
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ct, ctPriv, ind] = await Promise.all([
-    scrapeComputrabajoPaginado("ec", "EC", "ecuador_concursar", 5),
-    scrapeComputrabajoPrivado("ec", "EC", "ecuador_privado", 3),
+  const [ct, ctPriv, ind, gn1, gn2, gn3] = await Promise.all([
+    scrapeComputrabajoPaginado("ec", "EC", "ecuador_ct", 10),
+    scrapeComputrabajoPrivado("ec", "EC", "ecuador_ct_privado", 6),
     scrapeIndeed("ec", "empleo trabajo vacante Ecuador", "EC", "ecuador_indeed"),
+    scrapeGoogleNews("US", "Ecuador empleo convocatoria cargo público vacante 2026", "ecuador_googlenews", "EC", "es", 25),
+    scrapeGoogleNews("US", "Ecuador trabajo oferta laboral empresa Quito Guayaquil 2026", "ecuador_googlenews2", "EC", "es", 20),
+    scrapeGoogleNews("US", "Ecuador concurso público gobierno empleo oportunidad 2026", "ecuador_googlenews3", "EC", "es", 15),
   ]);
-  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind, gn1, gn2, gn3]) { add(r.rows); errores.push(...r.errores); }
+
+  const seenEC = new Set<string>(rows.map(r => r.fuente_id));
+  const jbEC = await joobleMultiSearch("EC", "Ecuador",
+    ["Quito", "Guayaquil", "Cuenca"],
+    ["ventas administración", "tecnología sistemas", "logística depósito", "salud construcción"],
+    "ecuador_jooble_multi", seenEC);
+  add(jbEC);
   return { rows, errores };
 }
 
@@ -1422,12 +1509,22 @@ async function scrapeVenezuela(): Promise<{ rows: ConcursoRow[]; errores: string
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ct, ctPriv, ind] = await Promise.all([
-    scrapeComputrabajoPaginado("ve", "VE", "venezuela_concursar", 5),
-    scrapeComputrabajoPrivado("ve", "VE", "venezuela_privado", 3),
+  const [ct, ctPriv, ind, gn1, gn2, gn3] = await Promise.all([
+    scrapeComputrabajoPaginado("ve", "VE", "venezuela_ct", 10),
+    scrapeComputrabajoPrivado("ve", "VE", "venezuela_ct_privado", 6),
     scrapeIndeed("ve", "empleo trabajo vacante Venezuela", "VE", "venezuela_indeed"),
+    scrapeGoogleNews("US", "Venezuela empleo convocatoria cargo vacante oportunidad laboral 2026", "venezuela_googlenews", "VE", "es", 25),
+    scrapeGoogleNews("US", "Venezuela trabajo empresa Caracas Maracaibo oferta empleo 2026", "venezuela_googlenews2", "VE", "es", 20),
+    scrapeGoogleNews("US", "Venezuela contratación empleo empresa privada cargo disponible 2026", "venezuela_googlenews3", "VE", "es", 15),
   ]);
-  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind, gn1, gn2, gn3]) { add(r.rows); errores.push(...r.errores); }
+
+  const seenVE = new Set<string>(rows.map(r => r.fuente_id));
+  const jbVE = await joobleMultiSearch("VE", "Venezuela",
+    ["Caracas", "Maracaibo", "Valencia"],
+    ["ventas administración", "tecnología sistemas", "logística depósito", "salud construcción"],
+    "venezuela_jooble_multi", seenVE);
+  add(jbVE);
   return { rows, errores };
 }
 
@@ -1440,12 +1537,22 @@ async function scrapCostaRica(): Promise<{ rows: ConcursoRow[]; errores: string[
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ct, ctPriv, ind] = await Promise.all([
-    scrapeComputrabajoPaginado("cr", "CR", "costarica_concursar", 5),
-    scrapeComputrabajoPrivado("cr", "CR", "costarica_privado", 3),
+  const [ct, ctPriv, ind, gn1, gn2, gn3] = await Promise.all([
+    scrapeComputrabajoPaginado("cr", "CR", "costarica_ct", 10),
+    scrapeComputrabajoPrivado("cr", "CR", "costarica_ct_privado", 6),
     scrapeIndeed("cr", "empleo trabajo vacante Costa Rica", "CR", "costarica_indeed"),
+    scrapeGoogleNews("US", "Costa Rica empleo convocatoria cargo público vacante 2026", "costarica_googlenews", "CR", "es", 25),
+    scrapeGoogleNews("US", "Costa Rica trabajo oferta laboral empresa San José 2026", "costarica_googlenews2", "CR", "es", 20),
+    scrapeGoogleNews("US", "Costa Rica concurso público gobierno empleo oportunidad 2026", "costarica_googlenews3", "CR", "es", 15),
   ]);
-  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind, gn1, gn2, gn3]) { add(r.rows); errores.push(...r.errores); }
+
+  const seenCR = new Set<string>(rows.map(r => r.fuente_id));
+  const jbCR = await joobleMultiSearch("CR", "Costa Rica",
+    ["San José", "Cartago", "Heredia"],
+    ["ventas administración", "tecnología sistemas", "logística depósito", "salud turismo"],
+    "costarica_jooble_multi", seenCR);
+  add(jbCR);
   return { rows, errores };
 }
 
@@ -1455,7 +1562,7 @@ async function scrapeGuatemala(): Promise<{ rows: ConcursoRow[]; errores: string
   const seen = new Set<string>();
   const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const ct = await scrapeComputrabajoPaginado("gt", "GT", "guatemala_concursar", 6);
+  const ct = await scrapeComputrabajoPaginado("gt", "GT", "guatemala_concursar", 10);
   addRows(ct.rows); errores.push(...ct.errores);
 
   const [gn1, gn2] = await Promise.all([
@@ -1474,12 +1581,22 @@ async function scrapeElSalvador(): Promise<{ rows: ConcursoRow[]; errores: strin
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ct, ctPriv, ind] = await Promise.all([
-    scrapeComputrabajoPaginado("sv", "SV", "elsalvador_concursar", 5),
-    scrapeComputrabajoPrivado("sv", "SV", "elsalvador_privado", 3),
+  const [ct, ctPriv, ind, gn1, gn2, gn3] = await Promise.all([
+    scrapeComputrabajoPaginado("sv", "SV", "elsalvador_ct", 10),
+    scrapeComputrabajoPrivado("sv", "SV", "elsalvador_ct_privado", 6),
     scrapeIndeed("sv", "empleo trabajo vacante El Salvador", "SV", "elsalvador_indeed"),
+    scrapeGoogleNews("US", "El Salvador empleo convocatoria cargo público vacante 2026", "elsalvador_googlenews", "SV", "es", 25),
+    scrapeGoogleNews("US", "El Salvador trabajo oferta laboral empresa San Salvador 2026", "elsalvador_googlenews2", "SV", "es", 20),
+    scrapeGoogleNews("US", "El Salvador concurso gobierno empleo oportunidad laboral 2026", "elsalvador_googlenews3", "SV", "es", 15),
   ]);
-  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind, gn1, gn2, gn3]) { add(r.rows); errores.push(...r.errores); }
+
+  const seenSV = new Set<string>(rows.map(r => r.fuente_id));
+  const jbSV = await joobleMultiSearch("SV", "El Salvador",
+    ["San Salvador", "Santa Ana", "San Miguel"],
+    ["ventas administración", "tecnología sistemas", "logística depósito", "salud construcción"],
+    "elsalvador_jooble_multi", seenSV);
+  add(jbSV);
   return { rows, errores };
 }
 
@@ -1489,7 +1606,7 @@ async function scrapeHonduras(): Promise<{ rows: ConcursoRow[]; errores: string[
   const seen = new Set<string>();
   const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const ct = await scrapeComputrabajoPaginado("hn", "HN", "honduras_concursar", 6);
+  const ct = await scrapeComputrabajoPaginado("hn", "HN", "honduras_concursar", 10);
   addRows(ct.rows); errores.push(...ct.errores);
 
   const [gn1, gn2] = await Promise.all([
@@ -1508,12 +1625,22 @@ async function scrapeNicaragua(): Promise<{ rows: ConcursoRow[]; errores: string
   const seen = new Set<string>();
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ct, ctPriv, ind] = await Promise.all([
-    scrapeComputrabajoPaginado("ni", "NI", "nicaragua_concursar", 6),
-    scrapeComputrabajoPrivado("ni", "NI", "nicaragua_privado", 4),
+  const [ct, ctPriv, ind, gn1, gn2, gn3] = await Promise.all([
+    scrapeComputrabajoPaginado("ni", "NI", "nicaragua_concursar", 10),
+    scrapeComputrabajoPrivado("ni", "NI", "nicaragua_ct_privado", 6),
     scrapeIndeed("ni", "empleo trabajo vacante Nicaragua", "NI", "nicaragua_indeed"),
+    scrapeGoogleNews("US", "Nicaragua empleo convocatoria cargo público vacante 2026", "nicaragua_googlenews", "NI", "es", 25),
+    scrapeGoogleNews("US", "Nicaragua trabajo oferta laboral empresa Managua 2026", "nicaragua_googlenews2", "NI", "es", 20),
+    scrapeGoogleNews("US", "Nicaragua concurso gobierno empleo oportunidad laboral 2026", "nicaragua_googlenews3", "NI", "es", 15),
   ]);
-  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind, gn1, gn2, gn3]) { add(r.rows); errores.push(...r.errores); }
+
+  const seenNI = new Set<string>(rows.map(r => r.fuente_id));
+  const jbNI = await joobleMultiSearch("NI", "Nicaragua",
+    ["Managua", "León", "Masaya"],
+    ["ventas administración", "tecnología sistemas", "logística depósito", "salud construcción"],
+    "nicaragua_jooble_multi", seenNI);
+  add(jbNI);
   return { rows, errores };
 }
 
@@ -1523,12 +1650,22 @@ async function scraperPanama(): Promise<{ rows: ConcursoRow[]; errores: string[]
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ct, ctPriv, ind] = await Promise.all([
-    scrapeComputrabajoPaginado("pa", "PA", "panama_concursar", 5),
-    scrapeComputrabajoPrivado("pa", "PA", "panama_privado", 3),
+  const [ct, ctPriv, ind, gn1, gn2, gn3] = await Promise.all([
+    scrapeComputrabajoPaginado("pa", "PA", "panama_ct", 10),
+    scrapeComputrabajoPrivado("pa", "PA", "panama_ct_privado", 6),
     scrapeIndeed("pa", "empleo trabajo vacante Panamá", "PA", "panama_indeed"),
+    scrapeGoogleNews("US", "Panamá empleo convocatoria cargo público vacante 2026", "panama_googlenews", "PA", "es", 25),
+    scrapeGoogleNews("US", "Panamá trabajo oferta laboral empresa Ciudad de Panamá 2026", "panama_googlenews2", "PA", "es", 20),
+    scrapeGoogleNews("US", "Panamá concurso público gobierno empleo oportunidad 2026", "panama_googlenews3", "PA", "es", 15),
   ]);
-  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind, gn1, gn2, gn3]) { add(r.rows); errores.push(...r.errores); }
+
+  const seenPA = new Set<string>(rows.map(r => r.fuente_id));
+  const jbPA = await joobleMultiSearch("PA", "Panamá",
+    ["Panamá", "Colón", "David"],
+    ["ventas administración", "tecnología sistemas", "logística depósito", "salud construcción"],
+    "panama_jooble_multi", seenPA);
+  add(jbPA);
   return { rows, errores };
 }
 
@@ -1538,12 +1675,22 @@ async function scrapeRepDominicana(): Promise<{ rows: ConcursoRow[]; errores: st
   const rows: ConcursoRow[] = [];
   const add = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
-  const [ct, ctPriv, ind] = await Promise.all([
-    scrapeComputrabajoPaginado("do", "DO", "dominicana_concursar", 5),
-    scrapeComputrabajoPrivado("do", "DO", "dominicana_privado", 3),
+  const [ct, ctPriv, ind, gn1, gn2, gn3] = await Promise.all([
+    scrapeComputrabajoPaginado("do", "DO", "dominicana_ct", 10),
+    scrapeComputrabajoPrivado("do", "DO", "dominicana_ct_privado", 6),
     scrapeIndeed("do", "empleo trabajo vacante República Dominicana", "DO", "dominicana_indeed"),
+    scrapeGoogleNews("US", "República Dominicana empleo convocatoria cargo público vacante 2026", "dominicana_googlenews", "DO", "es", 25),
+    scrapeGoogleNews("US", "Dominican Republic trabajo oferta laboral empresa Santo Domingo 2026", "dominicana_googlenews2", "DO", "es", 20),
+    scrapeGoogleNews("US", "República Dominicana concurso gobierno empleo oportunidad 2026", "dominicana_googlenews3", "DO", "es", 15),
   ]);
-  for (const r of [ct, ctPriv, ind]) { add(r.rows); errores.push(...r.errores); }
+  for (const r of [ct, ctPriv, ind, gn1, gn2, gn3]) { add(r.rows); errores.push(...r.errores); }
+
+  const seenDO = new Set<string>(rows.map(r => r.fuente_id));
+  const jbDO = await joobleMultiSearch("DO", "República Dominicana",
+    ["Santo Domingo", "Santiago", "San Pedro de Macorís"],
+    ["ventas administración", "tecnología sistemas", "logística depósito", "salud construcción"],
+    "dominicana_jooble_multi", seenDO);
+  add(jbDO);
   return { rows, errores };
 }
 
@@ -1629,7 +1776,7 @@ async function adzunaMultiSearch(
               organismo: empresa, descripcion: desc || null,
               requisitos: null, tipo_tarea: what, tipo_vinculo: "privado",
               lugar, fecha_inicio: fechaPub,
-              fecha_cierre: sumarDias(null, 7),
+              fecha_cierre: sumarDias(null, 30),
               puestos: 1,
               url_detalle: adzunaSearchUrl(titulo, empresa, pais),
               url_postulacion: adzunaSearchUrl(titulo, empresa, pais),
@@ -1754,6 +1901,16 @@ async function scrapePortugal(): Promise<{ rows: ConcursoRow[]; errores: string[
     scrapeJooble("recrutamento seleção candidatura emprego Portugal", "Portugal", "PT", "portugal_jooble5"),
   ]);
   for (const r of joobleResults) { addRows(r.rows); errores.push(...r.errores); }
+
+  // Google News Portugal — sector público e privado
+  const [gn1, gn2, gn3] = await Promise.all([
+    scrapeGoogleNews("US", "Portugal concurso público emprego governo administração 2026", "portugal_googlenews", "PT", "pt", 25),
+    scrapeGoogleNews("US", "Portugal emprego trabalho Lisboa Porto vaga empresa 2026", "portugal_googlenews2", "PT", "pt", 20),
+    scrapeGoogleNews("US", "Portugal recrutamento empresa privada tecnologia saúde 2026", "portugal_googlenews3", "PT", "pt", 15),
+  ]);
+  addRows(gn1.rows); errores.push(...gn1.errores);
+  addRows(gn2.rows); errores.push(...gn2.errores);
+  addRows(gn3.rows); errores.push(...gn3.errores);
 
   return { rows, errores };
 }
@@ -2271,8 +2428,7 @@ async function scrapeAustralia(): Promise<{ rows: ConcursoRow[]; errores: string
         activo: true,
       });
     }
-    if (rows.length > 0) return { rows, errores };
-    errores.push("AU: Victoria Careers accesible pero sin ítems parseables");
+    if (rows.length === 0) errores.push("AU: Victoria Careers accesible pero sin ítems parseables");
   } else {
     errores.push("AU: Victoria Careers sitemap inaccesible");
   }
@@ -2750,23 +2906,28 @@ async function scrapeJapan(): Promise<{ rows: ConcursoRow[]; errores: string[] }
 
   if (rows.length === 0) errores.push("JP: NPA sin resultados parseables");
 
-  // 2. Jobicy + Jooble Japan — sector privado en japonés e inglés
+  // 2. Jobicy + Jooble + Google News Japan — sector privado en japonés e inglés
   const seen = new Set(rows.map(r => r.fuente_id));
-  const [jbcy, jb1, jb2, jb3] = await Promise.all([
+  const [jbcy, jb1, jb2, jb3, gn1, gn2] = await Promise.all([
     scrapeJobicy("japan", "JP", "japon_jobicy"),
     scrapeJooble("求人 仕事 採用 正社員 東京 大阪", "日本", "JP", "japon_jooble"),
     scrapeJooble("government jobs Japan recruitment Tokyo Osaka", "Japan", "JP", "japon_jooble2"),
     scrapeJooble("仕事 派遣 アルバイト 正社員 名古屋 福岡", "日本", "JP", "japon_jooble3"),
+    scrapeGoogleNews("US", "Japan government jobs recruitment vacancy civil service 2026", "japon_googlenews", "JP", "en", 25),
+    scrapeGoogleNews("US", "Japan employment company hiring Tokyo Osaka Nagoya jobs 2026", "japon_googlenews2", "JP", "en", 20),
   ]);
-  for (const r of [jbcy, jb1, jb2, jb3]) {
+  for (const r of [jbcy, jb1, jb2, jb3, gn1, gn2]) {
     for (const x of r.rows) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } }
     errores.push(...r.errores);
   }
 
-  if (rows.length === 0) {
-    const gn = await scrapeGoogleNews("US", "Japan government jobs recruitment vacancy 2026", "japon_googlenews", "JP", "en", 21);
-    return { rows: gn.rows, errores: [...errores, ...gn.errores] };
-  }
+  // Jooble multi: 8 ciudades × 6 sectores = 48 queries
+  const JP_JB_CIUDADES = ["Tokyo", "Osaka", "Nagoya", "Yokohama", "Fukuoka", "Sapporo", "Kobe", "Kyoto"];
+  const JP_JB_SECTORES = ["IT technology", "healthcare nursing", "sales marketing", "logistics warehouse", "engineering manufacturing", "administration finance"];
+  const seenJP_JB = new Set<string>(rows.map(r => r.fuente_id));
+  const jbJP = await joobleMultiSearch("JP", "日本", JP_JB_CIUDADES, JP_JB_SECTORES, "japon_jooble_multi", seenJP_JB);
+  for (const x of jbJP) { if (!seenJP_JB.has(x.fuente_id)) { seenJP_JB.add(x.fuente_id); rows.push(x); } }
+
   return { rows, errores };
 }
 
@@ -3182,11 +3343,10 @@ async function upsertRows(rows: ConcursoRow[]): Promise<number> {
   const CHUNK = 1000;
   let total = 0;
   for (let i = 0; i < validas.length; i += CHUNK) {
-    const { error } = await supabase
-      .from("concursos")
-      .upsert(validas.slice(i, i + CHUNK), { onConflict: "fuente,fuente_id", ignoreDuplicates: false });
-    if (error) { console.error("upsert error:", error.message); break; }
-    total += Math.min(CHUNK, validas.length - i);
+    const { data: rpcCount, error } = await supabase
+      .rpc("upsert_concursos_bulk", { p_rows: validas.slice(i, i + CHUNK) });
+    if (error) { _lastUpsertError = error.message; console.error("upsert error:", error.message); break; }
+    total += (rpcCount as number) || 0;
   }
   return total;
 }
@@ -3313,10 +3473,12 @@ serve(async (req: Request) => {
         if (modoTest) {
           resumen[pais] = { rows_sample: rows.slice(0, 3), total: rows.length, errores };
         } else {
+          const legitimas_count = rows.filter(esOfertaLegitima).length;
+          _lastUpsertError = null;
           const insertados = await upsertRows(rows);
           total_insertados += insertados;
 
-          resumen[pais] = { insertados, total_scrapeados: rows.length, errores };
+          resumen[pais] = { insertados, total_scrapeados: rows.length, legitimas: legitimas_count, upsert_error: _lastUpsertError, errores };
 
           // Cleanup y log totalmente async — no bloquean la respuesta principal
           if (insertados >= 15 && rows.length >= 15) {
@@ -3417,7 +3579,8 @@ serve(async (req: Request) => {
             if (r2.length > 0) {
               const ins2 = await upsertRows(r2);
               total_insertados += ins2;
-              resumen[pais] = { insertados: ins2, total_scrapeados: r2.length, errores: e2, retry: "google_news" };
+              const mainResult = resumen[pais];
+              resumen[pais] = { insertados: ins2, total_scrapeados: r2.length, errores: e2, retry: "google_news", main: mainResult };
             } else {
               (resumen[pais] as Record<string, unknown>).retry_fallido = true;
             }

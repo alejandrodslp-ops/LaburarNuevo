@@ -22,13 +22,13 @@ serve(async (req) => {
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     const SOPORTE_EMAIL = Deno.env.get("SOPORTE_EMAIL") ?? "soporte@nexu.app";
-    const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "Nexu <no-reply@nexu.app>";
+    const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "Konexu <no-reply@nexu.app>";
 
     if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY no configurada");
 
     const asunto = categoria
-      ? `[Nexu Soporte] ${categoria} — ${nombre || email}`
-      : `[Nexu Soporte] Mensaje de ${nombre || email}`;
+      ? `[Konexu Soporte] ${categoria} — ${nombre || email}`
+      : `[Konexu Soporte] Mensaje de ${nombre || email}`;
 
     const htmlInterno = `
       <div style="font-family:sans-serif;max-width:600px;margin:auto">
@@ -39,7 +39,7 @@ serve(async (req) => {
           ${categoria ? `<tr><td style="padding:8px;font-weight:bold">Categoría</td><td style="padding:8px">${categoria}</td></tr>` : ''}
           <tr style="background:#f9f9f9"><td style="padding:8px;font-weight:bold;vertical-align:top">Mensaje</td><td style="padding:8px;white-space:pre-wrap">${mensaje.trim()}</td></tr>
         </table>
-        <p style="color:#999;font-size:12px;margin-top:24px">Enviado desde Nexu app · ${new Date().toISOString()}</p>
+        <p style="color:#999;font-size:12px;margin-top:24px">Enviado desde Konexu app · ${new Date().toISOString()}</p>
       </div>
     `;
 
@@ -51,7 +51,7 @@ serve(async (req) => {
         <div style="background:#f9f9f9;border-radius:8px;padding:16px;margin:16px 0">
           <p style="margin:0;color:#666;font-size:14px;white-space:pre-wrap">${mensaje.trim()}</p>
         </div>
-        <p style="color:#999;font-size:12px">Equipo Nexu</p>
+        <p style="color:#999;font-size:12px">Equipo Konexu</p>
       </div>
     `;
 
@@ -80,7 +80,7 @@ serve(async (req) => {
         body: JSON.stringify({
           from: FROM_EMAIL,
           to: [email],
-          subject: "Recibimos tu mensaje — Nexu Soporte",
+          subject: "Recibimos tu mensaje — Konexu Soporte",
           html: htmlConfirmacion,
         }),
       }),

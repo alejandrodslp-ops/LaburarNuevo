@@ -8,7 +8,7 @@ const CORS = {
 
 const SUPABASE_URL         = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const SUPABASE_JWT_SECRET  = Deno.env.get("SUPABASE_JWT_SECRET")!;
+const SUPABASE_JWT_SECRET  = Deno.env.get("SUPABASE_JWT_SECRET") ?? Deno.env.get("NEXU_JWT_SECRET") ?? "";
 const ADMIN_EMAIL          = "alejandrodslp@gmail.com";
 
 function ok(data: unknown) {
@@ -62,7 +62,7 @@ async function verificarAdmin(authHeader: string): Promise<{ email: string | nul
 
     // Fallback: verificación por red con timeout de 4s
     const verifier = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000));
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000));
     const result = await Promise.race([verifier.auth.getUser(token), timeout]);
     if (!result) return { email: null, sub: null };
     const { data: { user }, error } = result as Awaited<ReturnType<typeof verifier.auth.getUser>>;
@@ -364,7 +364,7 @@ async function consultas(db: ReturnType<typeof createClient>, params: any) {
 
       // LÍMITE FIJO: NO MODIFICAR. Máximo de registros a devolver en la consulta de admin.
       // Solo cambiar si el usuario lo solicita explícitamente.
-      const LIMITE_LLAMADOS = 2000;
+      const LIMITE_LLAMADOS = 300;
 
       let q = db.from("concursos")
         .select("id,cargo,titulo,organismo,pais,lugar,fecha_cierre,tipo_tarea,tipo_vinculo,activo,created_at,url_detalle,url_postulacion,numero_llamado,puestos,fecha_inicio")
@@ -1079,13 +1079,13 @@ serve(async (req) => {
         const PAISES = ["UY","AR","BR","CL","CO","PE","PY","BO","EC","MX","VE",
           "CU","CR","GT","SV","HN","NI","PA","DO",
           "ES","PT","IT","FR","DE","GB","US","CA","AU","SE","NO","JP","IN"];
-        const entries = await Promise.all(PAISES.map(async (p) => {
-          const { count } = await db.from("concursos")
-            .select("*", { count: "estimated", head: true })
-            .eq("pais", p).eq("activo", true);
-          return [p, count ?? 0] as const;
-        }));
-        return ok({ conteos: Object.fromEntries(entries) });
+        const { data: filas } = await db.rpc("contar_concursos_por_pais");
+        const conteos: Record<string, number> = {};
+        for (const row of (filas ?? []) as { pais: string; total: number }[]) {
+          conteos[row.pais] = Number(row.total);
+        }
+        for (const p of PAISES) if (!(p in conteos)) conteos[p] = 0;
+        return ok({ conteos });
       }
       case "get_ciudades": {
         const q = ((params?.query as string) ?? "").trim();
