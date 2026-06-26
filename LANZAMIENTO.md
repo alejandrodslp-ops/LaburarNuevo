@@ -53,6 +53,13 @@ Se va actualizando a medida que avanza el desarrollo.
   Requiere: SAS Uruguay constituida → contactar cspub@boku.com → aprobación 4-8 semanas por país.
   Países: Uruguay, Brasil (PIX + DCB), México, Argentina.
 
+- [ ] **Email de recuperación de contraseña — SMTP propio (Resend)**
+  Hoy los correos de "Olvidé mi contraseña" salen por el servidor por defecto de Supabase,
+  que tiene límite de pocos envíos por hora (sirve para pruebas, no para volumen real).
+  → Conectar el Resend ya verificado (konexu.app) en Supabase → Authentication → Emails → SMTP Settings.
+  Beneficio: sin límite bajo, mejor llegada (menos spam), remitente konexu.app.
+  ✅ Flujo de recuperación implementado y validado end-to-end el 2026-06-26 (app + web konexu.app/recuperar).
+
 ---
 
 ## 🟡 RECOMENDADOS — para una operación estable
