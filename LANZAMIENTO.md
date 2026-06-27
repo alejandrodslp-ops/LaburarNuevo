@@ -108,6 +108,13 @@ Se va actualizando a medida que avanza el desarrollo.
 
 ## 🟡 RECOMENDADOS — para una operación estable
 
+- [ ] **Refrescar el contador de concursos más seguido** (hoy va atrasado).
+  El número que muestra la app sale de la tabla `stats` (key `concursos_activos`), que se recalcula desde
+  `stats_por_pais`. Pero `refresh-stats-por-pais` corre **1×/día (04:00 UTC)** → el número queda atrasado
+  todo el día (los concursos nuevos no se ven hasta el día siguiente). Mejora: recalcular más seguido
+  (ej. después de cada corrida del scraper, o cada pocas horas). OJO: el recálculo es un COUNT por país
+  sobre ~316k filas (pesado); un COUNT mal manejado ya causó una caída (ver memoria). Hacer con cuidado.
+
 - [x] **Configurar `RESEND_API_KEY` en Supabase Edge Functions Secrets** ✅
   Funcionando — comprobantes, alertas y reportes diarios llegan correctamente.
 
