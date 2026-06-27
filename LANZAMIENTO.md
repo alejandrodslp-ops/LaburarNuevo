@@ -26,18 +26,15 @@ Se va actualizando a medida que avanza el desarrollo.
     `acreditar-referido` (service_role). Reparó de paso el premio de referidos que Etapa 2 había
     roto sin querer. Guardián protege `referido_por`/`codigo_referido`/`periodo_gratis_hasta`. Verificado.
     SQL: `supabase/sql/seguridad_etapa4_referidos.sql`
-  - [ ] **Etapa 4B — datos privados expuestos por lectura** (pendiente; REFACTOR, sesión dedicada).
-    La política SELECT de `profiles` es abierta (`auth.role()='authenticated'`): cualquier cuenta logueada
-    puede leer por API directa columnas privadas de TODOS los usuarios. No es solo `telefono`: también
-    `email_otp`, `push_token`, `fecha_nac`, etc. `profiles` tiene 76 columnas y mezcla datos públicos
-    (que el empleador debe ver) con privados.
-    - Descartado el column-grant (re-listar 75 columnas = frágil; rompe los 3 `select('*')`).
-    - El teléfono NUNCA se muestra a terceros en la app (el contacto es por chat interno) → NO hace falta
-      "revelar contacto tras pago".
-    - **Fix correcto:** mover los datos privados a una tabla aparte (`datos_privados`) con RLS "solo el dueño"
-      + migrar datos + cambiar ~6 lugares de la app (PerfilScreen, CVScreen, AppContext, EditarPerfil*,
-      RegisterEmpresa) + probar cada pantalla. Riesgo medio-alto, urgencia moderada (requiere atacante
-      deliberado con cuenta+login+API directa; no es pérdida de plata). Hacer con cabeza fresca.
+  - [x] **Etapa 4B — datos privados expuestos por lectura** (2026-06-26). CERRADO.
+    Antes, cualquier cuenta logueada leía por API directa columnas privadas de TODOS (telefono, email_otp,
+    push_token, etc.). Fix con vista pública + política restrictiva (sin migrar datos, sin tocar las
+    lecturas del propio perfil):
+    - Vista `perfiles_publicos` (solo columnas públicas, sin datos privados) — `seguridad_etapa4b_vista_publica.sql`
+    - Política `profiles_select` cerrada a `auth.uid()=id` (cada uno lee solo su fila) — `seguridad_etapa4b_politica.sql`
+    - Migradas 6 lecturas de terceros a la vista: app (Buscar, Mensajes, Historial, Chat) + web (candidatos).
+    - Verificado: ve_perfil_ajeno=0, ve_perfil_propio=1, vista=7. Smoke test de privacidad agregado (8/8).
+    - Bug aparte corregido: la web candidatos filtraba por `activo` (columna inexistente) → `perfil_activo`.
   - [x] **(bug de plata, 2026-06-26)** El descuento de visualizaciones nunca funcionaba (el cliente
     llamaba `sumar_visualizaciones(-1)`, sin permiso y con check `<=0`) → un empleador veía perfiles
     infinitos con una sola compra. Arreglado con RPC `consumir_visualizacion(p_worker)` (auth.uid,

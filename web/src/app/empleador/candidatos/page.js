@@ -33,11 +33,11 @@ export default function CandidatosEmpleador() {
   async function buscar() {
     setLoading(true)
     let q = supabaseBrowser
-      .from('profiles')
+      .from('perfiles_publicos')
       .select('id, nombre, apellido1, ciudad, pais, bio, servicios, profesiones, anios_experiencia, estrellas, total_calificaciones, updated_at, sueldo_pretension_min, sueldo_pretension_max, sueldo_moneda, disponibilidad, tipos_empleo, vistas, contactos, perfil_visible')
       .eq('rol', 'worker')
       .eq('pais', pais)
-      .eq('activo', true)
+      .eq('perfil_activo', true)
       .order('updated_at', { ascending: false })
       .limit(50)
 
@@ -69,9 +69,7 @@ export default function CandidatosEmpleador() {
       estado: 'pendiente',
     })
 
-    const { data: w } = await supabaseBrowser.from('profiles').select('contactos').eq('id', perfil.id).single()
-    await supabaseBrowser.from('profiles').update({ contactos: (w?.contactos || 0) + 1 }).eq('id', perfil.id)
-
+    // 'contactos' se incrementa en el servidor (trigger on_propuesta_insert).
     supabaseBrowser.functions.invoke('notificar-propuesta', { body: { worker_id: perfil.id, employer_nombre: empleadorNombre } }).catch(() => {})
 
     setEnviado(prev => new Set([...prev, perfil.id]))

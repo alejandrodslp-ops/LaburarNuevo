@@ -80,7 +80,7 @@ export default function HistorialScreen({navigation}){
       // 4. Perfiles de los trabajadores válidos
       const workerIds=validas.map(v=>v.worker_id);
       const{data:perfiles,error:e2}=await supabase
-        .from('profiles')
+        .from('perfiles_publicos')
         .select('id,nombre,apellido1,fecha_nac,ciudad,pais,servicios,profesiones,disponibilidad,rating,total_valoraciones,referencias,anios_experiencia,perfil_visible')
         .in('id',workerIds);
 

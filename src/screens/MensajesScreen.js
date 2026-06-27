@@ -113,7 +113,7 @@ export default function MensajesScreen({navigation}){
         }
         const pids=Object.keys(map);
         const{data:perfiles}=await supabase
-          .from("profiles").select("id,nombre,apellido1,rol,avatar_url").in("id",pids);
+          .from("perfiles_publicos").select("id,nombre,apellido1,rol,avatar_url").in("id",pids);
         const pm={};
         (perfiles||[]).forEach(p=>{pm[p.id]=p;});
         const NEXU_ID="43a7baf9-f88e-463b-8e4c-385bd3fb8151";

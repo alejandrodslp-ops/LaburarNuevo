@@ -155,7 +155,7 @@ export default function BuscarScreen({navigation}){
         const{data:vis}=await supabase.from('visualizaciones').select('worker_id').eq('employer_id',user.id);
         yaVistos=(vis||[]).map(v=>v.worker_id);
       }
-      let q=supabase.from('profiles')
+      let q=supabase.from('perfiles_publicos')
         .select('id,nombre,apellido1,servicios,profesiones,especialidades,rating,total_valoraciones,ciudad,barrio,pais,disponibilidad,referencias,fecha_nac,idiomas,tipos_empleo,bio,anios_experiencia,sueldo_pretension_min,sueldo_pretension_max,sueldo_moneda,updated_at,perfil_visible')
         .eq('perfil_activo',true)
         .neq('id',user.id)

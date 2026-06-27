@@ -80,7 +80,7 @@ export default function ChatScreen({navigation,route}){
   async function cargarOferta(){
     try{
       const{data:p}=await supabase
-        .from("profiles")
+        .from("perfiles_publicos")
         .select("id,nombre,apellido1,rol,ciudad,barrio,pais")
         .eq("id",contactoId)
         .single();

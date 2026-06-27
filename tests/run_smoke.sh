@@ -110,6 +110,21 @@ rollback;
 EOF
 expect_pass "Servidor acredita visualizaciones tras pago (RPC)" "$TMP/t5.sql"
 
+# 5b) PRIVACIDAD: un usuario NO puede leer el perfil (telefono/datos privados) de OTRO.
+cat > "$TMP/t5b.sql" <<'EOF'
+begin;
+select set_config('test.yo',  (select id::text from profiles order by id limit 1), true);
+select set_config('test.otro',(select id::text from profiles order by id desc limit 1), true);
+select set_config('request.jwt.claims', json_build_object('role','authenticated','sub',current_setting('test.yo'))::text, true);
+set local role authenticated;
+select 'TESTPASS' as r
+where (select count(*) from profiles where id=current_setting('test.otro')::uuid) = 0
+  and (select count(*) from profiles where id=current_setting('test.yo')::uuid)   = 1
+  and (select count(*) from perfiles_publicos) > 0;
+rollback;
+EOF
+expect_pass "Privacidad: un usuario NO lee datos privados de otro (4B)" "$TMP/t5b.sql"
+
 echo ""
 echo "FLUJOS DE PLATA Y MÉTRICAS"
 
