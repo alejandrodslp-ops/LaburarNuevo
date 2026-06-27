@@ -2328,8 +2328,7 @@ async function scrapeCanada(): Promise<{ rows: ConcursoRow[]; errores: string[] 
         activo: true,
       });
     }
-    if (rows.length > 0) return { rows, errores };
-    errores.push("CA: Job Bank accesible pero sin ítems parseables");
+    if (rows.length === 0) errores.push("CA: Job Bank accesible pero sin ítems parseables");
   } else {
     errores.push("CA: Job Bank inaccesible");
   }
@@ -2355,10 +2354,10 @@ async function scrapeCanada(): Promise<{ rows: ConcursoRow[]; errores: string[] 
         keywords: extraerKeywords(titulo + " " + desc), activo: true,
       });
     }
-    if (rows.length > 0) return { rows, errores };
   }
 
   // Adzuna multi-búsqueda Canadá — 12 ciudades × 8 categorías = 96 queries
+  // (siempre se ejecuta y SE SUMA a Job Bank + PSC; antes quedaba inalcanzable)
   const CA_CIDADES = ["Toronto","Montreal","Vancouver","Calgary","Edmonton","Ottawa","Winnipeg","Quebec City","Hamilton","Kitchener","London","Halifax"];
   const CA_CATS    = ["technology","healthcare","sales","logistics","engineering","finance","construction","marketing"];
   const seenCA = new Set<string>(rows.map(r => r.fuente_id));
