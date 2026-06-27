@@ -174,6 +174,16 @@ Se va actualizando a medida que avanza el desarrollo.
   Seleccionar la opción "reivindicación de prioridad" en el formulario online de cada oficina
   e ingresar los datos de la solicitud uruguaya. No presentar como primaria.
 
+  **CÓMO PAGAR desde Uruguay (sin agente) — investigado 2026-06-27:**
+  - 🟢 **EUIPO (Unión Europea):** vos directo en euipo.europa.eu. Tarjeta Visa/Mastercard internacional
+    (método recomendado para no-residentes), en euros, dentro de 1 mes de presentar. Lo más simple.
+  - 🟢 **Brasil (INPI):** vos directo. Generar la GRU en gru.inpi.gov.br/emarcas → pagar por PagTesouro
+    con tarjeta Visa/Mastercard internacional. PIX y boleto NO sirven desde el exterior, pero la tarjeta sí.
+  - 🔴 **Argentina (INPI):** NO acepta tarjeta extranjera. Pago solo por VEP (requiere cuenta bancaria
+    ARGENTINA: Banelco/Link/Interbanking) o VP (presencial en Banco Nación). Además, obligatorio constituir
+    domicilio especial en CABA. DIY solo posible si: (a) un contacto en Argentina paga el VEP desde su
+    homebanking + presta dirección en CABA, o (b) viajar a Argentina. Sin eso, queda trabado.
+
 ---
 
 ## 📈 CRECIMIENTO / TRÁFICO DE LA WEB
