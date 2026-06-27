@@ -169,6 +169,33 @@ Se va actualizando a medida que avanza el desarrollo.
 
 ---
 
+## 📈 CRECIMIENTO / TRÁFICO DE LA WEB
+
+- [x] **Google Indexing API — indexación rápida** ✅ (2026-06-27). Los concursos nuevos aparecen en
+  Google for Jobs en minutos/horas en vez de días. Edge function `notificar-indexacion` + cron cada 6h
+  (00/06/12/18 UTC, `notificar-indexacion-google`). Credencial en secret `GOOGLE_INDEXING_SA_KEY`
+  (service account `konexu-indexing@nexu-vision.iam.gserviceaccount.com`, Owner en Search Console).
+  Config documentada en `supabase/functions/notificar-indexacion/CONFIGURAR.md`. Cuota Google: 200 URLs/día.
+  La web ya tiene lo demás: schema JobPosting por empleo, SEO programático por país/categoría, sitemap dinámico.
+
+- [ ] **IndexNow — indexación rápida en Bing/Yandex/IA** (bajo esfuerzo, hacer primero).
+  Es lo mismo que la Indexing API de Google pero para Bing, Yandex, DuckDuckGo, Ecosia. Bing alimenta a
+  ChatGPT/Copilot → estar indexado ahí = aparecer cuando alguien le pregunta a una IA por empleos.
+  Mucho más simple que Google: NO necesita service account ni Search Console, solo una clave (archivo de
+  texto) en el sitio. Gratis, sin cuotas estrictas. Se engancha a la misma función `notificar-indexacion`
+  (cuando avisa a Google, avisa también a IndexNow). **Prioridad 1** por relación impacto/esfuerzo.
+
+- [ ] **Bot de Telegram (y/o WhatsApp) — tráfico directo y recurrente** (esfuerzo medio, alto impacto).
+  Un bot que publica automáticamente cada concurso nuevo en canales por país ("Empleos Uruguay",
+  "Concursos México", etc.) con título + link a la web. Por qué importa: en LATAM la gente busca empleo
+  más en grupos de WhatsApp/Telegram que en Google (grupos con decenas de miles). Beneficios: tráfico
+  directo (cada post = visitas), audiencia que vuelve (suscriptores reciben los nuevos), crecimiento
+  orgánico (la gente reenvía). Complementa a Google: Telegram trae a quien NO busca activamente pero le
+  interesa. Telegram es ideal para canales de difusión (WhatsApp es más restrictivo). Crear los canales =
+  el usuario; el bot lo programa Claude (similar a notificar-indexacion). **Prioridad 2.**
+
+---
+
 ## ✅ YA LISTO
 
 - [x] RLS completo en todas las tablas de Supabase
