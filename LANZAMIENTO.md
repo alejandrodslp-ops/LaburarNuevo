@@ -7,9 +7,9 @@ Se va actualizando a medida que avanza el desarrollo.
 
 ## 🔴 BLOQUEANTES — sin esto la app no funciona o genera pérdidas
 
-- [ ] **SEGURIDAD — escrituras del cliente a columnas sensibles de profiles** (por etapas)
-  La política RLS de UPDATE en profiles es abierta: cualquier cuenta autenticada podía modificar
-  columnas sensibles (suyas y de otros). Se cierra por etapas, moviendo cada flujo al servidor.
+- [x] **SEGURIDAD — datos sensibles de profiles** ✅ COMPLETO (2026-06-26). Las 5 etapas cerradas:
+  visualizaciones (plata), perfil_activo/prueba, métricas (rating/vistas/contactos), referidos, y 4B
+  (lectura de datos privados). Más: verificación de email obligatoria + smoke tests (8/8). Detalle por etapa abajo.
   - [x] **Etapa 1 — `visualizaciones_disponibles` (plata)** protegida con trigger `trg_proteger_profiles` (2026-06-26).
     Un atacante ya no puede regalarse perfiles pagos. Webhook/RPC siguen acreditando. Verificado.
     SQL: `supabase/sql/seguridad_etapa1_visualizaciones.sql`
