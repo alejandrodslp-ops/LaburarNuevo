@@ -136,19 +136,29 @@ jobs:
   scrape-mundo:
     if: ${{ github.event.inputs.pais == '' || github.event_name == 'schedule' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     steps:
-      - name: Anglosajones y Asia
+      - name: Anglosajones y Asia (uno por uno para no agotar recursos de la función)
         run: |
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -d '{"paises":["US","CA","AU","JP","IN"]}')
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          echo "HTTP: $HTTP_CODE"
-          echo "$RESPONSE" | head -1 | python3 -m json.tool 2>/dev/null || echo "$RESPONSE" | head -1
-          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "504" ]; then exit 1; fi
+          # Cada país en su PROPIA llamada: scrapear varios juntos agota los recursos
+          # de cómputo de la edge function y la mata (perdía US, CA, AU, JP e IN de golpe).
+          # Si un país falla, seguimos con los demás (no abortamos).
+          FALLOS=0
+          for PAIS in US IN CA AU JP; do
+            echo "── Scrapeando $PAIS ──"
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+              "${{ secrets.SUPABASE_URL }}/functions/v1/scraper-concursos" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+              -d "{\"paises\":[\"$PAIS\"]}")
+            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+            echo "  $PAIS → HTTP $HTTP_CODE"
+            echo "$RESPONSE" | head -1 | head -c 300; echo ""
+            if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "504" ]; then FALLOS=$((FALLOS+1)); fi
+          done
+          echo "Países con fallo: $FALLOS de 5"
+          # Solo falla el job si fallaron TODOS (problema global, no de un país pesado)
+          if [ "$FALLOS" -ge 5 ]; then exit 1; fi
 
   verificar:
     needs: [scrape-brasil, scrape-latam-sur, scrape-mexico, scrape-latam-norte, scrape-europa-oeste, scrape-europa-este, scrape-mundo]
