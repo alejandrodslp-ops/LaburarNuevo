@@ -143,8 +143,8 @@ function EmpleadorCards({ navigation }) {
           <View style={[ss.sectorBadge,{backgroundColor:'#E65100'}]}>
             <Text style={ss.sectorBadgeText}>MIS OFERTAS</Text>
           </View>
-          <Text style={ss.sectorTitle}>Búsquedas publicadas</Text>
-          <Text style={ss.sectorSub}>Gestioná y publicá nuevas búsquedas</Text>
+          <Text style={ss.sectorTitle}>Tus ofertas publicadas</Text>
+          <Text style={ss.sectorSub}>Gestioná y publicá nuevas ofertas</Text>
         </View>
         <Text style={ss.sectorArrow}>›</Text>
       </TouchableOpacity>
