@@ -62,6 +62,15 @@ Se va actualizando a medida que avanza el desarrollo.
 
 ## 🟠 IMPORTANTES — afectan la experiencia del usuario
 
+- [ ] **Publicar OTA antes del lanzamiento** — `eas update --branch production --message "..."`
+  Todos los cambios de JavaScript de la app (recuperación de contraseña, pagos por MercadoPago,
+  seguridad de profiles, descuento de visualizaciones, verificación de email obligatoria, auto-salto
+  de fecha, etc.) están en el código y en GitHub, pero **NO llegan a los usuarios con el build
+  instalado hasta correr este comando**. El backend (triggers/edge functions) ya está activo aparte.
+  - Solo empuja JavaScript, no cambios nativos. runtimeVersion debe coincidir (hoy `1.0.0` ✅).
+  - No aplica a Expo Go (eso recarga de Metro). Requiere estar logueado en EAS (cuenta `nexuapp`).
+  - Conviene publicar primero a `--branch preview` y probar, luego a `production`.
+
 - [x] **Email real para notificaciones** ✅
   Dominio konexu.app verificado en Resend (sa-east-1). Emails salen desde noreply@konexu.app. (2026-06-22)
 
