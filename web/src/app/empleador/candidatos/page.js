@@ -131,7 +131,7 @@ export default function CandidatosEmpleador() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
                 <span style={{ fontSize: 11, color: 'var(--muted)' }}>{calcularActividad(p.updated_at)}</span>
                 {enviado.has(p.id)
-                  ? <span style={{ fontSize: 12, color: '#2E9472', fontWeight: 700 }}>✅ Enviado</span>
+                  ? <span style={{ fontSize: 12, color: 'var(--verde-fuerte)', fontWeight: 700 }}>✅ Enviado</span>
                   : <button onClick={e => { e.stopPropagation(); enviarInteres(p) }} disabled={enviando} style={{ background: 'var(--coral)', color: 'white', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                       Contactar
                     </button>
@@ -185,7 +185,7 @@ function Modal({ perfil, onClose, onContactar, enviado, enviando }) {
 
         <div style={{ marginTop: 20 }}>
           {enviado
-            ? <div style={{ background: '#E6FBF5', borderRadius: 10, padding: 14, textAlign: 'center', color: '#2E9472', fontWeight: 700 }}>✅ Propuesta enviada — el trabajador recibirá una notificación.</div>
+            ? <div style={{ background: '#E6FBF5', borderRadius: 10, padding: 14, textAlign: 'center', color: 'var(--verde-fuerte)', fontWeight: 700 }}>✅ Propuesta enviada — el trabajador recibirá una notificación.</div>
             : <button onClick={onContactar} disabled={enviando} style={{ width: '100%', background: 'var(--coral)', color: 'white', border: 'none', borderRadius: 12, padding: 16, fontSize: 15, fontWeight: 800, cursor: 'pointer' }}>
                 {enviando ? 'Enviando...' : 'Iniciar contacto'}
               </button>

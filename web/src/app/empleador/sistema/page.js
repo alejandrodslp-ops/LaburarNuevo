@@ -134,7 +134,7 @@ const s = {
   cardNombre: { fontSize: 15, fontWeight: 800, color: '#0F172A', marginBottom: 3 },
   cardDesc:   { fontSize: 12, color: '#64748B' },
   btn:      { background: '#0F172A', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', minWidth: 130, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  btnOk:    { background: '#059669' },
+  btnOk:    { background: 'var(--verde-fuerte)' },
   btnErr:   { background: '#DC2626' },
   logBox:   { marginTop: 28, background: '#0F172A', borderRadius: 12, padding: '16px 20px' },
   logTit:   { fontSize: 10, fontWeight: 700, color: '#64748B', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10 },

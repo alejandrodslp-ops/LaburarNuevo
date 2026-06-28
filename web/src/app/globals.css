@@ -2,14 +2,17 @@
 
 :root {
   --coral:   #E8785A;
-  --coral2:  #d96a4d;
+  --coral-cta: #C2502F;
+  --coral2:  #A8421F;
   --teal:    #2DD4BF;
+  --verde:   #10B981;
+  --verde-fuerte: #047857;
   --dark:    #0D1117;
   --dark2:   #1C2333;
   --white:   #FFFFFF;
   --bg:      #F6F8FA;
   --text:    #0F172A;
-  --muted:   #64748B;
+  --muted:   #475569;
   --border:  #E2E8F0;
   --r:       12px;
   --sh:      0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.05);
@@ -52,7 +55,7 @@ a { color: inherit; text-decoration: none; }
   line-height: 1.2;
 }
 .nav-btn {
-  background: var(--coral);
+  background: var(--coral-cta);
   color: white;
   border-radius: 8px;
   padding: 9px 20px;
@@ -114,7 +117,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ── BUTTONS ───────────────────────────────────────── */
 .btn-primary {
-  background: var(--coral);
+  background: var(--coral-cta);
   color: white;
   border: none;
   border-radius: 8px;
@@ -274,7 +277,7 @@ a { color: inherit; text-decoration: none; }
   padding: 5px 12px; border-radius: 6px;
   margin-bottom: 14px;
 }
-.badge-pub  { background: #ECFDF5; color: #059669; }
+.badge-pub  { background: #ECFDF5; color: var(--verde-fuerte); }
 .badge-priv { background: #FFF4F0; color: var(--coral); }
 
 .detail-title {

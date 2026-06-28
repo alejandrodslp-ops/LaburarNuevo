@@ -199,7 +199,7 @@ export default function AppCta({ lang = 'es', cargo = null }) {
         </p>
         <a href="/download" style={{
           display: 'inline-block',
-          background: '#E8785A',
+          background: 'var(--coral-cta)',
           color: 'white',
           borderRadius: 10,
           padding: '16px 36px',

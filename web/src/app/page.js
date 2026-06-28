@@ -89,7 +89,7 @@ export default async function Home() {
 
           {/* CTA buttons */}
           <div className="hero-btns" style={{ display:'flex', gap:12, justifyContent:'center', marginBottom:56, flexWrap:'wrap' }}>
-            <Link href="/empleos" style={{ background:'#E8785A', color:'#fff', borderRadius:10, padding:'14px 28px', fontSize:15, fontWeight:800, textDecoration:'none', letterSpacing:-0.3 }}>
+            <Link href="/empleos" style={{ background:'var(--coral-cta)', color:'#fff', borderRadius:10, padding:'14px 28px', fontSize:15, fontWeight:800, textDecoration:'none', letterSpacing:-0.3 }}>
               Ver empleos →
             </Link>
             <a href="/download" style={{ background:'rgba(255,255,255,0.07)', color:'#F1F5F9', borderRadius:10, padding:'14px 28px', fontSize:15, fontWeight:700, textDecoration:'none', border:'1px solid rgba(255,255,255,0.12)' }}>

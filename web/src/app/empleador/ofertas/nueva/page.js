@@ -165,7 +165,7 @@ function Field({ label, value, onChange, placeholder, multi, optional }) {
 
 function Chip({ label, active, onClick }) {
   return (
-    <button type="button" onClick={onClick} style={{ padding: '7px 14px', borderRadius: 20, border: `1.5px solid ${active ? 'var(--teal)' : 'var(--border)'}`, background: active ? '#E6FBF5' : 'white', color: active ? '#2E9472' : 'var(--muted)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+    <button type="button" onClick={onClick} style={{ padding: '7px 14px', borderRadius: 20, border: `1.5px solid ${active ? 'var(--teal)' : 'var(--border)'}`, background: active ? '#E6FBF5' : 'white', color: active ? 'var(--verde-fuerte)' : 'var(--muted)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
       {label}
     </button>
   )

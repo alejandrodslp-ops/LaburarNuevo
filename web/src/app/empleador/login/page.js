@@ -142,7 +142,7 @@ export default function EmpleadorLogin() {
                     </button>
                   </div>
                   {verificacion?.ok && (
-                    <p style={{ fontSize: 12, color: '#2E9472', marginTop: 6, fontWeight: 600 }}>✅ Empresa verificada: {verificacion.nombre}</p>
+                    <p style={{ fontSize: 12, color: 'var(--verde-fuerte)', marginTop: 6, fontWeight: 600 }}>✅ Empresa verificada: {verificacion.nombre}</p>
                   )}
                   {verificacion && !verificacion.ok && (
                     <p style={{ fontSize: 12, color: '#EF4444', marginTop: 6 }}>❌ {verificacion.error}</p>

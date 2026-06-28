@@ -104,7 +104,7 @@ const ss = {
   form:        { display:'flex', flexDirection:'column', gap:12, width:'100%', maxWidth:440 },
   inputGroup:  { width:'100%' },
   input:       { width:'100%', padding:'14px 18px', borderRadius:10, border:'1.5px solid #2D3748', background:'#1C2333', color:'#F1F5F9', fontSize:15, outline:'none', boxSizing:'border-box' },
-  btn:         { background:'#E8785A', color:'#fff', border:'none', borderRadius:10, padding:'16px 32px', fontSize:16, fontWeight:800, cursor:'pointer', letterSpacing:-0.3, display:'flex', alignItems:'center', justifyContent:'center', gap:8 },
+  btn:         { background:'var(--coral-cta)', color:'#fff', border:'none', borderRadius:10, padding:'16px 32px', fontSize:16, fontWeight:800, cursor:'pointer', letterSpacing:-0.3, display:'flex', alignItems:'center', justifyContent:'center', gap:8 },
   errorMsg:    { color:'#FCA5A5', fontSize:13, margin:'-4px 0' },
   legal:       { color:'#64748B', fontSize:12, textAlign:'center', marginTop:4 },
   successBox:  { background:'#0F2922', border:'1.5px solid #2DD4BF', borderRadius:16, padding:'32px 28px', textAlign:'center', maxWidth:440, width:'100%' },

@@ -68,7 +68,7 @@ export default function OfertasEmpleador() {
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                     <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{o.titulo}</h3>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: o.activa ? '#E6FBF5' : '#F2EDE6', color: o.activa ? '#2E9472' : '#A898B8' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: o.activa ? '#E6FBF5' : '#F2EDE6', color: o.activa ? 'var(--verde-fuerte)' : '#A898B8' }}>
                       {o.activa ? 'Activa' : 'Inactiva'}
                     </span>
                   </div>

@@ -157,7 +157,7 @@ export default async function PulsoLatam() {
       /* NAV */
       .nav{display:flex;justify-content:space-between;align-items:center;padding:14px 40px;border-bottom:1px solid #1E2433;position:sticky;top:0;background:rgba(8,9,13,.95);backdrop-filter:blur(16px);z-index:100}
       .nav-logo{font-size:20px;font-weight:900;color:#E8785A;letter-spacing:-.5px}
-      .nav-btn{background:#E8785A;color:#fff;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:700}
+      .nav-btn{background:var(--coral-cta);color:#fff;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:700}
 
       /* LAYOUT */
       .wrap{max-width:960px;margin:0 auto;padding:0 32px}
@@ -501,7 +501,7 @@ export default async function PulsoLatam() {
           Empleos de América Latina y Europa, todos en un solo lugar.<br/>
           La app cruza tu perfil con las vacantes activas y te avisa cuando aparece algo que encaja.
         </p>
-        <Link href="/empleos" style={{display:'inline-block',background:'#E8785A',color:'#fff',borderRadius:9,padding:'13px 30px',fontSize:14,fontWeight:800,marginRight:8}}>
+        <Link href="/empleos" style={{display:'inline-block',background:'var(--coral-cta)',color:'#fff',borderRadius:9,padding:'13px 30px',fontSize:14,fontWeight:800,marginRight:8}}>
           Ver empleos disponibles →
         </Link>
         <a href="/download" style={{display:'inline-block',color:'#4A5568',padding:'13px 16px',fontSize:13,fontWeight:600}}>

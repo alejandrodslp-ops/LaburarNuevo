@@ -145,6 +145,6 @@ const S = {
   input: { flex: 1, border: 'none', outline: 'none', fontSize: 15, color: '#1A1020', background: 'transparent' },
   eye: { border: 'none', background: 'transparent', fontSize: 18, cursor: 'pointer' },
   error: { fontSize: 13, color: '#D4614A', margin: '14px 0 0', textAlign: 'center' },
-  btn: { width: '100%', marginTop: 24, padding: '15px 0', border: 'none', borderRadius: 14, background: '#E8785A', color: '#FFF', fontSize: 16, fontWeight: 800, cursor: 'pointer' },
+  btn: { width: '100%', marginTop: 24, padding: '15px 0', border: 'none', borderRadius: 14, background: 'var(--coral-cta)', color: '#FFF', fontSize: 16, fontWeight: 800, cursor: 'pointer' },
   check: { fontSize: 44, textAlign: 'center', marginBottom: 8 },
 }

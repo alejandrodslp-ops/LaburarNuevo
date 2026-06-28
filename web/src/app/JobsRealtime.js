@@ -93,10 +93,10 @@ export default function JobsRealtime({ initialJobs = [], pais = null }) {
           background: '#ECFDF5', border: '1px solid #6EE7B7',
           borderRadius: 10, padding: '12px 16px', marginBottom: 12,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          fontSize: 13, fontWeight: 700, color: '#059669',
+          fontSize: 13, fontWeight: 700, color: 'var(--verde-fuerte)',
         }}>
           <span>✨ {nuevos} nuevo{nuevos > 1 ? 's' : ''} empleo{nuevos > 1 ? 's' : ''} en tiempo real</span>
-          <button onClick={() => setVisible(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#059669', padding: '0 4px' }}>×</button>
+          <button onClick={() => setVisible(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: 'var(--verde-fuerte)', padding: '0 4px' }}>×</button>
         </div>
       )}
 

@@ -154,7 +154,7 @@ export default async function ConcursoPage({ params }) {
           {c.fecha_cierre && (
             <div className="detail-item">
               <div className="detail-item-label">Fecha de cierre</div>
-              <div className="detail-item-value" style={{ color: '#E8785A' }}>
+              <div className="detail-item-value" style={{ color: 'var(--coral-cta)' }}>
                 {fmtFecha(c.fecha_cierre)}
               </div>
             </div>
@@ -212,7 +212,7 @@ export default async function ConcursoPage({ params }) {
             Para ver las bases y postularte
           </h2>
           <a href="/download" style={{
-            display: 'inline-block', background: '#E8785A',
+            display: 'inline-block', background: 'var(--coral-cta)',
             color: 'white', borderRadius: 8, padding: '14px 28px',
             fontSize: 15, fontWeight: 800, textDecoration: 'none',
           }}>
