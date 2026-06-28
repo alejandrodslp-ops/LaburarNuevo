@@ -298,6 +298,19 @@ async function scrapeUruguay(): Promise<{ rows: ConcursoRow[]; errores: string[]
     const fechaCierreRaw = String(l.LlaFchCieIns ?? "");
     const fechaAperRaw   = String(l.LlaFchApeIns ?? "");
 
+    // Descripción enriquecida con los campos oficiales que ya devuelve la API
+    const etapas = Array.isArray(l.listaEtapaProceso)
+      ? l.listaEtapaProceso.map((e) => String(e ?? "").trim()).filter(Boolean)
+      : [];
+    const descripcionFull = [
+      String(l.LlaConTra ?? "").trim(),
+      l.LlaRet    ? `Retribución: ${String(l.LlaRet).trim()}`              : "",
+      l.LlaCarHor ? `Carga horaria: ${String(l.LlaCarHor).trim()}`         : "",
+      l.LlaTieCon ? `Duración del contrato: ${String(l.LlaTieCon).trim()}` : "",
+      l.LlaRegInc ? `Incompatibilidades: ${String(l.LlaRegInc).trim()}`    : "",
+      etapas.length ? `Etapas del proceso: ${etapas.join("; ")}`           : "",
+    ].filter(Boolean).join("\n\n").slice(0, 5000) || null;
+
     rows.push({
       fuente_id:      id,
       fuente:         "uruguay_concursa",
@@ -305,8 +318,8 @@ async function scrapeUruguay(): Promise<{ rows: ConcursoRow[]; errores: string[]
       numero_llamado: String(l.LlaNum ?? "").trim() || null,
       titulo, cargo,
       organismo:      String(l.Inciso ?? l.UnidadEjecutora ?? "").trim() || null,
-      descripcion:    String(l.LlaConTra ?? "").trim().slice(0, 800) || null,
-      requisitos:     String(l.LlaReqExc ?? "").trim().slice(0, 800) || null,
+      descripcion:    descripcionFull,
+      requisitos:     String(l.LlaReqExc ?? "").trim().slice(0, 2000) || null,
       tipo_tarea:     String(l.TipTarDsc ?? "").trim() || null,
       tipo_vinculo:   String(l.TipVinDsc ?? "").trim() || null,
       lugar:          String(l.LlaLugDes ?? "").trim().slice(0, 200) || null,
