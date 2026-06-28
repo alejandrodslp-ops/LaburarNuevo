@@ -66,8 +66,8 @@ export default async function EmpleosPage({ searchParams }) {
       </div>
 
       <div className="bottom-cta">
-        <p>¿Querés recibir alertas automáticas?</p>
-        <p>Registrate gratis en Konexu y te avisamos cuando salgan concursos para tu perfil.</p>
+        <p>Deja de buscar. El trabajo te encuentra.</p>
+        <p>Arma tu perfil y Konexu te avisa apenas aparece un llamado para ti —público o privado—, a tiempo para postularte. Gratis.</p>
         <a href="/download" className="btn-primary">📱 Descargar Konexu — Gratis</a>
       </div>
 
