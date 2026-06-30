@@ -8,7 +8,9 @@ import { nombrePais } from '../../lib/utils'
 
 const LATAM = ['UY','AR','BR','MX','CL','CO','PE','EC','BO','PY','VE','CR','GT','SV','HN','NI','PA','DO','CU']
 
-export const revalidate = 600
+// Dinámico por request: el filtro por país (geo) NO puede cachearse por URL,
+// o un visitante recibiría los resultados de otro país.
+export const dynamic = 'force-dynamic'
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://konexu.app'
 
