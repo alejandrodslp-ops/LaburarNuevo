@@ -1,29 +1,18 @@
-'use client'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-
+// Formulario nativo (GET → /empleos?q=...). Funciona SIEMPRE, con o sin JS.
 export default function SearchForm({ defaultQ = '' }) {
-  const router = useRouter()
-  const [q, setQ] = useState(defaultQ)
-
-  function handleSubmit(e) {
-    e.preventDefault()
-    const p = new URLSearchParams()
-    if (q.trim()) p.set('q', q.trim())
-    router.push(`/empleos${p.toString() ? '?' + p.toString() : ''}`)
-  }
-
   return (
-    <form className="search-form" onSubmit={handleSubmit}>
+    <form className="search-form" action="/empleos" method="get">
       <div className="form-group" style={{ flex: 1 }}>
-        <label className="form-label">Cargo o profesión</label>
+        <label className="form-label" htmlFor="q">Cargo o profesión</label>
         <input
+          id="q"
+          name="q"
           className="form-input"
           type="text"
           placeholder="Ej: docente, plomero, contador, enfermero..."
-          value={q}
-          onChange={e => setQ(e.target.value)}
+          defaultValue={defaultQ}
           maxLength={100}
+          autoComplete="off"
         />
       </div>
       <button type="submit" className="btn-search">
