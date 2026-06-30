@@ -119,6 +119,19 @@ export default async function EmpleosPage({ searchParams }) {
       <footer className="footer">
         <p>© {new Date().getFullYear()} Konexu · konexu.app</p>
       </footer>
+
+      {/* espaciador para que la barra fija no tape el footer */}
+      <div style={{ height: 78 }} />
+
+      {/* Gancho: barra fija inferior — recordatorio de la app */}
+      <div style={{ position:'fixed', bottom:0, left:0, right:0, zIndex:50, background:'rgba(13,17,23,0.96)', backdropFilter:'blur(10px)', WebkitBackdropFilter:'blur(10px)', borderTop:'1px solid rgba(255,255,255,0.1)', display:'flex', alignItems:'center', gap:12, padding:'11px 16px', boxShadow:'0 -8px 24px rgba(0,0,0,0.3)' }}>
+        <span style={{ fontSize:22 }}>🔔</span>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:13, fontWeight:800, color:'#F1F5F9' }}>Recibe estos empleos cada día</div>
+          <div style={{ fontSize:11, color:'#94A3B8' }}>Gratis · sin volver a buscar</div>
+        </div>
+        <a href="/download" style={{ background:'var(--coral-cta)', color:'#fff', borderRadius:10, padding:'11px 18px', fontSize:13, fontWeight:800, whiteSpace:'nowrap', textDecoration:'none' }}>Descargar</a>
+      </div>
     </>
   )
 }
