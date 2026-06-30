@@ -126,6 +126,22 @@ export default async function Home() {
               📱 App gratis
             </a>
           </div>
+
+          {/* Stats */}
+          <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, maxWidth:480, margin:'4px auto 0' }}>
+            <div className="stat-card">
+              <div className="stat-num"><CounterRealtime initialTotal={total} /></div>
+              <div className="stat-lbl">empleos activos</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-num">33</div>
+              <div className="stat-lbl">países</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-num" style={{ fontSize:24 }}>Actualización</div>
+              <div className="stat-lbl">diario</div>
+            </div>
+          </div>
           </div>{/* /hero-copy */}
 
           <div className="hero-visual">
@@ -152,22 +168,6 @@ export default async function Home() {
             </div></div>
           </div>
          </div>{/* /hero-row */}
-
-          {/* Stats */}
-          <div className="stats-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, maxWidth:480, margin:'0 auto 48px' }}>
-            <div className="stat-card">
-              <div className="stat-num"><CounterRealtime initialTotal={total} /></div>
-              <div className="stat-lbl">empleos activos</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-num">33</div>
-              <div className="stat-lbl">países</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-num" style={{ fontSize:24 }}>Actualización</div>
-              <div className="stat-lbl">diario</div>
-            </div>
-          </div>
 
         </div>
       </section>
