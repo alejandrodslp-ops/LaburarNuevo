@@ -166,8 +166,8 @@ export default async function Home() {
               <div className="stat-lbl">países</div>
             </div>
             <div className="stat-card">
-              <div className="stat-num" style={{ fontSize:24 }}>diario</div>
-              <div className="stat-lbl">actualización</div>
+              <div className="stat-num" style={{ fontSize:24 }}>Actualización</div>
+              <div className="stat-lbl">diario</div>
             </div>
           </div>
 
