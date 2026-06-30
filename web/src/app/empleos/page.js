@@ -3,6 +3,10 @@ import { db } from '../../lib/supabase'
 
 import SearchForm from './SearchForm'
 import JobsRealtime from '../JobsRealtime'
+import { headers } from 'next/headers'
+import { nombrePais } from '../../lib/utils'
+
+const LATAM = ['UY','AR','BR','MX','CL','CO','PE','EC','BO','PY','VE','CR','GT','SV','HN','NI','PA','DO','CU']
 
 export const revalidate = 600
 
@@ -21,15 +25,17 @@ export async function generateMetadata({ searchParams }) {
   }
 }
 
-async function getConcursos(q) {
+async function getConcursos(q, pais) {
   const safe = (q || '').replace(/[%_'"\\;]/g, c => `\\${c}`).slice(0, 100)
 
   let query = db
     .from('concursos')
     .select('id,titulo,cargo,organismo,pais,lugar,fecha_cierre,tipo_vinculo,tipo_tarea,puestos,created_at')
     .eq('activo', true)
-    .order('created_at', { ascending: false })
-    .limit(360)
+
+  if (pais) query = query.eq('pais', pais)
+
+  query = query.order('created_at', { ascending: false }).limit(360)
 
   if (safe) query = query.or(`titulo.ilike.%${safe}%,cargo.ilike.%${safe}%,organismo.ilike.%${safe}%`)
 
@@ -39,9 +45,15 @@ async function getConcursos(q) {
 
 export default async function EmpleosPage({ searchParams }) {
   const q    = searchParams?.q || ''
-  const concursos = await getConcursos(q)
+  const override = (searchParams?.pais || '').toUpperCase()
+  const h = await headers()
+  const geo = (h.get('x-vercel-ip-country') || '').toUpperCase()
+  const detected = override || geo
+  const pais = LATAM.includes(detected) ? detected : null
+  const concursos = await getConcursos(q, pais)
 
-  const titulo = q ? `Resultados para "${q}"` : 'Todos los empleos'
+  const enPais = pais ? ` en ${nombrePais(pais)}` : ''
+  const titulo = (q ? `Resultados para "${q}"` : 'Todos los empleos') + enPais
 
   return (
     <>
