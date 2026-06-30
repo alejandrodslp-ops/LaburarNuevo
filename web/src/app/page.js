@@ -20,6 +20,7 @@ async function getRecentJobs() {
     .from('concursos')
     .select('id,titulo,cargo,organismo,pais,lugar,fecha_cierre,tipo_vinculo,tipo_tarea,puestos,created_at')
     .eq('activo', true)
+    .in('pais', ['UY','AR','BR','MX','CL','CO','PE','EC','BO','PY','VE'])
     .order('created_at', { ascending: false })
     .limit(8)
   return data ?? []
