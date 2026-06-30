@@ -55,7 +55,8 @@ export default async function EmpleosPage({ searchParams }) {
   const concursos = await getConcursos(q, pais)
 
   const enPais = pais ? ` en ${nombrePais(pais)}` : ''
-  const titulo = (q ? `Resultados para "${q}"` : 'Todos los empleos') + enPais
+  const nStr = concursos.length >= 360 ? '360+' : String(concursos.length)
+  const titulo = q ? `🎉 Encontramos ${nStr} empleos de "${q}"${enPais}` : `Todos los empleos${enPais}`
 
   return (
     <>
@@ -67,9 +68,9 @@ export default async function EmpleosPage({ searchParams }) {
       <div className="container">
         <SearchForm defaultQ={q} />
 
-        <div className="section-header">
-          <span className="section-title">{titulo}</span>
-          <span className="section-count">Más recientes primero</span>
+        <div className="section-header" style={{ flexDirection:'column', alignItems:'flex-start', gap:6, marginBottom:18 }}>
+          <span className="section-title" style={{ fontSize:'clamp(17px,3vw,22px)', textTransform:'none', letterSpacing:'-0.3px' }}>{titulo}</span>
+          <span className="section-count">Mira los que quieras. Para postularte y recibir alertas, sigue en la app.</span>
         </div>
 
         <JobsRealtime

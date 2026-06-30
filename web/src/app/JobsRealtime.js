@@ -24,13 +24,13 @@ function JobCard({ c }) {
           href="/download"
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            background: '#0D1117', color: 'white',
+            background: 'var(--coral-cta)', color: 'white',
             borderRadius: 8, padding: '8px 14px',
-            fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap',
+            fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap',
             textDecoration: 'none', flexShrink: 0,
           }}
         >
-          🔒 Solo en la app
+          Contactar gratis →
         </a>
       </div>
     )
