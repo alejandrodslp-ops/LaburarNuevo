@@ -113,10 +113,6 @@ export default async function Home() {
             El empleo de América Latina en un solo lugar
           </p>
 
-          <p style={{ fontSize:'clamp(16px,2.5vw,20px)', color:'#94A3B8', maxWidth:500, margin:'0 auto 40px', lineHeight:1.6 }}>
-            Todos los llamados públicos y privados de 33 países, actualizados a diario en tu celular. Descargá la app gratis ahora.
-          </p>
-
           <div style={{ maxWidth: 540, margin: '0 auto 28px' }}>
             <SearchForm />
           </div>
