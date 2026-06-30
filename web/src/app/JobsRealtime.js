@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import Link from 'next/link'
 import { supabaseBrowser } from '../lib/supabase-browser'
 import { toSlug, bandPais, nombrePais, fmtFecha } from '../lib/utils'
@@ -55,7 +55,24 @@ function JobCard({ c }) {
   )
 }
 
-export default function JobsRealtime({ initialJobs = [], pais = null }) {
+function Anzuelo({ q }) {
+  return (
+    <a href="/download" style={{ display:'block', textDecoration:'none', background:'linear-gradient(120deg,#0D1117,#1a0f0a)', border:'1px solid rgba(232,120,90,0.3)', borderRadius:14, padding:'18px 20px' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:14, flexWrap:'wrap' }}>
+        <span style={{ fontSize:28 }}>🔔</span>
+        <div style={{ flex:1, minWidth:200 }}>
+          <div style={{ fontSize:15, fontWeight:800, color:'#F1F5F9', marginBottom:3 }}>
+            {q ? `¿No quieres volver a buscar "${q}"?` : '¿No quieres buscar todos los días?'}
+          </div>
+          <div style={{ fontSize:13, color:'#94A3B8', lineHeight:1.45 }}>Activa alertas y Konexu te avisa apenas aparece una para ti. Gratis, a un clic.</div>
+        </div>
+        <span style={{ background:'var(--coral-cta)', color:'#fff', borderRadius:10, padding:'11px 18px', fontSize:13, fontWeight:800, whiteSpace:'nowrap' }}>📱 Activar alertas</span>
+      </div>
+    </a>
+  )
+}
+
+export default function JobsRealtime({ initialJobs = [], pais = null, mostrarAnzuelo = false, anzueloQ = '' }) {
   const [jobs, setJobs]       = useState(initialJobs)
   const [nuevos, setNuevos]   = useState(0)
   const [visible, setVisible] = useState(true)
@@ -107,7 +124,12 @@ export default function JobsRealtime({ initialJobs = [], pais = null }) {
             <Link href="/empleos" style={{ color: 'var(--muted)', fontWeight: 700 }}>Ver todos los empleos →</Link>
           </div>
         ) : (
-          jobs.map(c => <JobCard key={c.id} c={c} />)
+          jobs.map((c, i) => (
+            <Fragment key={c.id}>
+              <JobCard c={c} />
+              {mostrarAnzuelo && i === 2 && <Anzuelo q={anzueloQ} />}
+            </Fragment>
+          ))
         )}
       </div>
     </div>

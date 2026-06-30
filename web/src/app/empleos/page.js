@@ -77,6 +77,8 @@ export default async function EmpleosPage({ searchParams }) {
           key={q}
           initialJobs={concursos}
           pais={null}
+          mostrarAnzuelo={true}
+          anzueloQ={q}
         />
       </div>
 
