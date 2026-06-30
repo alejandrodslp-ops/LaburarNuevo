@@ -105,11 +105,13 @@ export default async function Home() {
           </div>
 
           {/* Título */}
-          <h1 className="hero-title" style={{ fontSize:'clamp(36px,6vw,64px)', fontWeight:900, color:'#F1F5F9', lineHeight:1.08, letterSpacing:-2, marginBottom:20 }}>
-            El empleo de{' '}
-            <em style={{ color:'#E8785A', fontStyle:'italic' }}>América Latina</em>
-            <br />en un solo lugar
+          <h1 className="hero-title" style={{ fontSize:'clamp(32px,5.4vw,56px)', fontWeight:900, color:'#F1F5F9', lineHeight:1.08, letterSpacing:-1.5, marginBottom:12 }}>
+            Haz que las oportunidades{' '}
+            <em style={{ color:'#E8785A', fontStyle:'italic' }}>te encuentren a ti</em>
           </h1>
+          <p style={{ fontSize:'clamp(15px,2.1vw,20px)', fontWeight:700, color:'#CBD5E1', letterSpacing:-0.3, marginBottom:18 }}>
+            El empleo de América Latina en un solo lugar
+          </p>
 
           <p style={{ fontSize:'clamp(16px,2.5vw,20px)', color:'#94A3B8', maxWidth:500, margin:'0 auto 40px', lineHeight:1.6 }}>
             Todos los llamados públicos y privados de 33 países, actualizados a diario en tu celular. Descargá la app gratis ahora.
