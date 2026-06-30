@@ -849,9 +849,9 @@ async function getOfertasEmpleadores(db: ReturnType<typeof createClient>, params
   const soloActivas = params?.activa !== false;
 
   let q = db.from("ofertas")
-    .select(`id, titulo, cargo, descripcion, pais, ciudad, modalidad, tipo_contrato,
-             salario_min, salario_max, moneda, activa, vistas, postulaciones,
-             fecha_cierre, created_at, employer_id,
+    .select(`id, titulo, cargo:empleo, descripcion, pais, ciudad, lugar,
+             salario_min:sueldo_min, salario_max:sueldo_max, sueldo_tipo,
+             activa, created_at, employer_id,
              profiles!ofertas_employer_id_fkey(nombre, apellido1, avatar_url)`)
     .order("created_at", { ascending: false })
     .limit(300);
@@ -859,7 +859,7 @@ async function getOfertasEmpleadores(db: ReturnType<typeof createClient>, params
   if (soloActivas) q = q.eq("activa", true);
   if (paisFlt)     q = q.eq("pais", paisFlt);
   if (ciudadFlt)   q = q.ilike("ciudad", `%${ciudadFlt}%`);
-  if (cargoFlt)    q = q.or(`cargo.ilike.%${cargoFlt}%,titulo.ilike.%${cargoFlt}%`);
+  if (cargoFlt)    q = q.or(`empleo.ilike.%${cargoFlt}%,titulo.ilike.%${cargoFlt}%`);
 
   const { data: ofertas, error } = await q;
   if (error) return err(error.message);
