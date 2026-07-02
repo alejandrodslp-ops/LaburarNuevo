@@ -5,6 +5,7 @@ import SearchForm from './SearchForm'
 import JobsRealtime from '../JobsRealtime'
 import { headers } from 'next/headers'
 import { nombrePais } from '../../lib/utils'
+import WaitlistForm from '../../components/WaitlistForm'
 
 const LATAM = ['UY','AR','BR','MX','CL','CO','PE','EC','BO','PY','VE','CR','GT','SV','HN','NI','PA','DO','CU']
 
@@ -84,8 +85,10 @@ export default async function EmpleosPage({ searchParams }) {
 
       <div className="bottom-cta">
         <p>Deja de buscar. El trabajo te encuentra.</p>
-        <p>Arma tu perfil y Konexu te avisa apenas aparece un llamado para ti —público o privado—, a tiempo para postularte. Gratis.</p>
-        <a href="/download" className="btn-primary">📱 Descargar Konexu — Gratis</a>
+        <p>{q ? `Deja tu email y te avisamos apenas aparezca otro empleo de "${q}"${enPais}. Gratis.` : 'Deja tu email y te avisamos apenas aparezca un empleo para tu perfil. Gratis.'}</p>
+        <div style={{ display:'flex', justifyContent:'center', marginTop:16 }}>
+          <WaitlistForm ctaLabel="Activar alertas gratis" />
+        </div>
       </div>
 
       {/* Contenido SEO — palabras clave para Google */}
