@@ -38,7 +38,7 @@ export const T = {
     wl_email_ph:  'Tu email *',
     wl_pais_ph:   '¿En qué país estás? (opcional)',
     wl_cta:       'Activar alertas gratis',
-    wl_legal:     'Sin spam. Solo te avisamos cuando salga un trabajo para ti.',
+    wl_legal:     'Cero publicidad. Solo empleos para tu perfil — nada más.',
     wl_err_email: 'Ingresá un email válido.',
     wl_err_conn:  'No se pudo conectar. Intentá de nuevo.',
     wl_ok_tit:    '¡Listo! Alertas activadas ✓',
