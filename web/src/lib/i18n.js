@@ -16,7 +16,7 @@ export function getLang(codigoPais) {
 export const T = {
   es: {
     nav_jobs:     'Ver empleos',
-    nav_download: 'Descargar app',
+    nav_download: 'Alertas gratis',
     hero_sub_many:  (n, pais) => `Más de ${n.toLocaleString()} empleos activos en ${pais} · Actualizados diariamente`,
     hero_sub_few:   (n, pais) => `${n} empleos activos en ${pais} · Actualizados diariamente`,
     hero_h1_1:    'Haz que las',

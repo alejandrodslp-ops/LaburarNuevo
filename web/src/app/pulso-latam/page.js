@@ -505,7 +505,7 @@ export default async function PulsoLatam() {
           Ver empleos disponibles →
         </Link>
         <a href="/download" style={{display:'inline-block',color:'#4A5568',padding:'13px 16px',fontSize:13,fontWeight:600}}>
-          Descargar app
+          Alertas gratis
         </a>
       </div>
 
