@@ -8,7 +8,9 @@ import SearchForm from './empleos/SearchForm'
 export const revalidate = 300
 export const fetchCache = 'force-no-store'
 
-const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+// Server component: usa las credenciales de servidor (fuente autoritativa),
+// nunca las NEXT_PUBLIC — en producción esas pueden apuntar a otro proyecto.
+const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
 async function getStats() {
   const { data } = await db.rpc('count_concursos_activos')

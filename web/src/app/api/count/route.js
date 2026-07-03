@@ -3,9 +3,11 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
+// Route handler (server): usa credenciales de servidor, no las NEXT_PUBLIC,
+// que en producción pueden apuntar a un proyecto viejo (contador desfasado).
 const db = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
 )
 
 export async function GET() {
