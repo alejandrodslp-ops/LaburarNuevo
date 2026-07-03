@@ -5,8 +5,8 @@ import WaitlistForm from '../../components/WaitlistForm'
 export const revalidate = 3600
 
 export const metadata = {
-  title: 'Descargá Konexu — Acceso anticipado',
-  description: 'Miles de personas quieren descargar Konexu. Anotate para recibir tu acceso antes que el resto.',
+  title: 'Konexu — Alertas de trabajo gratis',
+  description: 'Deja tu email y te avisamos apenas salga un trabajo para tu perfil, en tu país. Gratis. Empleos y concursos públicos de toda LatAm.',
 }
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
@@ -46,9 +46,9 @@ export default async function DownloadPage() {
           background: 'rgba(232,120,90,0.12)', border: '1px solid rgba(232,120,90,0.3)',
           borderRadius: 100, padding: '7px 18px', marginBottom: 32,
         }}>
-          <span style={{ fontSize: 16 }}>🔥</span>
+          <span style={{ fontSize: 16 }}>🔔</span>
           <span style={{ fontSize: 12, color: '#E8785A', fontWeight: 700, letterSpacing: 0.5 }}>
-            ALTA DEMANDA — ACCESO POR ORDEN DE REGISTRO
+            GRATIS · TE AVISAMOS POR EMAIL
           </span>
         </div>
 
@@ -57,21 +57,21 @@ export default async function DownloadPage() {
           lineHeight: 1.08, color: 'white', maxWidth: 580,
           margin: '0 auto 18px', letterSpacing: -2,
         }}>
-          El flujo de descargas es<br />
-          <em style={{ color: '#E8785A', fontStyle: 'italic' }}>más alto de lo esperado</em>
+          No busques trabajo todos los días.<br />
+          <em style={{ color: '#E8785A', fontStyle: 'italic' }}>Deja que te encuentre.</em>
         </h1>
 
         <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.55)', maxWidth: 460, margin: '0 auto 12px', lineHeight: 1.65 }}>
-          Para garantizarte la mejor experiencia, estamos activando cuentas por tandas según el orden de registro.
+          Deja tu email y Konexu te avisa apenas aparece un trabajo para tu perfil —público o privado— en tu país.
         </p>
 
         <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.35)', maxWidth: 400, margin: '0 auto 44px', lineHeight: 1.6 }}>
-          Anotate ahora y te avisamos por email cuando sea tu turno — los primeros de la lista tienen prioridad.
+          Gratis. Sin buscar todos los días. El trabajo te encuentra a ti.
         </p>
 
         {/* Waitlist form */}
         <div style={{ width: '100%', maxWidth: 440 }}>
-          <WaitlistForm ctaLabel="Quiero mi acceso →" />
+          <WaitlistForm ctaLabel="Activar alertas gratis" />
         </div>
 
         {/* Social proof */}
