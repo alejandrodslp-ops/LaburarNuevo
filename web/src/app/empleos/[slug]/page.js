@@ -89,7 +89,7 @@ export default async function ConcursoPage({ params }) {
     title: cargo,
     description: descripcion,
     datePosted: c.created_at?.split('T')[0],
-    ...(c.fecha_cierre && { validThrough: c.fecha_cierre }),
+    validThrough: c.fecha_cierre || new Date((c.created_at ? Date.parse(c.created_at) : Date.now()) + 60 * 86400000).toISOString().slice(0, 10),
     employmentType: employmentType(c.tipo_vinculo),
     hiringOrganization: {
       '@type': 'Organization',
