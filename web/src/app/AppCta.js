@@ -10,7 +10,7 @@ const T = {
     ],
     descarga: 'Descarga Konexu',
     gratis:   'Gratis',
-    btn:      '📱 Descargar Konexu — Gratis',
+    btn:      '🔔 Activar alertas gratis',
   },
   pt: {
     pre:      'Para te mantermos informado sobre vagas como esta',

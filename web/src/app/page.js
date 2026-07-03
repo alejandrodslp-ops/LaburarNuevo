@@ -88,7 +88,7 @@ export default async function Home() {
         <div style={{ display:'flex', gap:12, alignItems:'center' }}>
           <Link href="/pulso-latam" style={{ color:'#94A3B8', fontSize:13, fontWeight:600 }}>Pulso Laboral</Link>
           <Link href="/empleos" style={{ color:'#94A3B8', fontSize:13, fontWeight:600 }}>Ver empleos</Link>
-          <a href="/download" className="nav-btn">App gratis</a>
+          <a href="/download" className="nav-btn">Alertas gratis</a>
         </div>
       </nav>
 
@@ -123,7 +123,7 @@ export default async function Home() {
               Ver empleos →
             </Link>
             <a href="/download" style={{ background:'rgba(255,255,255,0.07)', color:'#F1F5F9', borderRadius:10, padding:'14px 28px', fontSize:15, fontWeight:700, textDecoration:'none', border:'1px solid rgba(255,255,255,0.12)' }}>
-              📱 App gratis
+              🔔 Alertas gratis
             </a>
           </div>
 
@@ -251,7 +251,7 @@ export default async function Home() {
         <p style={{ color:'#475569', fontSize:12, marginTop:8 }}>
           © {new Date().getFullYear()} Konexu ·{' '}
           <Link href="/empleos" style={{ color:'#64748B' }}>Ver empleos</Link> ·{' '}
-          <a href="/download" style={{ color:'#64748B' }}>App gratis</a> ·{' '}
+          <a href="/download" style={{ color:'#64748B' }}>Alertas gratis</a> ·{' '}
           soporte@konexu.app
         </p>
       </footer>

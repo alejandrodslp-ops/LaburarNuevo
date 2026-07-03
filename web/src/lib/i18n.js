@@ -22,7 +22,7 @@ export const T = {
     hero_h1_1:    'Haz que las',
     hero_h1_em:   'oportunidades',
     hero_h1_2:    'te encuentren',
-    hero_btn_primary: (pais) => `📱 Descargar Konexu — Gratis`,
+    hero_btn_primary: (pais) => `🔔 Activar alertas gratis`,
     hero_btn_outline: 'Ver empleos ↓',
     section_title: (pais) => `Llamados en ${pais}`,
     section_recent: 'Más recientes primero',

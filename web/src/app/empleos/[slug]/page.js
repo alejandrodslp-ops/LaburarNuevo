@@ -121,7 +121,7 @@ export default async function ConcursoPage({ params }) {
 
       <nav className="nav">
         <Link href="/" className="nav-logo"><span>Konexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
-        <a href="/download" className="nav-btn">Descargar app</a>
+        <a href="/download" className="nav-btn">Alertas gratis</a>
       </nav>
 
       <div className="container">

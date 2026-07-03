@@ -63,7 +63,7 @@ export default async function EmpleosPage({ searchParams }) {
     <>
       <nav className="nav">
         <Link href="/" className="nav-logo"><span>Konexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
-        <a href="/download" className="nav-btn">Descargar gratis</a>
+        <a href="/download" className="nav-btn">Alertas gratis</a>
       </nav>
 
       <div className="container">
@@ -135,7 +135,7 @@ export default async function EmpleosPage({ searchParams }) {
           <div style={{ fontSize:13, fontWeight:800, color:'#F1F5F9' }}>Recibe estos empleos cada día</div>
           <div style={{ fontSize:11, color:'#94A3B8' }}>Gratis · sin volver a buscar</div>
         </div>
-        <a href="/download" style={{ background:'var(--coral-cta)', color:'#fff', borderRadius:10, padding:'11px 18px', fontSize:13, fontWeight:800, whiteSpace:'nowrap', textDecoration:'none' }}>Descargar</a>
+        <a href="/download" style={{ background:'var(--coral-cta)', color:'#fff', borderRadius:10, padding:'11px 18px', fontSize:13, fontWeight:800, whiteSpace:'nowrap', textDecoration:'none' }}>Alertas</a>
       </div>
     </>
   )

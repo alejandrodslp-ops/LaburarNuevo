@@ -249,7 +249,7 @@ export default async function PulsoLatam() {
       <Link href="/" className="nav-logo">Konexu<span style={{fontSize:9,marginLeft:'-7px',verticalAlign:'bottom'}}>🧩</span></Link>
       <div style={{display:'flex',gap:10,alignItems:'center'}}>
         <Link href="/empleos" style={{fontSize:13,fontWeight:600,color:'#4A5568'}}>Ver empleos</Link>
-        <a href="/download" className="nav-btn">App gratis</a>
+        <a href="/download" className="nav-btn">Alertas gratis</a>
       </div>
     </nav>
 
