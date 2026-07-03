@@ -16,11 +16,11 @@ const PAISES = [
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const ANON_KEY     = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-export default function WaitlistForm({ lang = 'es', ctaLabel }) {
+export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', paisDefault = '' }) {
   const tr = T[lang] || T.es
   const [email,    setEmail]    = useState('')
   const [nombre,   setNombre]   = useState('')
-  const [pais,     setPais]     = useState('')
+  const [pais,     setPais]     = useState(paisDefault)
   const [estado,   setEstado]   = useState('idle')
   const [posicion, setPosicion] = useState(null)
   const [msg,      setMsg]      = useState('')
@@ -33,7 +33,7 @@ export default function WaitlistForm({ lang = 'es', ctaLabel }) {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/waitlist`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` },
-        body:    JSON.stringify({ accion: 'unirse', email: email.trim().toLowerCase(), nombre: nombre.trim() || null, pais: pais || null }),
+        body:    JSON.stringify({ accion: 'unirse', email: email.trim().toLowerCase(), nombre: nombre.trim() || null, pais: pais || paisDefault || null, busqueda: (busqueda || '').trim() || null }),
       })
       const data = await res.json()
       if (data.posicion) { setPosicion(data.posicion); setEstado('ok') }

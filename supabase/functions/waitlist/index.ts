@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
   const db = createClient(URL, KEY, { auth: { persistSession: false } });
 
   try {
-    const { accion, email, nombre, push_token, pais } = await req.json();
+    const { accion, email, nombre, push_token, pais, busqueda } = await req.json();
 
     // ── Estado global de la waitlist ──────────────────────────────────────────
     if (accion === "estado") {
@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
       if (existente) return ok({ ya_estaba: true, posicion: existente.posicion, habilitado: existente.habilitado });
 
       const { data: nuevo, error: insErr } = await db.from("waitlist")
-        .insert({ email: emailLower, nombre: nombre?.trim() ?? null, push_token: push_token ?? null, pais: pais ?? null })
+        .insert({ email: emailLower, nombre: nombre?.trim() ?? null, push_token: push_token ?? null, pais: pais ?? null, busqueda: busqueda?.trim()?.slice(0, 120) || null })
         .select("posicion")
         .single();
 

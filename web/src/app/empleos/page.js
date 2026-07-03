@@ -87,7 +87,7 @@ export default async function EmpleosPage({ searchParams }) {
         <p>Deja de buscar. El trabajo te encuentra.</p>
         <p>{q ? `Deja tu email y te avisamos apenas aparezca otro empleo de "${q}"${enPais}. Gratis.` : 'Deja tu email y te avisamos apenas aparezca un empleo para tu perfil. Gratis.'}</p>
         <div style={{ display:'flex', justifyContent:'center', marginTop:16 }}>
-          <WaitlistForm ctaLabel="Activar alertas gratis" />
+          <WaitlistForm ctaLabel="Activar alertas gratis" busqueda={q} paisDefault={pais ? nombrePais(pais) : ''} />
         </div>
       </div>
 
