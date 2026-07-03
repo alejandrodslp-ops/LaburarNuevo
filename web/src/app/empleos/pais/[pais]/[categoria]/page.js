@@ -32,6 +32,18 @@ export async function generateStaticParams() {
   return params
 }
 
+// ¿Hay al menos un empleo para este país+categoría? (chequeo barato, limit 1)
+async function hayEmpleos(codigo, cat) {
+  let q = db.from('concursos').select('id').eq('activo', true).eq('pais', codigo).limit(1)
+  if (cat.filtro.tipo_vinculo) {
+    q = q.eq('tipo_vinculo', cat.filtro.tipo_vinculo)
+  } else if (cat.filtro.keywords) {
+    q = q.or(cat.filtro.keywords.map(k => `titulo.ilike.%${k}%,cargo.ilike.%${k}%`).join(','))
+  }
+  const { data } = await q
+  return (data?.length ?? 0) > 0
+}
+
 export async function generateMetadata({ params }) {
   const codigo = SLUG_A_CODIGO[params.pais]
   const cat    = CATEGORIAS[params.categoria]
@@ -42,9 +54,13 @@ export async function generateMetadata({ params }) {
   const catNombre = cat.nombres[lang] || cat.nombres.es
   const desc   = (cat.desc[lang] || cat.desc.es)(nombre)
 
+  // Página sin empleos = contenido fino/duplicado → no indexar (pero seguir links)
+  const conContenido = await hayEmpleos(codigo, cat)
+
   return {
     title: `${catNombre} en ${nombre}`,
     description: desc,
+    ...(conContenido ? {} : { robots: { index: false, follow: true } }),
     alternates: {
       canonical: `${SITE}/empleos/pais/${params.pais}/${params.categoria}`,
       languages: {

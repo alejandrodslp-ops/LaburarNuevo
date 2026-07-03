@@ -41,8 +41,15 @@ export default async function sitemap() {
     priority: 0.85,
   }))
 
-  // Páginas por país + categoría — alta prioridad SEO
-  const categoriaUrls = PAISES_SLUGS.flatMap(pais =>
+  // Páginas por país + categoría — SOLO mercados con inventario real.
+  // Evita anunciar cientos de combos vacíos de países extranjeros (Google
+  // los marca "duplicado / eligió otra canónica"). Las páginas vacías, además,
+  // se auto-marcan noindex en la propia ruta.
+  const PAISES_CORE = [
+    'uruguay', 'argentina', 'brasil', 'mexico', 'chile', 'colombia',
+    'peru', 'ecuador', 'bolivia', 'paraguay', 'venezuela',
+  ]
+  const categoriaUrls = PAISES_CORE.flatMap(pais =>
     SLUGS_CATEGORIA.map(cat => ({
       url: `${SITE}/empleos/pais/${pais}/${cat}`,
       lastModified: new Date(),
