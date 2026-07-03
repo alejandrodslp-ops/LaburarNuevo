@@ -39,7 +39,7 @@ function plantilla(nombre: string | null, busqueda: string, matches: any[]): str
   }).join("");
   const link = `${SITE}/empleos?q=${encodeURIComponent(busqueda)}`;
   return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#FBF8F4">
-    <div style="background:#0D1117;padding:24px 32px"><span style="font-size:26px;font-weight:900;color:#E8785A">Konexu</span><span style="font-size:11px;vertical-align:sub;margin-left:-2px">🧩</span></div>
+    <div style="background:#0D1117;padding:24px 32px"><span style="font-size:26px;font-weight:900;color:#E8785A">Konexu</span><span style="font-size:11px;vertical-align:sub;margin-left:-7px">🧩</span></div>
     <div style="padding:28px 32px">
       <p style="font-size:15px;color:#1A1020">${saludo}</p>
       <h2 style="color:#1A1020;font-size:20px;margin:8px 0 4px">Aparecieron ${matches.length} empleo${matches.length > 1 ? "s" : ""} de "${esc(busqueda)}"</h2>
