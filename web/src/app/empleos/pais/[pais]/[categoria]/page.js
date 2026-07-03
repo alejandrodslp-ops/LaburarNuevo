@@ -35,7 +35,9 @@ export async function generateStaticParams() {
 // ¿Hay al menos un empleo para este país+categoría? (chequeo barato, limit 1)
 async function hayEmpleos(codigo, cat) {
   let q = db.from('concursos').select('id').eq('activo', true).eq('pais', codigo).limit(1)
-  if (cat.filtro.tipo_vinculo) {
+  if (cat.filtro.publico) {
+    q = q.or('tipo_vinculo.is.null,and(tipo_vinculo.neq.privado,tipo_vinculo.neq.empleo)')
+  } else if (cat.filtro.tipo_vinculo) {
     q = q.eq('tipo_vinculo', cat.filtro.tipo_vinculo)
   } else if (cat.filtro.keywords) {
     q = q.or(cat.filtro.keywords.map(k => `titulo.ilike.%${k}%,cargo.ilike.%${k}%`).join(','))
@@ -87,7 +89,9 @@ async function getConcursosCategoria(codigo, cat) {
     .limit(300)
 
   // Aplicar filtro de categoría
-  if (cat.filtro.tipo_vinculo) {
+  if (cat.filtro.publico) {
+    query = query.or('tipo_vinculo.is.null,and(tipo_vinculo.neq.privado,tipo_vinculo.neq.empleo)')
+  } else if (cat.filtro.tipo_vinculo) {
     query = query.eq('tipo_vinculo', cat.filtro.tipo_vinculo)
   } else if (cat.filtro.keywords) {
     const kws = cat.filtro.keywords

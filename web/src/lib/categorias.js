@@ -3,7 +3,9 @@
 
 export const CATEGORIAS = {
   'concurso-publico': {
-    filtro: { tipo_vinculo: 'Convocatoria Abierta' },
+    // Público = todo lo que NO es privado ni empleo genérico (incluye los null,
+    // que son la mayoría de los concursos oficiales scrapeados, ej. Uruguay).
+    filtro: { publico: true },
     nombres: {
       es: 'Concurso Público', pt: 'Concurso Público', en: 'Public Competition',
       fr: 'Concours Public', it: 'Concorso Pubblico', de: 'Öffentliche Ausschreibung',
