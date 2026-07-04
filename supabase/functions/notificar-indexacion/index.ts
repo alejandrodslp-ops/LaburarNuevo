@@ -13,6 +13,8 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SA_KEY       = Deno.env.get("GOOGLE_INDEXING_SA_KEY") ?? "";
 const SITE         = "https://www.konexu.app";
+// IndexNow (Bing, DuckDuckGo, Yandex…). La clave es pública: vive en /<clave>.txt.
+const INDEXNOW_KEY = "653888ae6c12bb31735da813cba61aeb";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -105,11 +107,34 @@ Deno.serve(async (req) => {
 
     const token = await getAccessToken(sa);
     let ok = 0, fail = 0;
+    const urls: string[] = [];
     for (const c of concursos ?? []) {
       const url = `${SITE}/empleos/${toSlug(c)}`;
+      urls.push(url);
       (await notify(token, url)) ? ok++ : fail++;
     }
-    return json({ ok: true, notificados: ok, fallidos: fail, total: concursos?.length ?? 0 });
+
+    // IndexNow: mismas URLs a Bing/DuckDuckGo/Yandex. Aislado: si falla, Google ya se notificó.
+    let indexnow = "skip";
+    try {
+      if (urls.length > 0) {
+        const r = await fetch("https://api.indexnow.org/indexnow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+          body: JSON.stringify({
+            host: "www.konexu.app",
+            key: INDEXNOW_KEY,
+            keyLocation: `${SITE}/${INDEXNOW_KEY}.txt`,
+            urlList: urls,
+          }),
+        });
+        indexnow = String(r.status);
+      }
+    } catch (e) {
+      indexnow = "error: " + (e as Error).message.slice(0, 60);
+    }
+
+    return json({ ok: true, notificados: ok, fallidos: fail, total: concursos?.length ?? 0, indexnow });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }
