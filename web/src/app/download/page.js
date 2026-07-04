@@ -2,17 +2,19 @@ import Link from 'next/link'
 import { headers } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 import WaitlistForm from '../../components/WaitlistForm'
+import { getLang } from '../../lib/i18n'
 
 export const dynamic = 'force-dynamic'
 
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
-// Idioma: ?lang= explícito > geo (Brasil = pt) > español por defecto.
+const LANGS = ['es', 'pt', 'en', 'fr', 'it', 'de', 'sv', 'no', 'ja']
+
+// Idioma: ?lang= explícito > geo (país → idioma vía getLang) > español por defecto.
 async function pickLang(searchParams) {
   const q = searchParams?.lang
-  if (q === 'pt' || q === 'es') return q
-  const pais = (await headers()).get('x-vercel-ip-country')
-  return pais === 'BR' ? 'pt' : 'es'
+  if (LANGS.includes(q)) return q
+  return getLang((await headers()).get('x-vercel-ip-country'))
 }
 
 const T = {
@@ -44,6 +46,104 @@ const T = {
     title:   'Konexu — Alertas de vagas grátis',
     desc:    'Deixe seu email e avisamos assim que sair uma vaga para o seu perfil, no seu país. Grátis. Vagas e concursos públicos de toda a América Latina.',
   },
+  en: {
+    badge:   'FREE · WE ALERT YOU BY EMAIL',
+    h1a:     "Don't search for a job every day.",
+    h1b:     'Let it find you.',
+    p1:      'Leave your email and Konexu alerts you the moment a job for your profile —public or private— appears in your country.',
+    p2:      'Free. No daily searching. The job finds you.',
+    cta:     'Get free alerts',
+    nav:     'View jobs →',
+    stat1:   'jobs available today',
+    stat2:   'countries covered',
+    stat3:   'personalized alerts',
+    title:   'Konexu — Free job alerts',
+    desc:    'Leave your email and we alert you the moment a job for your profile appears in your country. Free. Jobs and public competitions across Latin America.',
+  },
+  fr: {
+    badge:   'GRATUIT · ON VOUS PRÉVIENT PAR EMAIL',
+    h1a:     'Ne cherchez pas un emploi tous les jours.',
+    h1b:     'Laissez-le vous trouver.',
+    p1:      "Laissez votre email et Konexu vous prévient dès qu'une offre pour votre profil —publique ou privée— paraît dans votre pays.",
+    p2:      "Gratuit. Sans chercher tous les jours. L'emploi vous trouve.",
+    cta:     'Activer les alertes gratuites',
+    nav:     'Voir les offres →',
+    stat1:   "offres disponibles aujourd'hui",
+    stat2:   'pays couverts',
+    stat3:   'alertes personnalisées',
+    title:   'Konexu — Alertes emploi gratuites',
+    desc:    "Laissez votre email et nous vous prévenons dès qu'une offre pour votre profil paraît dans votre pays. Gratuit. Emplois et concours publics dans toute l'Amérique latine.",
+  },
+  it: {
+    badge:   'GRATIS · TI AVVISIAMO VIA EMAIL',
+    h1a:     'Non cercare lavoro tutti i giorni.',
+    h1b:     'Lascia che ti trovi.',
+    p1:      'Lascia la tua email e Konexu ti avvisa appena appare un lavoro per il tuo profilo —pubblico o privato— nel tuo paese.',
+    p2:      'Gratis. Senza cercare ogni giorno. Il lavoro ti trova.',
+    cta:     'Attiva avvisi gratis',
+    nav:     'Vedi lavori →',
+    stat1:   'lavori disponibili oggi',
+    stat2:   'paesi coperti',
+    stat3:   'avvisi personalizzati',
+    title:   'Konexu — Avvisi di lavoro gratis',
+    desc:    "Lascia la tua email e ti avvisiamo appena appare un lavoro per il tuo profilo nel tuo paese. Gratis. Lavori e concorsi pubblici in tutta l'America Latina.",
+  },
+  de: {
+    badge:   'KOSTENLOS · WIR BENACHRICHTIGEN DICH PER E-MAIL',
+    h1a:     'Such nicht jeden Tag nach einem Job.',
+    h1b:     'Lass ihn dich finden.',
+    p1:      'Hinterlasse deine E-Mail und Konexu benachrichtigt dich, sobald in deinem Land ein Job für dein Profil —öffentlich oder privat— erscheint.',
+    p2:      'Kostenlos. Kein tägliches Suchen. Der Job findet dich.',
+    cta:     'Gratis-Alerts aktivieren',
+    nav:     'Jobs ansehen →',
+    stat1:   'Jobs heute verfügbar',
+    stat2:   'abgedeckte Länder',
+    stat3:   'personalisierte Alerts',
+    title:   'Konexu — Kostenlose Job-Benachrichtigungen',
+    desc:    'Hinterlasse deine E-Mail und wir benachrichtigen dich, sobald in deinem Land ein Job für dein Profil erscheint. Kostenlos. Jobs und öffentliche Ausschreibungen in ganz Lateinamerika.',
+  },
+  sv: {
+    badge:   'GRATIS · VI MEDDELAR DIG VIA E-POST',
+    h1a:     'Leta inte efter jobb varje dag.',
+    h1b:     'Låt det hitta dig.',
+    p1:      'Lämna din e-post så meddelar Konexu dig så fort ett jobb för din profil —offentligt eller privat— dyker upp i ditt land.',
+    p2:      'Gratis. Inget dagligt sökande. Jobbet hittar dig.',
+    cta:     'Aktivera gratis aviseringar',
+    nav:     'Se jobb →',
+    stat1:   'jobb tillgängliga idag',
+    stat2:   'länder som täcks',
+    stat3:   'personliga aviseringar',
+    title:   'Konexu — Gratis jobbaviseringar',
+    desc:    'Lämna din e-post så meddelar vi dig så fort ett jobb för din profil dyker upp i ditt land. Gratis. Jobb och offentliga tjänster i hela Latinamerika.',
+  },
+  no: {
+    badge:   'GRATIS · VI VARSLER DEG PÅ E-POST',
+    h1a:     'Ikke let etter jobb hver dag.',
+    h1b:     'La den finne deg.',
+    p1:      'Legg igjen e-posten din, så varsler Konexu deg så snart en jobb for din profil —offentlig eller privat— dukker opp i landet ditt.',
+    p2:      'Gratis. Ingen daglig leting. Jobben finner deg.',
+    cta:     'Aktiver gratis varsler',
+    nav:     'Se jobber →',
+    stat1:   'jobber tilgjengelig i dag',
+    stat2:   'land dekket',
+    stat3:   'personlige varsler',
+    title:   'Konexu — Gratis jobbvarsler',
+    desc:    'Legg igjen e-posten din, så varsler vi deg så snart en jobb for din profil dukker opp i landet ditt. Gratis. Jobber og offentlige stillinger i hele Latin-Amerika.',
+  },
+  ja: {
+    badge:   '無料 · メールでお知らせ',
+    h1a:     '毎日仕事を探さないで。',
+    h1b:     '仕事のほうから見つけてもらおう。',
+    p1:      'メールアドレスを登録すれば、あなたのプロフィールに合う求人（公募・民間）が国内に出た瞬間にKonexuがお知らせします。',
+    p2:      '無料。毎日探す必要なし。仕事があなたを見つけます。',
+    cta:     '無料アラートを有効化',
+    nav:     '求人を見る →',
+    stat1:   '本日の求人数',
+    stat2:   '対象国',
+    stat3:   'パーソナライズされたアラート',
+    title:   'Konexu — 無料求人アラート',
+    desc:    'メールアドレスを登録すれば、あなたのプロフィールに合う求人が国内に出た瞬間にお知らせします。無料。ラテンアメリカ全域の求人と公募。',
+  },
 }
 
 async function getTotal() {
@@ -60,7 +160,7 @@ export default async function DownloadPage({ searchParams }) {
   const lang = await pickLang(searchParams)
   const t = T[lang]
   const total = await getTotal()
-  const totalStr = total > 0 ? `${total.toLocaleString(lang === 'pt' ? 'pt-BR' : 'es')}+` : '100.000+'
+  const totalStr = total > 0 ? `${total.toLocaleString(lang === 'pt' ? 'pt-BR' : lang)}+` : '100.000+'
 
   return (
     <>
