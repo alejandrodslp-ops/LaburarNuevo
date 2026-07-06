@@ -20,6 +20,7 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
   const tr = T[lang] || T.es
   const [email,    setEmail]    = useState('')
   const [nombre,   setNombre]   = useState('')
+  const [queBusca, setQueBusca] = useState(busqueda || '')
   const [pais,     setPais]     = useState(paisDefault)
   const [estado,   setEstado]   = useState('idle')
   const [posicion, setPosicion] = useState(null)
@@ -33,7 +34,7 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
       const res = await fetch(`${SUPABASE_URL}/functions/v1/waitlist`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` },
-        body:    JSON.stringify({ accion: 'unirse', email: email.trim().toLowerCase(), nombre: nombre.trim() || null, pais: pais || paisDefault || null, busqueda: (busqueda || '').trim() || null }),
+        body:    JSON.stringify({ accion: 'unirse', email: email.trim().toLowerCase(), nombre: nombre.trim() || null, pais: pais || paisDefault || null, busqueda: queBusca.trim() || null }),
       })
       const data = await res.json()
       if (data.posicion) { setPosicion(data.posicion); setEstado('ok') }
@@ -64,6 +65,15 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
           placeholder={tr.wl_nombre_ph}
           value={nombre}
           onChange={e => setNombre(e.target.value)}
+          style={ss.input}
+        />
+      </div>
+      <div style={ss.inputGroup}>
+        <input
+          type="text"
+          placeholder={tr.wl_busca_ph}
+          value={queBusca}
+          onChange={e => setQueBusca(e.target.value)}
           style={ss.input}
         />
       </div>
