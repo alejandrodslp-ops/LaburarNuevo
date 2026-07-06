@@ -43,7 +43,6 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    site: '@nexuapp',
     title: 'Konexu — Concursos Públicos y Empleos en LatAm',
     description: 'Concursos públicos y empleos en Uruguay, Argentina y toda LatAm. Actualizados diariamente. Gratis.',
   },
