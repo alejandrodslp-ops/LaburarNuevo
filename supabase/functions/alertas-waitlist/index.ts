@@ -16,10 +16,15 @@ const PAIS_COD: Record<string, string> = {
   paraguay: "PY", venezuela: "VE", espana: "ES", "estados unidos": "US",
   portugal: "PT", italia: "IT", francia: "FR", alemania: "DE",
   "reino unido": "GB", canada: "CA", australia: "AU",
+  guatemala: "GT", honduras: "HN", nicaragua: "NI", "costa rica": "CR",
+  panama: "PA", cuba: "CU", "rep dominicana": "DO", "el salvador": "SV",
+  suecia: "SE", noruega: "NO", suiza: "CH", japon: "JP", india: "IN",
 };
 function codPais(s: string | null): string | null {
   if (!s) return null;
-  const n = s.replace(/[^\p{L}\s]/gu, "").trim().toLowerCase();
+  // NFD + quitar tildes: "Panamá"/"México"/"Japón" deben resolver igual que sus claves
+  const n = s.normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^\p{L}\s]/gu, "").trim().toLowerCase();
   return PAIS_COD[n] ?? null;
 }
 function esc(t: unknown): string {
@@ -68,14 +73,23 @@ serve(async () => {
       if (!email.includes("@") || email.includes("example.com")) continue;
 
       const desde = l.ultima_alerta_at || l.created_at;
-      const term  = String(l.busqueda).replace(/[%_'"\\;]/g, "").slice(0, 60).trim();
-      if (!term) continue;
+      // La gente escribe varios oficios separados por comas ("niñera, limpieza, cocina"):
+      // se matchea cada término por separado — la frase literal completa no existe en ningún aviso.
+      const terminos = String(l.busqueda)
+        .split(/[,;/]/)
+        .map((t) => t.replace(/[%_'"\\;()]/g, "").trim().slice(0, 40))
+        .filter((t) => t.length >= 3)
+        .slice(0, 5);
+      if (terminos.length === 0) continue;
+      const filtroOr = terminos
+        .flatMap((t) => [`titulo.ilike.%${t}%`, `cargo.ilike.%${t}%`])
+        .join(",");
 
       let q = db.from("concursos")
         .select("id,titulo,cargo,organismo,pais,lugar")
         .eq("activo", true)
         .gt("created_at", desde)
-        .or(`titulo.ilike.%${term}%,cargo.ilike.%${term}%`)
+        .or(filtroOr)
         .order("created_at", { ascending: false })
         .limit(8);
 
