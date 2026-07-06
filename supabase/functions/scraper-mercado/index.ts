@@ -6,7 +6,9 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const PROXY     = "https://www.nexu.fyi/api/proxy?url=";
+// Dominio actual SIN redirect: nexu.fyi respondía 308 y el redirect cross-origin
+// borra el token del proxy (ver feedback_scraper_proxy_dominio — quema créditos).
+const PROXY     = Deno.env.get("CF_PROXY_URL") ?? "https://www.konexu.app/api/proxy?url=";
 const PROXY_SEC = Deno.env.get("PROXY_SECRET") ?? "";
 
 const HEADERS = {

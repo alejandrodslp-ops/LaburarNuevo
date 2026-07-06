@@ -9,7 +9,7 @@ const supabase = createClient(
 let _lastUpsertError: string | null = null;
 
 const USAJOBS_API_KEY  = Deno.env.get("USAJOBS_API_KEY")  ?? "";
-const CF_PROXY         = Deno.env.get("CF_PROXY_URL")     ?? "https://www.nexu.fyi/api/proxy?url=";
+const CF_PROXY         = Deno.env.get("CF_PROXY_URL")     ?? "https://www.konexu.app/api/proxy?url=";
 const PROXY_SECRET     = Deno.env.get("PROXY_SECRET")     ?? "";
 const SCRAPER_API_KEY  = Deno.env.get("SCRAPER_API_KEY")  ?? "";
 // ADZUNA: leído dentro de la función para evitar problema de módulo-scope en Deno Deploy

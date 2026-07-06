@@ -374,7 +374,7 @@ function Navigation({navigationRef,onTabChange}){
     const notifSub=Notifications.addNotificationResponseReceivedListener(response=>{
       const{pantalla,metodo}=response.notification.request.content.data||{};
       if(metodo==='sms'){
-        Linking.openURL('sms:1234?body=NEXU%20ACTIVAR');
+        Linking.openURL('sms:1234?body=KONEXU%20ACTIVAR');
         return;
       }
       if(pantalla&&navigationRef.current){

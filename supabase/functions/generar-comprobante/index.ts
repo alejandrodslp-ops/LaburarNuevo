@@ -100,7 +100,7 @@ function generarHTML(data: {
   <div class="hdr">
     <div>
       <div class="hdr-logo">Konexu</div>
-      <div class="hdr-sub">nexu.app &middot; Plataforma de empleo</div>
+      <div class="hdr-sub">konexu.app &middot; Plataforma de empleo</div>
     </div>
     <div class="hdr-right">
       <div class="hdr-label">Comprobante de pago</div>
@@ -120,7 +120,7 @@ function generarHTML(data: {
       <div class="bill-col">
         <div class="bill-lbl">De</div>
         <div class="bill-name">Konexu</div>
-        <div class="bill-detail">nexu.app<br>soporte@nexu.app</div>
+        <div class="bill-detail">konexu.app<br>soporte@konexu.app</div>
       </div>
       <div class="bill-col">
         <div class="bill-lbl">Para</div>
@@ -168,7 +168,7 @@ function generarHTML(data: {
   </div>
 
   <div class="footer">
-    <p>Comprobante v&aacute;lido emitido por Konexu &middot; soporte@nexu.app &middot; nexu.app</p>
+    <p>Comprobante v&aacute;lido emitido por Konexu &middot; soporte@konexu.app &middot; konexu.app</p>
     <p>${data.numero} &middot; Generado autom&aacute;ticamente el ${fecha}</p>
   </div>
 

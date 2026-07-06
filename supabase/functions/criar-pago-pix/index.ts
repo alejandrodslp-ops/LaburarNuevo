@@ -28,7 +28,7 @@ serve(async (req) => {
 
     // Obtener email del usuario para el pagador PIX
     const authUser = await supabase.auth.admin.getUserById(user.id);
-    const email = authUser.data.user?.email ?? "pagador@nexu.app";
+    const email = authUser.data.user?.email ?? "pagador@konexu.app";
 
     if (!MP_BR_TOKEN) {
       // Modo demo: retornar instrucciones con clave PIX estática

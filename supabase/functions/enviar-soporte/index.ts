@@ -21,8 +21,9 @@ serve(async (req) => {
     }
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    const SOPORTE_EMAIL = Deno.env.get("SOPORTE_EMAIL") ?? "soporte@nexu.app";
-    const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "Konexu <no-reply@nexu.app>";
+    const SOPORTE_EMAIL = Deno.env.get("SOPORTE_EMAIL") ?? "soporte@konexu.app";
+    // konexu.app es el dominio verificado en Resend — no-reply@nexu.app rebotaba
+    const FROM_EMAIL = Deno.env.get("FROM_EMAIL") ?? "Konexu <noreply@konexu.app>";
 
     if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY no configurada");
 

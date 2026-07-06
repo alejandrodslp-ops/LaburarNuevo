@@ -384,7 +384,7 @@ export const T = {
     breadcrumb_jobs: '求人',
     footer_jobs: 'すべての求人を見る',
     meta_title:  (pais) => `${pais}の求人・公募情報`,
-    meta_desc:   (pais) => `${pais}の公共・民間求人情報。毎日更新。Nexuに無料登録してパーソナライズされたアラートを受け取ろう。`,
+    meta_desc:   (pais) => `${pais}の公共・民間求人情報。毎日更新。Konexuに無料登録してパーソナライズされたアラートを受け取ろう。`,
     meta_og_title: (pais) => `${pais}の求人 | Konexu`,
     meta_og_desc:  (pais) => `${pais}で仕事を探そう。毎日更新される求人情報。`,
     wl_nombre_ph: 'お名前（任意）',

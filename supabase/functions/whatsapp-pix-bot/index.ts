@@ -80,13 +80,13 @@ function mensagemResposta(estado: "bienvenida" | "pix" | "activo" | "no_encontra
       return `Oi! Bem-vindo ao *Konexu* 👋\n\nSomos a plataforma que conecta trabalhadores e empregadores na America Latina.\n\nPara ativar seu perfil por 60 dias, envie seu *e-mail cadastrado* no Konexu.`;
 
     case "pix":
-      return `✅ *Pagamento via PIX*\n\nOla, *${dados?.nome ?? "trabalhador"}*!\n\nPara ativar seu perfil Konexu por 60 dias:\n\n💰 Valor: *R$ ${dados?.monto ?? "15"}*\n\n📋 *Chave PIX (Copia e Cola):*\n\`${dados?.qr_code}\`\n\nCopie a chave acima, abra seu banco e realize o pagamento pelo PIX.\n\n⏱️ Seu perfil sera ativado *automaticamente* em instantes apos o pagamento.\n\n_Qualquer duvida: soporte@nexu.app_`;
+      return `✅ *Pagamento via PIX*\n\nOla, *${dados?.nome ?? "trabalhador"}*!\n\nPara ativar seu perfil Konexu por 60 dias:\n\n💰 Valor: *R$ ${dados?.monto ?? "15"}*\n\n📋 *Chave PIX (Copia e Cola):*\n\`${dados?.qr_code}\`\n\nCopie a chave acima, abra seu banco e realize o pagamento pelo PIX.\n\n⏱️ Seu perfil sera ativado *automaticamente* em instantes apos o pagamento.\n\n_Qualquer duvida: soporte@konexu.app_`;
 
     case "activo":
       return `🎉 Seu perfil ja esta *ativo*!\n\nVoce aparece nos resultados de busca para empregadores. Boa sorte! 💪`;
 
     case "no_encontrado":
-      return `Nao encontrei esse e-mail no Konexu. Verifique o e-mail cadastrado ou baixe o app:\n\n📱 *nexu.app*`;
+      return `Nao encontrei esse e-mail no Konexu. Verifique o e-mail cadastrado ou baixe o app:\n\n📱 *konexu.app*`;
 
     default:
       return "Oi! Como posso ajudar?";
@@ -118,7 +118,7 @@ serve(async (req) => {
     // Detectar intención
     const esEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const esEmail = esEmailRegex.test(mensaje);
-    const esSaludo = /^(oi|ola|ola|hi|hello|hola|nexu|ativar|activar|pagar|pix)/.test(mensaje);
+    const esSaludo = /^(oi|ola|ola|hi|hello|hola|nexu|konexu|ativar|activar|pagar|pix)/.test(mensaje);
 
     if (esSaludo && !esEmail) {
       await enviarWhatsApp(telefono, mensagemResposta("bienvenida"));
