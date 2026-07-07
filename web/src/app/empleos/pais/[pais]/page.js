@@ -6,7 +6,10 @@ import { getLang, t } from '../../../../lib/i18n'
 import AppCta from '../../../AppCta'
 import JobsRealtime from '../../../JobsRealtime'
 
-export const dynamic = 'force-dynamic'
+// ISR on-demand: se genera al primer hit y se sirve de caché 6h (los concursos
+// se actualizan 3x/día). Antes era force-dynamic: cada hit de crawler quemaba
+// CPU de Vercel (aviso de límite 2026-07-07).
+export const revalidate = 21600
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://konexu.app'
 
@@ -53,7 +56,9 @@ const SLUG_A_CODIGO = {
 }
 
 export async function generateStaticParams() {
-  return Object.keys(SLUG_A_CODIGO).map(pais => ({ pais }))
+  // Vacío a propósito: pre-generar en build repetía los timeouts de junio
+  // (57014). Con ISR on-demand cada página se genera recién al primer hit.
+  return []
 }
 
 export async function generateMetadata({ params }) {

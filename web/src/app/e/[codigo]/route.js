@@ -12,8 +12,14 @@ export async function GET(request, { params }) {
   const sep = codigo.indexOf('-')
   const pais = sep > 0 ? codigo.slice(0, sep).toUpperCase() : ''
   const fuenteId = sep > 0 ? codigo.slice(sep + 1) : ''
-  const fallback = NextResponse.redirect('https://www.konexu.app/empleos', 302)
-  if (!pais || !fuenteId) return fallback
+  // Caché CDN: crawlers y el bot de previews de Telegram golpean estos links
+  // repetidamente; sin esto cada hit ejecuta la función y consulta la base.
+  const cachear = (res, segundos) => {
+    res.headers.set('Cache-Control', `public, s-maxage=${segundos}, stale-while-revalidate=86400`)
+    return res
+  }
+  const fallback = () => cachear(NextResponse.redirect('https://www.konexu.app/empleos', 302), 60)
+  if (!pais || !fuenteId) return fallback()
 
   // fuente_id puede repetirse entre fuentes distintas: se toma el más reciente del país
   const { data } = await db
@@ -25,8 +31,9 @@ export async function GET(request, { params }) {
     .limit(1)
 
   const c = data?.[0]
-  if (!c) return fallback
+  if (!c) return fallback()
 
   const utm = `utm_source=telegram&utm_medium=canal&utm_campaign=concursos_${pais.toLowerCase()}`
-  return NextResponse.redirect(`https://www.konexu.app/empleos/${toSlug(c)}?${utm}`, 302)
+  // 1h de caché: si el concurso se recrea con otro uuid, el redirect se corrige solo
+  return cachear(NextResponse.redirect(`https://www.konexu.app/empleos/${toSlug(c)}?${utm}`, 302), 3600)
 }

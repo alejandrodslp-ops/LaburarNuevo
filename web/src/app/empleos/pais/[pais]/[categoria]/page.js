@@ -7,7 +7,8 @@ import { CATEGORIAS, SLUGS_CATEGORIA } from '../../../../../lib/categorias'
 import AppCta from '../../../../AppCta'
 import JobsRealtime from '../../../../JobsRealtime'
 
-export const dynamic = 'force-dynamic'
+// ISR on-demand igual que la página de país: caché 6h, generación al primer hit.
+export const revalidate = 21600
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://konexu.app'
 
@@ -23,13 +24,9 @@ const SLUG_A_CODIGO = {
 }
 
 export async function generateStaticParams() {
-  const params = []
-  for (const pais of Object.keys(SLUG_A_CODIGO)) {
-    for (const categoria of SLUGS_CATEGORIA) {
-      params.push({ pais, categoria })
-    }
-  }
-  return params
+  // Vacío a propósito: 33 países × categorías en build = timeouts (ver junio).
+  // Con ISR on-demand cada combinación se genera recién al primer hit.
+  return []
 }
 
 // ¿Hay al menos un empleo para este país+categoría? (chequeo barato, limit 1)
