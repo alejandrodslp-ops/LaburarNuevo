@@ -106,6 +106,9 @@ serve(async () => {
         body: JSON.stringify({
           from: "Konexu <noreply@konexu.app>",
           to: [email],
+          // Copia espejo al admin: auditar qué recibe cada usuario (los avisos
+          // fuente rotan a diario y el contenido no es reconstruible después).
+          bcc: ["alejandrodslp@gmail.com"],
           subject: `🔔 ${matches.length} nuevo${matches.length > 1 ? "s" : ""} empleo${matches.length > 1 ? "s" : ""} de "${l.busqueda}"`,
           html: plantilla(l.nombre, l.busqueda, matches),
         }),

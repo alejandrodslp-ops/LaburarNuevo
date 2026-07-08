@@ -3250,7 +3250,32 @@ async function enviarResumenDiario(): Promise<void> {
           <small style="color:#888">${e.errores.slice(0,2).join(" | ")}</small>
         </p>`).join("");
 
-  const estadoGeneral = enRojo.length === 0
+  // ── Tendencia: el "✅ Todo OK" no debe tapar un sangrado gradual ──────────
+  // Guarda el total de hoy y compara los últimos 4 días: si baja 3 días
+  // seguidos y la caída acumulada supera el 3%, avisa (caso real: -21k en
+  // 2 días con informe en verde, 2026-07-08).
+  let tendencia = { alerta: false, texto: "" };
+  try {
+    await supabase.from("historial_totales")
+      .upsert({ fecha: new Date().toISOString().slice(0, 10), total }, { onConflict: "fecha" });
+    const { data: hist } = await supabase.from("historial_totales")
+      .select("fecha, total").order("fecha", { ascending: false }).limit(4);
+    if (hist && hist.length === 4) {
+      const [d0, d1, d2, d3] = hist.map((h) => h.total);
+      const bajando3 = d0 < d1 && d1 < d2 && d2 < d3;
+      const pctCaida = ((d3 - d0) / d3) * 100;
+      if (bajando3 && pctCaida > 3) {
+        tendencia = {
+          alerta: true,
+          texto: `El total baja hace 3 días seguidos: ${d3.toLocaleString("es-UY")} → ${d2.toLocaleString("es-UY")} → ${d1.toLocaleString("es-UY")} → ${d0.toLocaleString("es-UY")} (−${pctCaida.toFixed(1)}%). Entra menos de lo que vence — revisar fuentes.`,
+        };
+      }
+    }
+  } catch (_) { /* la tendencia nunca debe tumbar el informe */ }
+
+  const estadoGeneral = tendencia.alerta
+    ? `<div style="background:#f8d7da;border-left:4px solid #dc3545;padding:10px 16px;margin-bottom:16px;border-radius:4px"><b style="color:#721c24">📉 TENDENCIA NEGATIVA — ${tendencia.texto}</b></div>`
+    : enRojo.length === 0
     ? `<div style="background:#d4edda;border-left:4px solid #28a745;padding:10px 16px;margin-bottom:16px;border-radius:4px"><b style="color:#155724">✅ Sistema operativo — Todo funciona correctamente</b></div>`
     : `<div style="background:#fff3cd;border-left:4px solid #ffc107;padding:10px 16px;margin-bottom:16px;border-radius:4px"><b style="color:#856404">⚠️ Atención — ${enRojo.length} país(es) con menos de 20 llamados activos</b></div>`;
 
@@ -3290,7 +3315,7 @@ async function enviarResumenDiario(): Promise<void> {
     body: JSON.stringify({
       from: "Konexu Scraper <noreply@konexu.app>",
       to: ["alejandrodslp@gmail.com"],
-      subject: `📊 Konexu ${fecha} — ${total} llamados ${enRojo.length > 0 ? "| ⚠️ " + enRojo.length + " países con problemas" : "| ✅ Todo OK"}`,
+      subject: `📊 Konexu ${fecha} — ${total} llamados ${tendencia.alerta ? "| 📉 TENDENCIA NEGATIVA" : enRojo.length > 0 ? "| ⚠️ " + enRojo.length + " países con problemas" : "| ✅ Todo OK"}`,
       html,
     }),
     signal: AbortSignal.timeout(15000),
