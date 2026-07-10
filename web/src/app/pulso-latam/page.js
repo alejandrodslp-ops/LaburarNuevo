@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
+import PuzzleIcon from '../../components/PuzzleIcon'
 
 export const dynamic = 'force-dynamic'
 
@@ -246,7 +247,7 @@ export default async function PulsoLatam() {
 
     {/* NAV */}
     <nav className="nav">
-      <Link href="/" className="nav-logo">Konexu<span style={{fontSize:9,marginLeft:'-7px',verticalAlign:'bottom'}}>🧩</span></Link>
+      <Link href="/" className="nav-logo">Konexu<PuzzleIcon size={9} style={{marginLeft:'-7px',verticalAlign:'bottom'}}/></Link>
       <div style={{display:'flex',gap:10,alignItems:'center'}}>
         <Link href="/empleos" style={{fontSize:13,fontWeight:600,color:'#4A5568'}}>Ver empleos</Link>
         <a href="/download" className="nav-btn">Alertas gratis</a>
