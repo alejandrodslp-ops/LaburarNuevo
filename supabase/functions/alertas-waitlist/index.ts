@@ -98,6 +98,24 @@ serve(async () => {
 
       const { data: matches } = await q;
       if (!matches || matches.length === 0) continue;
+
+      // Dedupe por CONTENIDO por persona: las fuentes borran y reinsertan los
+      // mismos avisos a diario (created_at nuevo), y "creados desde tu última
+      // alerta" repetía el mismo email todos los días (caso real: Leyssi recibió
+      // los mismos 2 avisos el 09 y el 10/07). La clave es cargo|organismo|pais.
+      const claveDe = (c: any) =>
+        [String((c.cargo ?? "").trim() || c.titulo || "").trim().toLowerCase(),
+         String(c.organismo ?? "").trim().toLowerCase(),
+         String(c.pais ?? "")].join("|");
+      const claves = matches.map(claveDe);
+      const { data: yaEnviadas } = await db
+        .from("alertas_enviadas")
+        .select("clave")
+        .eq("waitlist_id", l.id)
+        .in("clave", claves);
+      const yaSet = new Set((yaEnviadas ?? []).map((r: any) => r.clave));
+      const nuevos = matches.filter((c: any) => !yaSet.has(claveDe(c)));
+      if (nuevos.length === 0) continue;
       conMatch++;
 
       const res = await fetch("https://api.resend.com/emails", {
@@ -109,14 +127,18 @@ serve(async () => {
           // Copia espejo al admin: auditar qué recibe cada usuario (los avisos
           // fuente rotan a diario y el contenido no es reconstruible después).
           bcc: ["alejandrodslp@gmail.com"],
-          subject: `🔔 ${matches.length} nuevo${matches.length > 1 ? "s" : ""} empleo${matches.length > 1 ? "s" : ""} de "${l.busqueda}"`,
-          html: plantilla(l.nombre, l.busqueda, matches),
+          subject: `🔔 ${nuevos.length} nuevo${nuevos.length > 1 ? "s" : ""} empleo${nuevos.length > 1 ? "s" : ""} de "${l.busqueda}"`,
+          html: plantilla(l.nombre, l.busqueda, nuevos),
         }),
       });
 
       if (res.ok) {
         enviados++;
         await db.from("waitlist").update({ ultima_alerta_at: new Date().toISOString() }).eq("id", l.id);
+        await db.from("alertas_enviadas").upsert(
+          nuevos.map((c: any) => ({ waitlist_id: l.id, clave: claveDe(c) })),
+          { onConflict: "waitlist_id,clave", ignoreDuplicates: true },
+        );
       } else {
         errores.push(`${email}: Resend ${res.status}`);
       }
