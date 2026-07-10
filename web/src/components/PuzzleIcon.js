@@ -1,14 +1,14 @@
 // Pieza de rompecabezas del logo, dibujada en SVG: el emoji 🧩 no se ve en
 // sistemas viejos (Windows 7 y anteriores no traen fuente de emojis a color).
-// Verde como el emoji original — contrasta con el coral de "Konexu"
-// (en coral se fundía con las letras). Tamaño 0.42em = proporción del emoji.
-export default function PuzzleIcon({ size = '0.42em', style, color = '#78B159' }) {
+// currentColor hereda el coral del logo; el tamaño por defecto (0.42em)
+// replica la proporción que tenía el emoji.
+export default function PuzzleIcon({ size = '0.42em', style }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill={color}
+      fill="currentColor"
       aria-hidden="true"
       style={{ display: 'inline-block', flexShrink: 0, ...style }}
     >
