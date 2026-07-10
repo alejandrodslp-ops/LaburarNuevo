@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import PuzzleIcon from '../../../../../components/PuzzleIcon'
 import { notFound } from 'next/navigation'
 import { db } from '../../../../../lib/supabase'
 import { bandPais, PAIS } from '../../../../../lib/utils'
@@ -156,7 +155,7 @@ export default async function CategoriaPage({ params }) {
       />
 
       <nav className="nav">
-        <Link href="/" className="nav-logo"><span>Konexu</span><PuzzleIcon style={{marginLeft:'-9px',marginBottom:'3px'}}/></Link>
+        <Link href="/" className="nav-logo"><span>Konexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
         <a href="/download" className="nav-btn">{t(lang, 'nav_download')}</a>
       </nav>
 
