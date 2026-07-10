@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabaseBrowser } from '../../../lib/supabase-browser'
+import PuzzleIcon from '../../../components/PuzzleIcon'
 
 const PAISES = [
   { code: 'UY', label: '🇺🇾 Uruguay', idLabel: null, idPlaceholder: null },
@@ -99,7 +100,7 @@ export default function EmpleadorLogin() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--dark)', padding: 16 }}>
       <div style={{ width: '100%', maxWidth: 460 }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <span style={{ color: 'var(--coral)', fontWeight: 900, fontSize: 28, letterSpacing: '-1px' }}>Konexu🧩</span>
+          <span style={{ color: 'var(--coral)', fontWeight: 900, fontSize: 28, letterSpacing: '-1px' }}>Konexu<PuzzleIcon style={{marginLeft:'-6px'}}/></span>
           <p style={{ color: 'rgba(255,255,255,0.5)', marginTop: 6, fontSize: 14 }}>Panel de empleadores</p>
         </div>
 

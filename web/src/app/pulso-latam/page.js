@@ -515,7 +515,7 @@ export default async function PulsoLatam() {
     {/* FOOTER */}
     <footer style={{borderTop:'1px solid #111827',padding:'22px 40px',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10}}>
       <Link href="/" style={{fontSize:18,fontWeight:900,color:'#E8785A',letterSpacing:'-.5px'}}>
-        Konexu<span style={{fontSize:8,marginLeft:'-7px',verticalAlign:'bottom'}}>🧩</span>
+        Konexu<PuzzleIcon size={8} style={{marginLeft:'-7px',verticalAlign:'bottom'}}/>
       </Link>
       <p style={{fontSize:12,color:'#1E293B'}}>
         <Link href="/pulso-latam" style={{color:'#2D3748'}}>Pulso Laboral</Link>

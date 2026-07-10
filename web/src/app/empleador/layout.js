@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabaseBrowser } from '../../lib/supabase-browser'
+import PuzzleIcon from '../../components/PuzzleIcon'
 
 export default function EmpleadorLayout({ children }) {
   const router = useRouter()
@@ -44,7 +45,7 @@ export default function EmpleadorLayout({ children }) {
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {!isLogin && (
         <nav style={{ background: 'var(--dark)', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', position: 'sticky', top: 0, zIndex: 100 }}>
-          <a href="/empleador" style={{ display:'inline-flex', alignItems:'flex-end', background:'#151c2c', border:'2px solid var(--coral)', borderRadius:12, padding:'4px 13px', color:'var(--coral)', fontWeight:900, fontSize:20, letterSpacing:'-0.5px', textDecoration:'none' }}><span>Konexu</span><span style={{fontSize:'0.42em',marginLeft:'-9px',lineHeight:1,marginBottom:'3px'}}>🧩</span></a>
+          <a href="/empleador" style={{ display:'inline-flex', alignItems:'flex-end', background:'#151c2c', border:'2px solid var(--coral)', borderRadius:12, padding:'4px 13px', color:'var(--coral)', fontWeight:900, fontSize:20, letterSpacing:'-0.5px', textDecoration:'none' }}><span>Konexu</span><PuzzleIcon style={{marginLeft:'-9px',marginBottom:'3px'}}/></a>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <NavLink href="/empleador" label="Dashboard" pathname={pathname} />
             <NavLink href="/empleador/ofertas" label="Mis ofertas" pathname={pathname} />
