@@ -1,11 +1,10 @@
 import Link from 'next/link'
-import PuzzleIcon from '../components/PuzzleIcon'
 
 export default function NotFound() {
   return (
     <>
       <nav className="nav">
-        <Link href="/" className="nav-logo"><span>Konexu</span><PuzzleIcon style={{marginLeft:'-9px',marginBottom:'3px'}}/></Link>
+        <Link href="/" className="nav-logo"><span>Konexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
       </nav>
       <div className="empty-state" style={{ paddingTop: 80 }}>
         <p style={{ fontSize: 48, marginBottom: 16 }}>🔍</p>

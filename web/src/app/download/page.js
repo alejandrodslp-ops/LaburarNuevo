@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { headers } from 'next/headers'
-import PuzzleIcon from '../../components/PuzzleIcon'
 import { createClient } from '@supabase/supabase-js'
 import WaitlistForm from '../../components/WaitlistForm'
 import { getLang } from '../../lib/i18n'
@@ -171,7 +170,7 @@ export default async function DownloadPage({ searchParams }) {
         position: 'sticky', top: 0, zIndex: 100,
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
-        <Link href="/" style={{ display:'inline-flex', alignItems:'flex-end', background:'#151c2c', border:'2.5px solid #E8785A', borderRadius:14, padding:'4px 14px', color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-0.5, textDecoration:'none' }}><span>Konexu</span><PuzzleIcon style={{marginLeft:'-9px',marginBottom:'3px'}}/></Link>
+        <Link href="/" style={{ display:'inline-flex', alignItems:'flex-end', background:'#151c2c', border:'2.5px solid #E8785A', borderRadius:14, padding:'4px 14px', color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-0.5, textDecoration:'none' }}><span>Konexu</span><span style={{fontSize:'0.42em',marginLeft:'-9px',lineHeight:1,marginBottom:'3px'}}>🧩</span></Link>
         <Link href="/empleos" style={{ color: '#94A3B8', fontSize: 13, fontWeight: 600 }}>{t.nav}</Link>
       </nav>
 
