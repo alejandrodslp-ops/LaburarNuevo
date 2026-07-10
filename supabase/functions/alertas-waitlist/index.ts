@@ -72,7 +72,11 @@ serve(async () => {
       const email = String(l.email ?? "");
       if (!email.includes("@") || email.includes("example.com")) continue;
 
-      const desde = l.ultima_alerta_at || l.created_at;
+      // Primera alerta: mirar 30 días hacia atrás para que el usuario nuevo
+      // arranque con los avisos que YA existen (caso real: 30 gerentes en NI
+      // invisibles). El dedupe por contenido evita cualquier repetición futura.
+      const desde = l.ultima_alerta_at ||
+        new Date(Date.now() - 30 * 86400000).toISOString();
       // La gente escribe varios oficios separados por comas ("niñera, limpieza, cocina"):
       // se matchea cada término por separado — la frase literal completa no existe en ningún aviso.
       const terminos = String(l.busqueda)
