@@ -22,6 +22,7 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
   const [nombre,   setNombre]   = useState('')
   const [queBusca, setQueBusca] = useState(busqueda || '')
   const [pais,     setPais]     = useState(paisDefault)
+  const [ciudad,   setCiudad]   = useState('')
   const [estado,   setEstado]   = useState('idle')
   const [posicion, setPosicion] = useState(null)
   const [msg,      setMsg]      = useState('')
@@ -34,7 +35,7 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
       const res = await fetch(`${SUPABASE_URL}/functions/v1/waitlist`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` },
-        body:    JSON.stringify({ accion: 'unirse', email: email.trim().toLowerCase(), nombre: nombre.trim() || null, pais: pais || paisDefault || null, busqueda: queBusca.trim() || null }),
+        body:    JSON.stringify({ accion: 'unirse', email: email.trim().toLowerCase(), nombre: nombre.trim() || null, pais: pais || paisDefault || null, ciudad: ciudad.trim() || null, busqueda: queBusca.trim() || null }),
       })
       const data = await res.json()
       if (data.posicion) { setPosicion(data.posicion); setEstado('ok') }
@@ -92,11 +93,22 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
         <select
           value={pais}
           onChange={e => setPais(e.target.value)}
+          required
           style={{...ss.input, color: pais ? '#0F172A' : '#94A3B8'}}
         >
           <option value="">{tr.wl_pais_ph}</option>
           {PAISES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
+      </div>
+      <div style={ss.inputGroup}>
+        <input
+          type="text"
+          placeholder={tr.wl_ciudad_ph}
+          value={ciudad}
+          onChange={e => setCiudad(e.target.value)}
+          required
+          style={ss.input}
+        />
       </div>
       {msg && <p style={ss.errorMsg}>{msg}</p>}
       <button type="submit" style={ss.btn} disabled={estado === 'loading'}>
