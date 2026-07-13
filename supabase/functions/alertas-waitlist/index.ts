@@ -79,15 +79,23 @@ serve(async () => {
         new Date(Date.now() - 30 * 86400000).toISOString();
       // La gente escribe varios oficios separados por comas ("niñera, limpieza, cocina"):
       // se matchea cada término por separado — la frase literal completa no existe en ningún aviso.
+      // Y dentro de cada término, por PALABRAS sin importar el orden: "higiene y seguridad"
+      // debe encontrar "Seguridad e Higiene" (caso real: 4 de 6 avisos NI invertían el orden).
+      const STOP = new Set(["y","e","o","u","de","del","la","el","los","las","en","para","con","por"]);
       const terminos = String(l.busqueda)
         .split(/[,;/]/)
         .map((t) => t.replace(/[%_'"\\;()]/g, "").trim().slice(0, 40))
         .filter((t) => t.length >= 3)
         .slice(0, 5);
       if (terminos.length === 0) continue;
-      const filtroOr = terminos
-        .flatMap((t) => [`titulo.ilike.%${t}%`, `cargo.ilike.%${t}%`])
-        .join(",");
+      const filtroOr = terminos.flatMap((t) => {
+        const palabras = t.split(/\s+/).filter((w) => w.length >= 3 && !STOP.has(w.toLowerCase())).slice(0, 4);
+        if (palabras.length === 0) return [];
+        if (palabras.length === 1) return [`titulo.ilike.%${palabras[0]}%`, `cargo.ilike.%${palabras[0]}%`];
+        const en = (col: string) => `and(${palabras.map((w) => `${col}.ilike.%${w}%`).join(",")})`;
+        return [en("titulo"), en("cargo")];
+      }).join(",");
+      if (!filtroOr) continue;
 
       let q = db.from("concursos")
         .select("id,titulo,cargo,organismo,pais,lugar")
@@ -131,7 +139,10 @@ serve(async () => {
           // Copia espejo al admin: auditar qué recibe cada usuario (los avisos
           // fuente rotan a diario y el contenido no es reconstruible después).
           bcc: ["alejandrodslp@gmail.com"],
-          subject: `🔔 ${nuevos.length} nuevo${nuevos.length > 1 ? "s" : ""} empleo${nuevos.length > 1 ? "s" : ""} de "${l.busqueda}"`,
+          // Entregabilidad: sin emoji en el asunto (penaliza en remitentes nuevos)
+          // y con List-Unsubscribe (Gmail lo premia; sin él castiga a bulk senders).
+          headers: { "List-Unsubscribe": "<mailto:hola@konexu.app?subject=Baja%20de%20alertas>" },
+          subject: `${nuevos.length} nuevo${nuevos.length > 1 ? "s" : ""} empleo${nuevos.length > 1 ? "s" : ""} de "${l.busqueda}" para ti`,
           html: plantilla(l.nombre, l.busqueda, nuevos),
         }),
       });
