@@ -35,7 +35,7 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
       const res = await fetch(`${SUPABASE_URL}/functions/v1/waitlist`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` },
-        body:    JSON.stringify({ accion: 'unirse', email: email.trim().toLowerCase(), nombre: nombre.trim() || null, pais: pais || paisDefault || null, ciudad: ciudad.trim() || null, busqueda: queBusca.trim() || null }),
+        body:    JSON.stringify({ accion: 'unirse', origen: 'web', email: email.trim().toLowerCase(), nombre: nombre.trim() || null, pais: pais || paisDefault || null, ciudad: ciudad.trim() || null, busqueda: queBusca.trim() || null }),
       })
       const data = await res.json()
       if (data.posicion) { setPosicion(data.posicion); setEstado('ok') }

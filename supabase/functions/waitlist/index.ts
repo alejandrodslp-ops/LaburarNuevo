@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
   const db = createClient(URL, KEY, { auth: { persistSession: false } });
 
   try {
-    const { accion, email, nombre, push_token, pais, busqueda, ciudad } = await req.json();
+    const { accion, email, nombre, push_token, pais, busqueda, ciudad, origen } = await req.json();
 
     // ── Estado global de la waitlist ──────────────────────────────────────────
     if (accion === "estado") {
@@ -48,6 +48,11 @@ Deno.serve(async (req) => {
 
     // ── Unirse a la waitlist ──────────────────────────────────────────────────
     if (accion === "unirse") {
+      // El formulario web manda origen:"web" — para él, país/ciudad/búsqueda son obligatorios.
+      // La app (WaitlistScreen) no manda origen y queda exenta: no pide esos campos.
+      if (origen === "web" && (!pais || !busqueda?.trim() || !ciudad?.trim())) {
+        return err("País, ciudad y búsqueda son obligatorios");
+      }
       const { data: existente } = await db.from("waitlist").select("posicion,habilitado").eq("email", emailLower).maybeSingle();
       if (existente) return ok({ ya_estaba: true, posicion: existente.posicion, habilitado: existente.habilitado });
 
