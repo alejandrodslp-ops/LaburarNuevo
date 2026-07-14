@@ -1,0 +1,73 @@
+#!/bin/bash
+# Auditoría externa completa de www.konexu.app — correr después de CADA deploy.
+# Verifica lo que ven usuarios reales, Facebook y Google. Salida: PASS/FAIL por chequeo.
+# Uso: bash web/scripts/auditar_web.sh
+
+BASE="https://www.konexu.app"
+PASS=0; FAIL=0
+ok()   { PASS=$((PASS+1)); echo "PASS  $1"; }
+fail() { FAIL=$((FAIL+1)); echo "FAIL  $1  ← $2"; }
+
+check_contains() { # $1 desc, $2 haystack, $3 needle
+  case "$2" in *"$3"*) ok "$1";; *) fail "$1" "no contiene: $3";; esac
+}
+
+# ── 1. Landings: HTTP, idioma del título, canonical, og:image (tag + archivo), formulario
+declare -a LANGS=("/:Concursos Públicos" "/pt:Pare de procurar|Vagas" "/en:Stop searching|straight to your email" "/fr:Arrêtez|travail" "/it:Smetti di cercare|lavoro" "/de:Hör auf|Arbeit" "/sv:Sluta leta|jobbet" "/no:Slutt å lete|jobben" "/ja:探すのをやめよう|仕事")
+for entry in "${LANGS[@]}"; do
+  path="${entry%%:*}"; needles="${entry#*:}"
+  html=$(curl -s -L --max-time 20 "$BASE$path")
+  code=$(curl -s -o /dev/null -w "%{http_code}" -L --max-time 20 "$BASE$path")
+  [ "$code" = "200" ] && ok "GET $path → 200" || fail "GET $path" "HTTP $code"
+  hit=0; IFS='|' read -ra ns <<< "$needles"
+  for n in "${ns[@]}"; do case "$html" in *"$n"*) hit=1;; esac; done
+  [ "$hit" = "1" ] && ok "$path en su idioma" || fail "$path idioma" "no aparece: $needles"
+  canon=$(echo "$html" | grep -oE '<link rel="canonical" href="[^"]*"' | head -1)
+  check_contains "$path canonical" "$canon" "www.konexu.app"
+  case "$canon" in *supabase*) fail "$path canonical dominio" "apunta a supabase";; esac
+  ogimg=$(echo "$html" | grep -oE '<meta property="og:image" content="[^"]*"' | head -1)
+  check_contains "$path og:image tag" "$ogimg" "www.konexu.app/og-konexu"
+  imgurl=$(echo "$ogimg" | grep -oE 'https://[^"]*')
+  if [ -n "$imgurl" ]; then
+    icode=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$imgurl")
+    [ "$icode" = "200" ] && ok "$path og:image archivo 200" || fail "$path og:image archivo" "HTTP $icode"
+  fi
+done
+
+# ── 2. Redirects de portada por idioma (usuarios reales)
+for l in pt en fr it de sv no ja; do
+  r=$(curl -s -o /dev/null -w "%{http_code} %{redirect_url}" --max-time 20 -H "Accept-Language: $l" "$BASE/")
+  case "$r" in "307 $BASE/$l") ok "redirect $l → /$l";; *) fail "redirect $l" "$r";; esac
+done
+# controles: español y bots NO redirigen; otras rutas intactas
+r=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -H "Accept-Language: es-AR" "$BASE/")
+[ "$r" = "200" ] && ok "es NO redirige" || fail "es NO redirige" "HTTP $r"
+r=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -H "Accept-Language: pt-BR" -A "facebookexternalhit/1.1" "$BASE/")
+[ "$r" = "200" ] && ok "bot Facebook NO redirige" || fail "bot Facebook" "HTTP $r"
+r=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -H "Accept-Language: pt-BR" "$BASE/empleos")
+[ "$r" = "200" ] && ok "/empleos NO redirige" || fail "/empleos redirect" "HTTP $r"
+
+# ── 3. SEO: robots y sitemap sin dominio envenenado, con las 9 landings
+robots=$(curl -s --max-time 20 "$BASE/robots.txt")
+check_contains "robots.txt sitemap correcto" "$robots" "www.konexu.app/sitemap.xml"
+smap=$(curl -s --max-time 30 "$BASE/sitemap.xml")
+case "$smap" in *supabase*) fail "sitemap sin supabase" "contiene supabase.co";; *) ok "sitemap sin supabase";; esac
+for l in pt en fr it de sv no ja; do
+  check_contains "sitemap incluye /$l" "$smap" "www.konexu.app/$l</loc>"
+done
+
+# ── 4. Formulario de alertas: la API rechaza registros web incompletos
+ANON=$(grep NEXT_PUBLIC_SUPABASE_ANON_KEY "$(dirname "$0")/../.env.local" 2>/dev/null | cut -d= -f2)
+if [ -n "$ANON" ]; then
+  resp=$(curl -s --max-time 20 -X POST "https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/waitlist" \
+    -H "Content-Type: application/json" -H "apikey: $ANON" -H "Authorization: Bearer $ANON" \
+    -d '{"accion":"unirse","origen":"web","email":"auditoria@konexu.app","pais":"🇦🇷 Argentina"}')
+  check_contains "waitlist rechaza incompletos" "$resp" "obligatorio"
+else
+  echo "SKIP  waitlist (sin .env.local)"
+fi
+
+echo "────────────────────────────"
+echo "RESULTADO: $PASS PASS · $FAIL FAIL"
+[ "$FAIL" = "0" ] && echo "✅ TODO EN ORDEN" || echo "❌ HAY FALLAS — revisar arriba"
+exit $FAIL
