@@ -30,7 +30,7 @@ export const metadata = {
   title: 'Konexu — Vagas de emprego no Brasil direto no seu email. Grátis.',
   description: 'Escreva o que você sabe fazer e a Konexu vigia milhares de vagas por você. Quando aparece uma vaga do seu perfil, chega no seu email. Grátis, sem cadastro complicado.',
   keywords: ['vagas Brasil','emprego Brasil','vagas de emprego','alerta de vagas','concursos públicos Brasil','trabalho Brasil'],
-  alternates: { canonical: '/pt' },
+  alternates: { canonical: '/pt', languages: { 'es': '/', 'pt-BR': '/pt' } },
   openGraph: {
     title: 'Pare de procurar. O trabalho encontra você.',
     description: 'Vagas do seu perfil direto no seu email, todos os dias. Grátis.',
