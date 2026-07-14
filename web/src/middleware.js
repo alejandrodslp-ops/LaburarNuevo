@@ -10,10 +10,11 @@ export function middleware(req) {
   if (/bot|crawler|spider|facebookexternalhit|whatsapp|telegram|slurp/.test(ua)) {
     return NextResponse.next()
   }
-  const lang = (req.headers.get('accept-language') || '').trim().toLowerCase()
-  if (lang.startsWith('pt')) {
+  const lang = (req.headers.get('accept-language') || '').trim().toLowerCase().slice(0, 2)
+  const LANDINGS = ['pt', 'en', 'fr', 'it', 'de', 'sv', 'no', 'ja']
+  if (LANDINGS.includes(lang)) {
     const url = req.nextUrl.clone()
-    url.pathname = '/pt'
+    url.pathname = `/${lang}`
     return NextResponse.redirect(url, 307)
   }
   return NextResponse.next()

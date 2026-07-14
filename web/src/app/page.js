@@ -32,7 +32,7 @@ export const metadata = {
   title: 'Konexu — Concursos Públicos y Empleos en Uruguay, Argentina y toda LatAm',
   description: 'Encontrá concursos públicos, llamados de trabajo y vacantes en Uruguay, Argentina, Brasil y 30 países más. Actualizados todos los días. Gratis para trabajadores.',
   keywords: ['concursos públicos Uruguay','empleos Uruguay','llamados trabajo Uruguay','ONSC concursos','Uruguay Concursa','empleos Argentina','vacantes gobierno','empleo público','trabajo LatAm'],
-  alternates: { canonical: '/', languages: { 'es': '/', 'pt-BR': '/pt' } },
+  alternates: { canonical: '/', languages: { 'es': '/', 'pt-BR': '/pt', 'en': '/en', 'fr': '/fr', 'it': '/it', 'de': '/de', 'sv': '/sv', 'no': '/no', 'ja': '/ja' } },
   openGraph: {
     title: 'Konexu — Concursos Públicos y Empleos en LatAm',
     description: 'Miles de concursos públicos y vacantes en Uruguay, Argentina, Brasil y toda LatAm. Actualizados diariamente. Gratis.',
