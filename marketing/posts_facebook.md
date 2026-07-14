@@ -55,6 +55,14 @@ Ahora está todo junto en un canal de Telegram: 395 llamados públicos abiertos 
 
 ¿Buscás algo puntual? Comentá el cargo y te digo si hay llamado abierto ahora.
 
+## CHECKLIST OBLIGATORIO ANTES DE PUBLICAR (agregado 2026-07-14 tras perder audiencia BR)
+
+- [ ] Abrir el link del post como el público objetivo (navegador/idioma del país) — ¿la página está EN SU IDIOMA?
+- [ ] Pegar el link en facebook.com/sharing/debugger — ¿el preview tiene imagen y título en el idioma del público?
+- [ ] ¿La promesa del post y lo que muestra la landing son la MISMA cosa?
+- [ ] Probar el formulario de la landing de punta a punta.
+- [ ] Refrescar los números del post contra la base (cambian a diario).
+
 ## Reglas de uso (investigadas, no inventadas)
 
 - UN grupo primero, esperar un día, después los demás. Nunca varios grupos en la misma hora.
