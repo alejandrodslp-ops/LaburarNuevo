@@ -23,7 +23,7 @@ const PAIS_COD: Record<string, string> = {
 function codPais(s: string | null): string | null {
   if (!s) return null;
   // NFD + quitar tildes: "Panamá"/"México"/"Japón" deben resolver igual que sus claves
-  const n = s.normalize("NFD").replace(/[̀-ͯ]/g, "")
+  const n = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^\p{L}\s]/gu, "").trim().toLowerCase();
   return PAIS_COD[n] ?? null;
 }
@@ -88,27 +88,42 @@ serve(async () => {
         .filter((t) => t.length >= 3)
         .slice(0, 5);
       if (terminos.length === 0) continue;
-      const filtroOr = terminos.flatMap((t) => {
-        const palabras = t.split(/\s+/).filter((w) => w.length >= 3 && !STOP.has(w.toLowerCase())).slice(0, 4);
-        if (palabras.length === 0) return [];
-        if (palabras.length === 1) return [`titulo.ilike.%${palabras[0]}%`, `cargo.ilike.%${palabras[0]}%`];
-        const en = (col: string) => `and(${palabras.map((w) => `${col}.ilike.%${w}%`).join(",")})`;
-        return [en("titulo"), en("cargo")];
-      }).join(",");
-      if (!filtroOr) continue;
-
-      let q = db.from("concursos")
-        .select("id,titulo,cargo,organismo,pais,lugar")
-        .eq("activo", true)
-        .gt("created_at", desde)
-        .or(filtroOr)
-        .order("created_at", { ascending: false })
-        .limit(8);
-
       const cod = codPais(l.pais);
-      if (cod) q = q.eq("pais", cod);
+      let matches: any[] | null = null;
 
-      const { data: matches } = await q;
+      if (cod) {
+        // Con país: RPC insensible a tildes ("tecnico" encuentra "Técnico").
+        // Caso real: "tecnico en hemoterapia" sin tilde recibió 0 alertas
+        // teniendo 2 llamados exactos activos (2026-07-14).
+        const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const terminosNorm = terminos.map((t) =>
+          t.split(/\s+/).filter((w) => w.length >= 3 && !STOP.has(w.toLowerCase())).slice(0, 4).map(norm).join(" ")
+        ).filter((s) => s.length > 0);
+        if (terminosNorm.length === 0) continue;
+        const { data } = await db.rpc("buscar_concursos_alerta", {
+          p_pais: cod, p_desde: desde, p_terminos: terminosNorm,
+        });
+        matches = data;
+      } else {
+        // Sin país: filtro ilike clásico. El RPC recorta el barrido global a las
+        // 20k filas más recientes y perdería avisos viejos (regresión verificada).
+        const filtroOr = terminos.flatMap((t) => {
+          const palabras = t.split(/\s+/).filter((w) => w.length >= 3 && !STOP.has(w.toLowerCase())).slice(0, 4);
+          if (palabras.length === 0) return [];
+          if (palabras.length === 1) return [`titulo.ilike.%${palabras[0]}%`, `cargo.ilike.%${palabras[0]}%`];
+          const en = (col: string) => `and(${palabras.map((w) => `${col}.ilike.%${w}%`).join(",")})`;
+          return [en("titulo"), en("cargo")];
+        }).join(",");
+        if (!filtroOr) continue;
+        const { data } = await db.from("concursos")
+          .select("id,titulo,cargo,organismo,pais,lugar")
+          .eq("activo", true)
+          .gt("created_at", desde)
+          .or(filtroOr)
+          .order("created_at", { ascending: false })
+          .limit(8);
+        matches = data;
+      }
       if (!matches || matches.length === 0) continue;
 
       // Dedupe por CONTENIDO por persona: las fuentes borran y reinsertan los
