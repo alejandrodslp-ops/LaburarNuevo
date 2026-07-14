@@ -11,7 +11,7 @@ Porque o problema nunca foi falta de vaga — é que ninguém te avisa das certa
 
 Eu tô construindo a solução: um site onde você escreve com suas palavras o que sabe fazer ("auxiliar de produção", "motorista", "atendente"...) e ele vigia as 97 mil por você. Quando aparece vaga do seu perfil, chega no seu email. De graça, sem cadastro complicado.
 
-Chega de caçar. Deixa a vaga te achar. 👉 konexu.app
+Chega de caçar. Deixa a vaga te achar. 👉 konexu.app/pt
 
 Duvida que tem vaga da sua área? Escreve seu ofício nos comentários que eu te respondo com o número exato. 🙌
 
@@ -29,7 +29,7 @@ Ontem às 22h um usuário se cadastrou no site. Hoje de manhã acordou com 5 vag
 🚚 Motorista e entregador: 1.113
 👨‍🍳 Cozinha: 1.057
 
-A sua área tá aí? Escreve ela com suas palavras em konexu.app e deixa as vagas te acharem. Grátis.
+A sua área tá aí? Escreve ela com suas palavras em konexu.app/pt e deixa as vagas te acharem. Grátis.
 
 ## BRASIL — Post 0 (versión "founder honesto", para grupos con moderación estricta)
 
@@ -39,7 +39,7 @@ Estou construindo um site que junta as vagas do Brasil inteiro num lugar só. Ag
 
 O diferencial: você escreve com suas palavras o que sabe fazer ("babá", "motorista", "auxiliar de produção", o que for) e o site te avisa por email, todo dia, quando aparece vaga do seu perfil. De graça.
 
-👉 konexu.app
+👉 konexu.app/pt
 
 Tá começando e quero deixar ele cada vez melhor — se procurar sua área e não achar nada, me fala nos comentários que eu verifico.
 
