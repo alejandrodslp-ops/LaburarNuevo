@@ -36,6 +36,7 @@ export const metadata = {
   openGraph: {
     title: 'Konexu — Concursos Públicos y Empleos en LatAm',
     description: 'Miles de concursos públicos y vacantes en Uruguay, Argentina, Brasil y toda LatAm. Actualizados diariamente. Gratis.',
+    images: [{ url: '/og-konexu.png', width: 1200, height: 630 }],
   },
 }
 
