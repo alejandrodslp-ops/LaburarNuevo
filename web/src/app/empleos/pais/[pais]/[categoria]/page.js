@@ -10,7 +10,7 @@ import JobsRealtime from '../../../../JobsRealtime'
 // ISR on-demand igual que la página de país: caché 6h, generación al primer hit.
 export const revalidate = 21600
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://konexu.app'
+const SITE = 'https://www.konexu.app'
 
 const SLUG_A_CODIGO = {
   uruguay:'UY', argentina:'AR', chile:'CL', peru:'PE', colombia:'CO',

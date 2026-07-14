@@ -6,7 +6,7 @@ import AppCta from '../../AppCta'
 
 export const revalidate = 3600
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://konexu.app'
+const SITE = 'https://www.konexu.app'
 
 async function getConcurso(slug) {
   const id = idFromSlug(slug)

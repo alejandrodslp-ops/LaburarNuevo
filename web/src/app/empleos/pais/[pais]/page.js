@@ -11,7 +11,7 @@ import JobsRealtime from '../../../JobsRealtime'
 // CPU de Vercel (aviso de límite 2026-07-07).
 export const revalidate = 21600
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://konexu.app'
+const SITE = 'https://www.konexu.app'
 
 // Slug en URL → código ISO 2 letras
 const SLUG_A_CODIGO = {

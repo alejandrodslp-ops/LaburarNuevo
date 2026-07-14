@@ -2,7 +2,7 @@ import { db } from '../lib/supabase'
 import { toSlug } from '../lib/utils'
 import { SLUGS_CATEGORIA } from '../lib/categorias'
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.konexu.app'
+const SITE = 'https://www.konexu.app'
 
 const PAISES_SLUGS = [
   // Sudamérica

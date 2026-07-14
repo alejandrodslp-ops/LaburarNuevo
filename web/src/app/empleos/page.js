@@ -13,7 +13,7 @@ const LATAM = ['UY','AR','BR','MX','CL','CO','PE','EC','BO','PY','VE','CR','GT',
 // o un visitante recibiría los resultados de otro país.
 export const dynamic = 'force-dynamic'
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL || 'https://konexu.app'
+const SITE = 'https://www.konexu.app'
 
 export async function generateMetadata({ searchParams }) {
   const q = (searchParams?.q || '').slice(0, 60)
