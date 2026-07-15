@@ -67,7 +67,7 @@ No es que no busques — es que están desparramados: ONSC por un lado, las inte
 
 Ahora está todo junto en un canal de Telegram: 395 llamados públicos abiertos hoy — y ojo, 91 cierran esta semana. Cada llamado nuevo te llega al celular apenas se publica, con la fecha de cierre y el sueldo cuando el organismo lo publica. Gratis y sin registrarte en nada.
 
-👉 t.me/concursos_uruguay
+👉 konexu.app
 
 ¿Buscás algo puntual? Comentá el cargo y te digo si hay llamado abierto ahora.
 
@@ -78,6 +78,52 @@ Ahora está todo junto en un canal de Telegram: 395 llamados públicos abiertos 
 - [ ] ¿La promesa del post y lo que muestra la landing son la MISMA cosa?
 - [ ] Probar el formulario de la landing de punta a punta.
 - [ ] Refrescar los números del post contra la base (cambian a diario).
+
+## BRASIL — Post 3: "2.369 vagas novas ontem" (números 2026-07-15, REFRESCAR)
+
+Ontem entraram 2.369 vagas novas no Brasil. Quantas passaram na sua frente? Zero.
+
+Não é porque você não procura — é porque a vaga boa não espera. Ela abre, quem fica sabendo se candidata, e fecha. O jogo não é de quem procura mais. É de quem fica sabendo primeiro.
+
+Agora mesmo tem 104 mil vagas abertas: 19 mil só em São Paulo, quase 8 mil no Rio, e milhares no resto do país.
+
+Eu tô construindo a ferramenta que vira esse jogo: você escreve com suas palavras o que sabe fazer — "auxiliar de produção", "cozinheira", "motorista", qualquer coisa — e quando entra vaga do seu perfil, ela chega no seu email. De graça, sem cadastro complicado, sem pegadinha.
+
+Semana passada uma pessoa escreveu o ofício dela e no dia seguinte acordou com as vagas exatas da área no email. Não procurou nada. Ficou sabendo primeiro.
+
+👉 konexu.app/pt
+
+Duvida que tenha da sua área? Comenta sua profissão aqui embaixo que eu respondo com o número exato de vagas abertas agora. 🙌
+
+## URUGUAY — Post 2: "107 cierran esta semana" (números 2026-07-15, REFRESCAR)
+
+De los 407 llamados públicos abiertos hoy en Uruguay, 107 cierran esta semana.
+
+Eso es lo que pasa siempre con los concursos del Estado: ONSC por un lado, las intendencias por otro, ASSE, ANEP, UdelaR... y uno termina enterándose por un conocido, tarde. No es que falte información — sobra, pero desparramada.
+
+Junté todo en un solo lugar y le agregué lo que faltaba: escribís qué sabés hacer o qué buscás ("administrativo", "enfermería", "docencia") y cuando aparece un llamado que te sirve, te llega al mail. Gratis, sin bajar nada, sin registro complicado.
+
+No es magia ni promesas: es un aviso a tiempo — que es lo único que te separa de presentarte, o de enterarte cuando ya cerró.
+
+👉 konexu.app
+
+¿Buscás algo puntual? Comentá el cargo y te digo si hay llamado abierto ahora.
+
+## ARGENTINA — Post 2: "El dato" (números 2026-07-15, REFRESCAR; sin fecha_cierre AR, sin stat 24h)
+
+En Argentina siempre gana el que tiene el dato. Bueno: acá va uno.
+
+Ahora mismo hay más de 1.600 llamados y vacantes activos — la mayoría del Estado: hospitales nacionales, ministerios, universidades. Solo de administrativos hay 199. De salud, 71. Técnicos, 114.
+
+El problema es que ese dato no te llega: está desparramado en veinte páginas que nadie mira, y los llamados cierran sin que te enteres.
+
+Armé una herramienta que te lo trae a vos: escribís qué sabés hacer — con tus palabras: "enfermera", "administrativo", "electricista" — y cuando aparece algo de lo tuyo, te llega al mail. Gratis, sin humo, sin bajar nada.
+
+Y como sé que no me vas a creer de una (y hacés bien): probame. Comentá tu oficio acá abajo y te contesto con el número exacto de llamados abiertos hoy para eso. Si no hay nada de lo tuyo, también te lo digo.
+
+👉 konexu.app
+
+## REGLA FIJA: un solo link por post y siempre a la web (konexu.app / konexu.app/pt). Nunca Telegram.
 
 ## Reglas de uso (investigadas, no inventadas)
 
