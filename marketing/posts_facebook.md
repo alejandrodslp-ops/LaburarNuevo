@@ -43,6 +43,22 @@ O diferencial: você escreve com suas palavras o que sabe fazer ("babá", "motor
 
 Tá começando e quero deixar ele cada vez melhor — se procurar sua área e não achar nada, me fala nos comentários que eu verifico.
 
+## ARGENTINA — Post 1: "El Estado publica, nadie se entera" (grupos de empleo AR)
+
+¿Sabías que ahora mismo hay más de 1.800 llamados y vacantes activos en Argentina — 1.350 solo en CABA?
+
+La mayoría son del Estado: hospitales nacionales, ministerios, universidades. Concursos con sueldo publicado y fecha de cierre. El problema no es que no haya laburo — es que está desparramado en veinte páginas distintas, y para cuando alguien te avisa, el llamado ya cerró.
+
+Esta semana pasó esto de verdad: una persona escribió "técnico en hemoterapia" — así, con sus palabras — y al otro día tenía en el mail los 2 llamados de hospitales nacionales que estaban abiertos. No buscó nada. Le llegaron.
+
+Estoy construyendo exactamente eso: escribís qué sabés hacer ("enfermera", "chofer", "administrativo", lo que sea) y cuando aparece algo para vos, te llega al mail. Gratis, sin bajar nada, sin vueltas.
+
+Sin humo: la herramienta está empezando y la mejoro todos los días. 👉 konexu.app
+
+¿Dudás de que haya algo de lo tuyo? Comentá tu oficio y te respondo con el número exacto de llamados abiertos hoy para eso. 🙌
+
+(Números del 2026-07-14, excluida contaminación Texas. REFRESCAR antes de publicar.)
+
 ## URUGUAY — Post canal Telegram (grupos de empleo UY)
 
 ¿Te enteraste alguna vez de un llamado del Estado… el día después de que cerró?
