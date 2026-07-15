@@ -87,9 +87,9 @@ Não é porque você não procura — é porque a vaga boa não espera. Ela abre
 
 Agora mesmo tem 104 mil vagas abertas: 19 mil só em São Paulo, quase 8 mil no Rio, e milhares no resto do país.
 
-Eu tô construindo a ferramenta que vira esse jogo: você escreve com suas palavras o que sabe fazer — "auxiliar de produção", "cozinheira", "motorista", qualquer coisa — e quando entra vaga do seu perfil, ela chega no seu email. De graça, sem cadastro complicado, sem pegadinha.
+Achei um site que resolve exatamente isso: você escreve com suas palavras o que sabe fazer — "auxiliar de produção", "cozinheira", "motorista", qualquer coisa — e quando entra vaga do seu perfil, ela chega no seu email. De graça, sem cadastro complicado, sem pegadinha.
 
-Semana passada uma pessoa escreveu o ofício dela e no dia seguinte acordou com as vagas exatas da área no email. Não procurou nada. Ficou sabendo primeiro.
+Testei e funciona: as vagas do seu perfil chegam sozinhas.
 
 👉 konexu.app/pt
 
@@ -101,7 +101,7 @@ De los 407 llamados públicos abiertos hoy en Uruguay, 107 cierran esta semana.
 
 Eso es lo que pasa siempre con los concursos del Estado: ONSC por un lado, las intendencias por otro, ASSE, ANEP, UdelaR... y uno termina enterándose por un conocido, tarde. No es que falte información — sobra, pero desparramada.
 
-Junté todo en un solo lugar y le agregué lo que faltaba: escribís qué sabés hacer o qué buscás ("administrativo", "enfermería", "docencia") y cuando aparece un llamado que te sirve, te llega al mail. Gratis, sin bajar nada, sin registro complicado.
+Encontré una página que junta todo en un solo lugar: escribís qué sabés hacer o qué buscás ("administrativo", "enfermería", "docencia") y cuando aparece un llamado que te sirve, te llega al mail. Gratis, sin bajar nada, sin registro complicado.
 
 No es magia ni promesas: es un aviso a tiempo — que es lo único que te separa de presentarte, o de enterarte cuando ya cerró.
 
@@ -117,13 +117,15 @@ Ahora mismo hay más de 1.600 llamados y vacantes activos — la mayoría del Es
 
 El problema es que ese dato no te llega: está desparramado en veinte páginas que nadie mira, y los llamados cierran sin que te enteres.
 
-Armé una herramienta que te lo trae a vos: escribís qué sabés hacer — con tus palabras: "enfermera", "administrativo", "electricista" — y cuando aparece algo de lo tuyo, te llega al mail. Gratis, sin humo, sin bajar nada.
+Me crucé con una página que te lo trae a vos: escribís qué sabés hacer — con tus palabras: "enfermera", "administrativo", "electricista" — y cuando aparece algo de lo tuyo, te llega al mail. Gratis, sin humo, sin bajar nada.
 
-Y como sé que no me vas a creer de una (y hacés bien): probame. Comentá tu oficio acá abajo y te contesto con el número exacto de llamados abiertos hoy para eso. Si no hay nada de lo tuyo, también te lo digo.
+La probé con "administrativo": me tiró 199 llamados abiertos hoy. Si la prueban, comenten con qué oficio — así vemos entre todos si tira algo.
 
 👉 konexu.app
 
-## REGLA FIJA: un solo link por post y siempre a la web (konexu.app / konexu.app/pt). Nunca Telegram.
+## REGLAS FIJAS DE TODOS LOS POSTS
+1. Un solo link por post y siempre a la web (konexu.app / konexu.app/pt). Nunca Telegram.
+2. Voz de RECOMENDACIÓN, nunca de creador: "encontré/me crucé/les comparto una página", jamás "estoy construyendo". Historias como testimonio propio verificable ("la probé con X: N resultados").
 
 ## Reglas de uso (investigadas, no inventadas)
 
