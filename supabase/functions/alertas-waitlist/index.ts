@@ -66,6 +66,9 @@ serve(async () => {
 
   let enviados = 0, conMatch = 0;
   const errores: string[] = [];
+  // Resumen para el admin: UN solo email por ciclo con todo lo enviado
+  // (reemplaza a la copia espejo bcc por usuario, que llenaba la casilla).
+  const resumen: { email: string; busqueda: string; pais: string; avisos: string[] }[] = [];
 
   for (const l of (leads ?? []) as any[]) {
     try {
@@ -151,9 +154,6 @@ serve(async () => {
         body: JSON.stringify({
           from: "Konexu <noreply@konexu.app>",
           to: [email],
-          // Copia espejo al admin: auditar qué recibe cada usuario (los avisos
-          // fuente rotan a diario y el contenido no es reconstruible después).
-          bcc: ["alejandrodslp@gmail.com"],
           // Entregabilidad: sin emoji en el asunto (penaliza en remitentes nuevos)
           // y con List-Unsubscribe (Gmail lo premia; sin él castiga a bulk senders).
           headers: { "List-Unsubscribe": "<mailto:hola@konexu.app?subject=Baja%20de%20alertas>" },
@@ -164,6 +164,12 @@ serve(async () => {
 
       if (res.ok) {
         enviados++;
+        resumen.push({
+          email,
+          busqueda: String(l.busqueda ?? ""),
+          pais: String(l.pais ?? "—"),
+          avisos: nuevos.map((c: any) => String(c.cargo || c.titulo || "")),
+        });
         await db.from("waitlist").update({ ultima_alerta_at: new Date().toISOString() }).eq("id", l.id);
         await db.from("alertas_enviadas").upsert(
           nuevos.map((c: any) => ({ waitlist_id: l.id, clave: claveDe(c) })),
@@ -175,6 +181,34 @@ serve(async () => {
     } catch (e) {
       errores.push(`${l.email}: ${(e as Error).message.slice(0, 60)}`);
     }
+  }
+
+  // Un solo email al admin con todo lo del ciclo (auditoría: los avisos fuente
+  // rotan a diario y el contenido no es reconstruible después).
+  if (resumen.length > 0) {
+    const totalAvisos = resumen.reduce((n, r) => n + r.avisos.length, 0);
+    const bloques = resumen.map((r) => `
+      <tr><td style="padding:10px 0;border-bottom:1px solid #EDE8E2">
+        <div style="font-size:14px;font-weight:700;color:#1A1020">${esc(r.email)} · ${esc(r.pais)}</div>
+        <div style="font-size:12px;color:#8c8492">buscaba: "${esc(r.busqueda)}"</div>
+        <ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:#1A1020">
+          ${r.avisos.map((a) => `<li>${esc(a)}</li>`).join("")}
+        </ul>
+      </td></tr>`).join("");
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: "Konexu <noreply@konexu.app>",
+        to: ["alejandrodslp@gmail.com"],
+        subject: `Resumen alertas: ${enviados} email${enviados > 1 ? "s" : ""}, ${totalAvisos} aviso${totalAvisos > 1 ? "s" : ""}${errores.length ? `, ${errores.length} errores` : ""}`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:600px">
+          <h3>Ciclo de alertas — ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC</h3>
+          <table style="width:100%;border-collapse:collapse">${bloques}</table>
+          ${errores.length ? `<p style="color:#C2502F;font-size:12px">Errores: ${esc(errores.join(" | "))}</p>` : ""}
+        </div>`,
+      }),
+    }).catch(() => {});
   }
 
   return new Response(
