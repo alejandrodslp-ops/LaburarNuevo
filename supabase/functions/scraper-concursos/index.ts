@@ -520,6 +520,10 @@ async function joobleMultiSearch(
   const APP_KEY = Deno.env.get("JOOBLE_API_KEY") ?? "";
   if (!APP_KEY) return [];
 
+  // Jooble devuelve avisos de EE.UU. mezclados en las búsquedas de LATAM
+  // (caso real 2026-07-17: ~400 avisos de Austin/Kyle TX etiquetados como AR).
+  const US_LOC = /,\s*(AL|AK|AZ|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\b|United States|USA|Estados Unidos/i;
+
   const allRows: ConcursoRow[] = [];
 
   const queries: [string, string][] = [];
@@ -551,6 +555,7 @@ async function joobleMultiSearch(
         const titulo = String(j.title ?? "").trim();
         const empresa = String(j.company ?? "").trim();
         if (!titulo || titulo.length < 4) continue;
+        if (US_LOC.test(String(j.location ?? ""))) continue;
 
         const jId = String(j.id ?? "").replace(/\W/g, "").slice(0, 48);
         const fuente_id = jId || (titulo + empresa).replace(/\W/g, "").slice(0, 48);

@@ -31,8 +31,94 @@ function esc(t: unknown): string {
   return String(t ?? "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
 }
 
-function plantilla(nombre: string | null, busqueda: string, matches: any[]): string {
-  const saludo = nombre ? `Hola ${esc(nombre)},` : "Hola,";
+// Idioma del email según el país del usuario (fallback: español)
+const LANG_POR_PAIS: Record<string, string> = {
+  BR: "pt", PT: "pt",
+  US: "en", GB: "en", CA: "en", AU: "en", IN: "en",
+  FR: "fr", IT: "it", DE: "de", CH: "de", SE: "sv", NO: "no", JP: "ja",
+};
+const T: Record<string, Record<string, string | undefined>> = {
+  es: {
+    hola: "Hola", aparecieron: "Aparecieron {n} empleo{s} de", s: "s",
+    justo: "Justo lo que buscabas. Estos son los nuevos:", ver: "Ver todos →",
+    comparte: 'Comparte <a href="https://konexu.app" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app</a> con alguien que esté buscando trabajo — puede cambiarle la semana.',
+    util: "¿Te resultó útil?",
+    pie: "Te llega esto porque activaste alertas gratis en Konexu. Si no querés recibir más, respondé este correo.",
+    asunto: '{n} nuevo{s} empleo{s} de "{q}" para ti',
+  },
+  pt: {
+    hola: "Olá", aparecieron: "Apareceram {n} vaga{s} de", s: "s",
+    justo: "Exatamente o que você procurava. Estas são as novas:", ver: "Ver todas →",
+    comparte: 'Compartilhe <a href="https://konexu.app/pt" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/pt</a> com alguém que esteja procurando trabalho — pode mudar a semana dessa pessoa.',
+    util: "Foi útil pra você?",
+    pie: "Você recebe isto porque ativou alertas grátis na Konexu. Se não quiser mais receber, responda este email.",
+    asunto: '{n} nova{s} vaga{s} de "{q}" para você',
+  },
+  en: {
+    hola: "Hi", aparecieron: "{n} new job{s} matching", s: "s",
+    justo: "Just what you were looking for. Here are the new ones:", ver: "See all →",
+    comparte: 'Share <a href="https://konexu.app/en" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/en</a> with someone looking for work — it might change their week.',
+    util: "Was this useful?",
+    pie: "You get this because you set up free alerts on Konexu. Reply to this email to unsubscribe.",
+    asunto: '{n} new job{s} matching "{q}"',
+  },
+  fr: {
+    hola: "Bonjour", aparecieron: "{n} nouvelle{s} offre{s} pour", s: "s",
+    justo: "Exactement ce que vous cherchiez. Voici les nouvelles :", ver: "Tout voir →",
+    comparte: 'Partagez <a href="https://konexu.app/fr" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/fr</a> avec quelqu’un qui cherche du travail.',
+    util: "Cela vous a été utile ?",
+    pie: "Vous recevez ceci car vous avez activé les alertes gratuites Konexu. Répondez à cet email pour vous désabonner.",
+    asunto: '{n} nouvelle{s} offre{s} pour « {q} »',
+  },
+  it: {
+    hola: "Ciao", aparecieron: "{n} nuove offerte di", aparecieron1: "1 nuova offerta di", s: "",
+    justo: "Proprio quello che cercavi. Ecco le novità:", ver: "Vedi tutte →",
+    comparte: 'Condividi <a href="https://konexu.app/it" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/it</a> con qualcuno che cerca lavoro.',
+    util: "Ti è stato utile?",
+    pie: "Ricevi questa email perché hai attivato gli avvisi gratuiti su Konexu. Rispondi per annullare l’iscrizione.",
+    asunto: '{n} nuove offerte di "{q}" per te', asunto1: '1 nuova offerta di "{q}" per te',
+  },
+  de: {
+    hola: "Hallo", aparecieron: "{n} neue Stelle{s} für", s: "n",
+    justo: "Genau das, was du gesucht hast. Hier die neuen:", ver: "Alle ansehen →",
+    comparte: 'Teile <a href="https://konexu.app/de" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/de</a> mit jemandem, der Arbeit sucht.',
+    util: "War das hilfreich?",
+    pie: "Du erhältst diese E-Mail, weil du kostenlose Alarme bei Konexu aktiviert hast. Antworte zum Abbestellen.",
+    asunto: '{n} neue Stelle{s} für "{q}"',
+  },
+  sv: {
+    hola: "Hej", aparecieron: "{n} nya jobb för", s: "",
+    justo: "Precis vad du letade efter. Här är de nya:", ver: "Se alla →",
+    comparte: 'Dela <a href="https://konexu.app/sv" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/sv</a> med någon som söker jobb.',
+    util: "Var detta användbart?",
+    pie: "Du får detta för att du aktiverade gratis bevakning på Konexu. Svara på mejlet för att avsluta.",
+    asunto: '{n} nya jobb för "{q}"',
+  },
+  no: {
+    hola: "Hei", aparecieron: "{n} nye stillinger for", s: "",
+    justo: "Akkurat det du lette etter. Her er de nye:", ver: "Se alle →",
+    comparte: 'Del <a href="https://konexu.app/no" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/no</a> med noen som ser etter jobb.',
+    util: "Var dette nyttig?",
+    pie: "Du får dette fordi du aktiverte gratis varsling på Konexu. Svar på e-posten for å melde deg av.",
+    asunto: '{n} nye stillinger for "{q}"',
+  },
+  ja: {
+    hola: "こんにちは", aparecieron: "「{q}」の新着求人 {n} 件", s: "",
+    justo: "お探しの条件に合う新着です：", ver: "すべて見る →",
+    comparte: 'お役に立ちましたか？お仕事を探している方に <a href="https://konexu.app/ja" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/ja</a> をぜひ紹介してください。',
+    util: "",
+    pie: "このメールはKonexuの無料求人アラートにご登録いただいた方にお送りしています。配信停止はこのメールに返信してください。",
+    asunto: '「{q}」の新着求人{n}件',
+  },
+};
+function idiomaDe(pais: string | null): string {
+  const cod = codPais(pais);
+  return (cod && LANG_POR_PAIS[cod]) || "es";
+}
+
+function plantilla(nombre: string | null, busqueda: string, matches: any[], lang = "es"): string {
+  const t = T[lang] ?? T.es;
+  const saludo = nombre ? `${t.hola} ${esc(nombre)},` : `${t.hola},`;
   const items = matches.map((c) => {
     const titulo = esc(c.cargo || c.titulo);
     const org    = esc(c.organismo || "");
@@ -42,22 +128,38 @@ function plantilla(nombre: string | null, busqueda: string, matches: any[]): str
       <div style="font-size:13px;color:#8c8492;margin-top:2px">${org}${org && lugar ? " · " : ""}${lugar}</div>
     </td></tr>`;
   }).join("");
+  const n = matches.length;
+  const plural = n > 1 ? t.s : "";
+  const base = (n === 1 && t.aparecieron1) ? t.aparecieron1 : t.aparecieron;
+  const titular = lang === "ja"
+    ? base.replace("{q}", esc(busqueda)).replace("{n}", String(n))
+    : `${base.replace("{n}", String(n)).replace(/\{s\}/g, plural)} "${esc(busqueda)}"`;
   const link = `${SITE}/empleos?q=${encodeURIComponent(busqueda)}`;
   return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#FBF8F4">
     <div style="background:#0D1117;padding:24px 32px"><img src="https://www.konexu.app/logo-email.png" alt="Konexu" width="98" height="40" style="display:block;border:0"></div>
     <div style="padding:28px 32px">
       <p style="font-size:15px;color:#1A1020">${saludo}</p>
-      <h2 style="color:#1A1020;font-size:20px;margin:8px 0 4px">Aparecieron ${matches.length} empleo${matches.length > 1 ? "s" : ""} de "${esc(busqueda)}"</h2>
-      <p style="font-size:13px;color:#8c8492;margin:0 0 16px">Justo lo que buscabas. Estos son los nuevos:</p>
+      <h2 style="color:#1A1020;font-size:20px;margin:8px 0 4px">${titular}</h2>
+      <p style="font-size:13px;color:#8c8492;margin:0 0 16px">${t.justo}</p>
       <table style="width:100%;border-collapse:collapse">${items}</table>
-      <a href="${link}" style="display:inline-block;margin-top:22px;background:#C2502F;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:800;font-size:15px">Ver todos →</a>
-      <p style="font-size:13px;color:#5A4E6A;margin-top:22px">¿Te resultó útil? Comparte <a href="https://konexu.app" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app</a> con alguien que esté buscando trabajo — puede cambiarle la semana.</p>
-      <p style="font-size:12px;color:#a99fb5;margin-top:12px">Te llega esto porque activaste alertas gratis en Konexu. Si no querés recibir más, respondé este correo.</p>
+      <a href="${link}" style="display:inline-block;margin-top:22px;background:#C2502F;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:800;font-size:15px">${t.ver}</a>
+      <p style="font-size:13px;color:#5A4E6A;margin-top:22px">${t.util ? t.util + " " : ""}${t.comparte}</p>
+      <p style="font-size:12px;color:#a99fb5;margin-top:12px">${t.pie}</p>
     </div>
   </div>`;
 }
+function asuntoDe(lang: string, n: number, busqueda: string): string {
+  const t = T[lang] ?? T.es;
+  const plural = n > 1 ? t.s : "";
+  const base = (n === 1 && t.asunto1) ? t.asunto1 : t.asunto;
+  return base.replace("{n}", String(n)).replace(/\{s\}/g, plural).replace("{q}", busqueda);
+}
 
-serve(async () => {
+const LOTE = 12; // usuarios por invocación: con el doble RPC del fallback,
+// procesar todos en una pasada superaba los 150s del runtime (IDLE_TIMEOUT)
+// y los últimos de la lista quedaban sin procesar.
+serve(async (req: Request) => {
+  const { offset = 0 } = await req.json().catch(() => ({ offset: 0 }));
   const db = createClient(URL, KEY);
   const { data: leads } = await db
     .from("waitlist")
@@ -71,7 +173,9 @@ serve(async () => {
   // (reemplaza a la copia espejo bcc por usuario, que llenaba la casilla).
   const resumen: { email: string; busqueda: string; pais: string; avisos: string[] }[] = [];
 
-  for (const l of (leads ?? []) as any[]) {
+  const todos = (leads ?? []) as any[];
+  const lote = todos.slice(offset, offset + LOTE);
+  for (const l of lote) {
     try {
       const email = String(l.email ?? "");
       if (!email.includes("@") || email.includes("example.com")) continue;
@@ -175,8 +279,8 @@ serve(async () => {
           // Entregabilidad: sin emoji en el asunto (penaliza en remitentes nuevos)
           // y con List-Unsubscribe (Gmail lo premia; sin él castiga a bulk senders).
           headers: { "List-Unsubscribe": "<mailto:hola@konexu.app?subject=Baja%20de%20alertas>" },
-          subject: `${nuevos.length} nuevo${nuevos.length > 1 ? "s" : ""} empleo${nuevos.length > 1 ? "s" : ""} de "${l.busqueda}" para ti`,
-          html: plantilla(l.nombre, l.busqueda, nuevos),
+          subject: asuntoDe(idiomaDe(l.pais), nuevos.length, l.busqueda),
+          html: plantilla(l.nombre, l.busqueda, nuevos, idiomaDe(l.pais)),
         }),
       });
 
@@ -229,8 +333,19 @@ serve(async () => {
     }).catch(() => {});
   }
 
+  // Encadenar la siguiente tanda sin bloquear la respuesta
+  if (offset + LOTE < todos.length) {
+    const siguiente = fetch(`${URL}/functions/v1/alertas-waitlist`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ offset: offset + LOTE }),
+    }).catch(() => {});
+    // @ts-ignore — disponible en el runtime de Supabase
+    (globalThis as any).EdgeRuntime?.waitUntil?.(siguiente);
+  }
+
   return new Response(
-    JSON.stringify({ ok: true, procesados: (leads ?? []).length, con_match: conMatch, enviados, errores }),
+    JSON.stringify({ ok: true, tanda_desde: offset, procesados: lote.length, total: todos.length, con_match: conMatch, enviados, errores }),
     { headers: { "Content-Type": "application/json" } },
   );
 });
