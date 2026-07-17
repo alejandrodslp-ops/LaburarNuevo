@@ -11,15 +11,26 @@ export function middleware(req) {
     return NextResponse.next()
   }
   const al = (req.headers.get('accept-language') || '').trim().toLowerCase()
-  // España: SOLO por el país real del visitante (geo de Vercel). El idioma
-  // es-ES NO sirve como señal: es el default de Chrome en media LATAM
-  // (caso real 2026-07-17: el usuario, en Uruguay, cayó en /es-es).
+  // 1) EL PAÍS REAL DE LA CONEXIÓN MANDA (geo de Vercel): cada visitante ve
+  //    la versión de SU país. El idioma del navegador no es señal de país
+  //    (es-ES es el default de Chrome en media LATAM — caso real 2026-07-17).
   const geoPais = req.headers.get('x-vercel-ip-country') || ''
-  if (al.startsWith('es') && geoPais === 'ES') {
+  const GEO_RUTA = {
+    ES: '/es-es',
+    BR: '/pt', PT: '/pt',
+    US: '/en', GB: '/en', IE: '/en', CA: '/en', AU: '/en', NZ: '/en', IN: '/en',
+    FR: '/fr', IT: '/it',
+    DE: '/de', AT: '/de', CH: '/de',
+    SE: '/sv', NO: '/no', JP: '/ja',
+  }
+  if (GEO_RUTA[geoPais]) {
     const url = req.nextUrl.clone()
-    url.pathname = '/es-es'
+    url.pathname = GEO_RUTA[geoPais]
     return NextResponse.redirect(url, 307)
   }
+  // 2) Geo sin versión propia (LATAM → home en español) o desconocido:
+  //    el idioma del navegador es el mejor plan B (un brasileño en Uruguay
+  //    sigue viendo portugués).
   const lang = al.slice(0, 2)
   const LANDINGS = ['pt', 'en', 'fr', 'it', 'de', 'sv', 'no', 'ja']
   if (LANDINGS.includes(lang)) {
