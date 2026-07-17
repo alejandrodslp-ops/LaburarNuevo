@@ -10,7 +10,16 @@ export function middleware(req) {
   if (/bot|crawler|spider|facebookexternalhit|whatsapp|telegram|slurp/.test(ua)) {
     return NextResponse.next()
   }
-  const lang = (req.headers.get('accept-language') || '').trim().toLowerCase().slice(0, 2)
+  const al = (req.headers.get('accept-language') || '').trim().toLowerCase()
+  // España: mismo idioma que LATAM pero otro mercado — se detecta por la
+  // variante del navegador (es-ES) o por el país real del visitante (Vercel).
+  const geoPais = req.headers.get('x-vercel-ip-country') || ''
+  if (al.startsWith('es') && (al.startsWith('es-es') || geoPais === 'ES')) {
+    const url = req.nextUrl.clone()
+    url.pathname = '/es-es'
+    return NextResponse.redirect(url, 307)
+  }
+  const lang = al.slice(0, 2)
   const LANDINGS = ['pt', 'en', 'fr', 'it', 'de', 'sv', 'no', 'ja']
   if (LANDINGS.includes(lang)) {
     const url = req.nextUrl.clone()

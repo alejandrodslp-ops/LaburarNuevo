@@ -63,6 +63,7 @@ export default async function sitemap() {
     { url: `${SITE}/empleos`,             lastModified: new Date(), changeFrequency: 'hourly', priority: 0.9  },
     { url: `${SITE}/pulso-latam`,         lastModified: new Date(), changeFrequency: 'daily',  priority: 0.85 },
     { url: `${SITE}/pt`,                  lastModified: new Date(), changeFrequency: 'daily',  priority: 0.9  },
+    { url: `${SITE}/es-es`,               lastModified: new Date(), changeFrequency: 'daily',  priority: 0.85 },
     ...['en','fr','it','de','sv','no','ja'].map((l) => (
       { url: `${SITE}/${l}`,              lastModified: new Date(), changeFrequency: 'daily',  priority: 0.85 }
     )),

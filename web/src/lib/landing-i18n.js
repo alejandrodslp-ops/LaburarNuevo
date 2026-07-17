@@ -3,6 +3,28 @@
 // Los formularios usan las traducciones de i18n.js (prop lang de WaitlistForm).
 
 export const LANDINGS = {
+  'es-es': {
+    pais_codes: ['ES'],
+    pais_default: '🇪🇸 España',
+    title: 'Konexu — Ofertas de empleo en España directas a tu email. Gratis.',
+    description: 'Escribe lo que sabes hacer y Konexu vigila miles de ofertas por ti. Cuando aparece una que encaja con tu perfil, te llega al email. Gratis y sin registros complicados.',
+    og_title: 'Deja de buscar. El trabajo te encuentra.',
+    og_desc: 'Ofertas de empleo en España que encajan con tu perfil, directas a tu email. Gratis.',
+    locale: 'es_ES',
+    live_pre: 'EN DIRECTO — ', live_post: ' ofertas activas hoy',
+    h1_a: 'Deja de buscar. ', h1_b: 'El trabajo te encuentra.',
+    sub: 'Escribe lo que sabes hacer — Konexu vigila las ofertas por ti y te avisa por email. Gratis.',
+    cta: 'Quiero recibir ofertas gratis →',
+    stat_jobs: 'ofertas activas', stat_countries: 'países', stat_upd_big: 'Actualización', stat_upd_small: 'diaria',
+    recent_title: 'Ofertas recientes en España', see_all: 'Ver todas →', nav_jobs: 'Ver ofertas', nav_alerts: 'Alertas gratis',
+    how_title: '¿Cómo funciona?', how_sub: 'Tres pasos. Sin registros complicados, sin coste.',
+    steps: [
+      { icon: '✍️', tit: '1. Escribe tu oficio', desc: 'Con tus palabras: "camarero", "carretillero", "auxiliar administrativo"... lo que sabes hacer.' },
+      { icon: '🤖', tit: '2. Konexu vigila por ti', desc: 'Miles de ofertas públicas y privadas revisadas cada día en toda España.' },
+      { icon: '📩', tit: '3. La oferta llega a tu email', desc: 'Cuando aparece una oferta que encaja con tu perfil, te enteras antes que nadie. Gratis.' },
+    ],
+    footer_jobs: 'Ver ofertas',
+  },
   en: {
     pais_codes: ['US', 'GB', 'CA', 'AU', 'IN'],
     pais_default: '',

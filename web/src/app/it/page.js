@@ -12,7 +12,7 @@ const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_K
 export const metadata = {
   title: t.title,
   description: t.description,
-  alternates: { canonical: '/it', languages: { 'es': '/', 'pt-BR': '/pt', 'en': '/en', 'fr': '/fr', 'it': '/it', 'de': '/de', 'sv': '/sv', 'no': '/no', 'ja': '/ja' } },
+  alternates: { canonical: '/it', languages: { 'es': '/', 'es-ES': '/es-es', 'pt-BR': '/pt', 'en': '/en', 'fr': '/fr', 'it': '/it', 'de': '/de', 'sv': '/sv', 'no': '/no', 'ja': '/ja' } },
   openGraph: { title: t.og_title, description: t.og_desc, url: '/it', siteName: 'Konexu', locale: t.locale, type: 'website', images: [{ url: '/og-konexu-it.png', width: 1200, height: 630 }] },
   twitter: { card: 'summary_large_image', title: t.og_title, description: t.og_desc, images: ['/og-konexu-it.png'] },
   robots: { index: true, follow: true },

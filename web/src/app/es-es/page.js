@@ -5,16 +5,16 @@ import { LANDINGS } from '../../lib/landing-i18n'
 export const revalidate = 300
 export const fetchCache = 'force-no-store'
 
-const LANG = 'ja'
+const LANG = 'es-es'
 const t = LANDINGS[LANG]
 const db = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
 export const metadata = {
   title: t.title,
   description: t.description,
-  alternates: { canonical: '/ja', languages: { 'es': '/', 'es-ES': '/es-es', 'pt-BR': '/pt', 'en': '/en', 'fr': '/fr', 'it': '/it', 'de': '/de', 'sv': '/sv', 'no': '/no', 'ja': '/ja' } },
-  openGraph: { title: t.og_title, description: t.og_desc, url: '/ja', siteName: 'Konexu', locale: t.locale, type: 'website', images: [{ url: '/og-konexu-ja.png', width: 1200, height: 630 }] },
-  twitter: { card: 'summary_large_image', title: t.og_title, description: t.og_desc, images: ['/og-konexu-ja.png'] },
+  alternates: { canonical: '/es-es', languages: { 'es': '/', 'es-ES': '/es-es', 'pt-BR': '/pt', 'en': '/en', 'fr': '/fr', 'it': '/it', 'de': '/de', 'sv': '/sv', 'no': '/no', 'ja': '/ja' } },
+  openGraph: { title: t.og_title, description: t.og_desc, url: '/es-es', siteName: 'Konexu', locale: t.locale, type: 'website', images: [{ url: '/og-konexu-es-es.png', width: 1200, height: 630 }] },
+  twitter: { card: 'summary_large_image', title: t.og_title, description: t.og_desc, images: ['/og-konexu-es-es.png'] },
   robots: { index: true, follow: true },
 }
 
@@ -26,5 +26,5 @@ export default async function Page() {
       .eq('activo', true).in('pais', t.pais_codes)
       .order('created_at', { ascending: false }).limit(8),
   ])
-  return <LandingIntl lang={LANG} t={t} total={total ?? 0} jobs={jobs ?? []} />
+  return <LandingIntl lang={'es'} t={t} total={total ?? 0} jobs={jobs ?? []} />
 }
