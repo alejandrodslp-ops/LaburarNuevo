@@ -123,6 +123,22 @@ La probé con "administrativo": me tiró 199 llamados abiertos hoy. Si la prueba
 
 👉 konexu.app
 
+## MÉXICO — Post 1: "Chamba sin trampas" (números 2026-07-17, REFRESCAR)
+
+Se los comparto porque a mí me hubiera servido antes: una página donde escribes qué chamba sabes hacer — "ventas", "chofer", "auxiliar de almacén", lo que sea, con tus palabras — y cuando aparece una vacante de lo tuyo, te llega al correo. Gratis.
+
+Y lo aclaro de una vez, porque en estos grupos ya sabemos cómo se pone: NO piden dinero, NO piden depósitos, NO es multinivel, NO hay "premios" raros. Es una página que junta las vacantes que ya existen en internet y te avisa cuando sale una de lo tuyo. Nada más.
+
+La probé: ahorita tiene más de 17 mil vacantes activas en México — casi 5 mil en CDMX, más de 2 mil en Guadalajara, mil y pico en Monterrey. De ventas solas hay 2,500.
+
+Para el que anda buscando chamba para llevar el gasto a la casa, que la vacante te encuentre a ti en lugar de andar cazándola... es un paro enorme.
+
+👉 konexu.app
+
+Si la pruebas, comenta qué oficio pusiste — a ver si hay de tu área. 🙌
+
+(Clave MX: negar las estafas de frente — multinivel/depósitos/premios — ANTES de vender. Léxico: chamba, ahorita, un paro. Cero voseo.)
+
 ## REGLAS FIJAS DE TODOS LOS POSTS
 1. Un solo link por post y siempre a la web (konexu.app / konexu.app/pt). Nunca Telegram.
 2. Voz de RECOMENDACIÓN, nunca de creador: "encontré/me crucé/les comparto una página", jamás "estoy construyendo". Historias como testimonio propio verificable ("la probé con X: N resultados").
