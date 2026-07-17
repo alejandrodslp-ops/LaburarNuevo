@@ -53,6 +53,6 @@ BEGIN
       )
     )
     ORDER BY n.created_at DESC
-    LIMIT 8
+    LIMIT 30
   $q$, p_pais, p_desde) USING p_terminos;
 END $fn$;

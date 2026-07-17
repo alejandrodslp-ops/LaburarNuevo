@@ -39,6 +39,7 @@ const LANG_POR_PAIS: Record<string, string> = {
 };
 const T: Record<string, Record<string, string | undefined>> = {
   es: {
+    zona_si: `Estos son de {c}, tu zona:`, zona_no: `En tu zona ({c}) todavía no encontramos nada — pero si te interesan otras ciudades, aparecieron estos:`,
     wa_msg: `👋 Encontré una página que te avisa por email cuando sale un trabajo de lo tuyo. Gratis: https://konexu.app`, wa_btn: `Compartir por WhatsApp`,
     hola: "Hola", aparecieron: "Aparecieron {n} empleo{s} de", s: "s",
     justo: "Justo lo que buscabas. Estos son los nuevos:", ver: "Ver todos →",
@@ -48,6 +49,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} nuevo{s} empleo{s} de "{q}" para ti',
   },
   pt: {
+    zona_si: `Estas são de {c}, sua região:`, zona_no: `Na sua região ({c}) ainda não encontramos nada — mas se outras cidades te interessam, apareceram estas:`,
     wa_msg: `👋 Achei um site que te avisa por email quando aparece vaga da sua área. Grátis: https://konexu.app/pt`, wa_btn: `Compartilhar no WhatsApp`,
     hola: "Olá", aparecieron: "Apareceram {n} vaga{s} de", s: "s",
     justo: "Exatamente o que você procurava. Estas são as novas:", ver: "Ver todas →",
@@ -57,6 +59,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} nova{s} vaga{s} de "{q}" para você',
   },
   en: {
+    zona_si: `These are in {c}, your area:`, zona_no: `Nothing in your area ({c}) yet — but if other cities work for you, these just showed up:`,
     wa_msg: `👋 Found a site that emails you when a job matching your trade shows up. Free: https://konexu.app/en`, wa_btn: `Share on WhatsApp`,
     hola: "Hi", aparecieron: "{n} new job{s} matching", s: "s",
     justo: "Just what you were looking for. Here are the new ones:", ver: "See all →",
@@ -66,6 +69,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} new job{s} matching "{q}"',
   },
   fr: {
+    zona_si: `Celles-ci sont à {c}, votre zone :`, zona_no: `Rien dans votre zone ({c}) pour l'instant — mais si d'autres villes vous intéressent, voici ce qui vient de sortir :`,
     wa_msg: `👋 J'ai trouvé un site qui vous prévient par email des offres de votre métier. Gratuit : https://konexu.app/fr`, wa_btn: `Partager sur WhatsApp`,
     hola: "Bonjour", aparecieron: "{n} nouvelle{s} offre{s} pour", s: "s",
     justo: "Exactement ce que vous cherchiez. Voici les nouvelles :", ver: "Tout voir →",
@@ -75,6 +79,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} nouvelle{s} offre{s} pour « {q} »',
   },
   it: {
+    zona_si: `Queste sono a {c}, la tua zona:`, zona_no: `Nella tua zona ({c}) ancora niente — ma se ti interessano altre città, sono uscite queste:`,
     wa_msg: `👋 Ho trovato un sito che ti avvisa via email delle offerte del tuo mestiere. Gratis: https://konexu.app/it`, wa_btn: `Condividi su WhatsApp`,
     hola: "Ciao", aparecieron: "{n} nuove offerte di", aparecieron1: "1 nuova offerta di", s: "",
     justo: "Proprio quello che cercavi. Ecco le novità:", ver: "Vedi tutte →",
@@ -84,6 +89,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} nuove offerte di "{q}" per te', asunto1: '1 nuova offerta di "{q}" per te',
   },
   de: {
+    zona_si: `Diese sind in {c}, deiner Gegend:`, zona_no: `In deiner Gegend ({c}) noch nichts — aber falls andere Städte infrage kommen, sind diese erschienen:`,
     wa_msg: `👋 Diese Seite mailt dir neue Stellen für deinen Beruf. Kostenlos: https://konexu.app/de`, wa_btn: `Auf WhatsApp teilen`,
     hola: "Hallo", aparecieron: "{n} neue Stelle{s} für", s: "n",
     justo: "Genau das, was du gesucht hast. Hier die neuen:", ver: "Alle ansehen →",
@@ -93,6 +99,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} neue Stelle{s} für "{q}"',
   },
   sv: {
+    zona_si: `Dessa är i {c}, ditt område:`, zona_no: `Inget i ditt område ({c}) ännu — men om andra städer funkar, dök dessa upp:`,
     wa_msg: `👋 Denna sida mejlar dig nya jobb inom ditt yrke. Gratis: https://konexu.app/sv`, wa_btn: `Dela på WhatsApp`,
     hola: "Hej", aparecieron: "{n} nya jobb för", s: "",
     justo: "Precis vad du letade efter. Här är de nya:", ver: "Se alla →",
@@ -102,6 +109,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} nya jobb för "{q}"',
   },
   no: {
+    zona_si: `Disse er i {c}, ditt område:`, zona_no: `Ingenting i ditt område ({c}) ennå — men hvis andre byer passer, dukket disse opp:`,
     wa_msg: `👋 Denne siden sender deg nye stillinger i ditt yrke. Gratis: https://konexu.app/no`, wa_btn: `Del på WhatsApp`,
     hola: "Hei", aparecieron: "{n} nye stillinger for", s: "",
     justo: "Akkurat det du lette etter. Her er de nye:", ver: "Se alle →",
@@ -111,6 +119,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} nye stillinger for "{q}"',
   },
   ja: {
+    zona_si: `こちらは{c}（お住まいの地域）の求人です：`, zona_no: `お住まいの地域（{c}）ではまだ見つかりませんでしたが、他の都市でよければこちらが出ています：`,
     wa_msg: `👋 自分の職種の求人をメールで知らせてくれるサイトです。無料: https://konexu.app/ja`, wa_btn: `WhatsAppでシェア`,
     hola: "こんにちは", aparecieron: "「{q}」の新着求人 {n} 件", s: "",
     justo: "お探しの条件に合う新着です：", ver: "すべて見る →",
@@ -125,7 +134,7 @@ function idiomaDe(pais: string | null): string {
   return (cod && LANG_POR_PAIS[cod]) || "es";
 }
 
-function plantilla(nombre: string | null, busqueda: string, matches: any[], lang = "es"): string {
+function plantilla(nombre: string | null, busqueda: string, matches: any[], lang = "es", intro?: string): string {
   const t = T[lang] ?? T.es;
   const saludo = nombre ? `${t.hola} ${esc(nombre)},` : `${t.hola},`;
   const items = matches.map((c) => {
@@ -149,7 +158,7 @@ function plantilla(nombre: string | null, busqueda: string, matches: any[], lang
     <div style="padding:28px 32px">
       <p style="font-size:15px;color:#1A1020">${saludo}</p>
       <h2 style="color:#1A1020;font-size:20px;margin:8px 0 4px">${titular}</h2>
-      <p style="font-size:13px;color:#8c8492;margin:0 0 16px">${t.justo}</p>
+      <p style="font-size:13px;color:#8c8492;margin:0 0 16px">${intro ?? t.justo}</p>
       <table style="width:100%;border-collapse:collapse">${items}</table>
       <a href="${link}" style="display:inline-block;margin-top:22px;background:#C2502F;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:800;font-size:15px">${t.ver}</a>
       <p style="font-size:13px;color:#5A4E6A;margin-top:22px">${t.util ? t.util + " " : ""}${t.comparte}</p>
@@ -173,7 +182,7 @@ serve(async (req: Request) => {
   const db = createClient(URL, KEY);
   const { data: leads } = await db
     .from("waitlist")
-    .select("id,email,nombre,pais,busqueda,ultima_alerta_at,created_at")
+    .select("id,email,nombre,pais,ciudad,busqueda,ultima_alerta_at,created_at")
     .not("busqueda", "is", null)
     .limit(1000);
 
@@ -276,9 +285,32 @@ serve(async (req: Request) => {
         .eq("waitlist_id", l.id)
         .in("clave", claves);
       const yaSet = new Set((yaEnviadas ?? []).map((r: any) => r.clave));
-      const nuevos = matches.filter((c: any) => !yaSet.has(claveDe(c)));
+      let nuevos = matches.filter((c: any) => !yaSet.has(claveDe(c)));
       if (nuevos.length === 0) continue;
       conMatch++;
+
+      // Zona: si el usuario dio ciudad, priorizar avisos de su zona. Si no hay
+      // ninguno de su zona, avisarlo con honestidad y mostrar los de otras
+      // ciudades (pedido explícito: "en tu zona aún no encontramos nada, pero
+      // si te interesan otras ciudades, aparecieron estos").
+      const lng = idiomaDe(l.pais);
+      const tz = T[lng] ?? T.es;
+      let intro: string | undefined;
+      const ciudad = String(l.ciudad ?? "").trim();
+      if (ciudad.length >= 3) {
+        const normZ = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const cn = normZ(ciudad);
+        // Solo la parte de CIUDAD del lugar (antes de la coma): "Ribeirão Preto,
+        // Estado de São Paulo" no debe matchear con ciudad "São Paulo".
+        const deZona = nuevos.filter((c: any) => normZ(String(c.lugar ?? "").split(",")[0]).includes(cn));
+        if (deZona.length > 0) {
+          nuevos = deZona;
+          intro = String(tz.zona_si ?? "").replace("{c}", ciudad);
+        } else {
+          intro = String(tz.zona_no ?? "").replace("{c}", ciudad);
+        }
+      }
+      nuevos = nuevos.slice(0, 8);
 
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -289,8 +321,8 @@ serve(async (req: Request) => {
           // Entregabilidad: sin emoji en el asunto (penaliza en remitentes nuevos)
           // y con List-Unsubscribe (Gmail lo premia; sin él castiga a bulk senders).
           headers: { "List-Unsubscribe": "<mailto:hola@konexu.app?subject=Baja%20de%20alertas>" },
-          subject: asuntoDe(idiomaDe(l.pais), nuevos.length, l.busqueda),
-          html: plantilla(l.nombre, l.busqueda, nuevos, idiomaDe(l.pais)),
+          subject: asuntoDe(lng, nuevos.length, l.busqueda),
+          html: plantilla(l.nombre, l.busqueda, nuevos, lng, intro),
         }),
       });
 
