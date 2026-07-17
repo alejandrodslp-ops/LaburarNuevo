@@ -288,8 +288,16 @@ async function scrapeUruguay(): Promise<{ rows: ConcursoRow[]; errores: string[]
     if (!id) continue;
 
     const titulo    = String(l.LlaTit ?? l.CarNom ?? "").trim();
-    const cargo     = String(l.CarNom ?? l.LlaTit ?? "").trim();
     if (titulo.length < 3) continue;
+    // La API oficial "pega" el CarNom de un llamado y lo repite en todos los
+    // siguientes (bug del lado de Uruguay Concursa, verificado 2026-07-17:
+    // 408/414 llamados con "Abogado/a Ocup. de Ref. Asesor Legal"). Solo se
+    // usa CarNom si comparte alguna palabra con el título; si no, el título
+    // ES el cargo.
+    const carNomRaw = String(l.CarNom ?? "").trim();
+    const carNomCoherente = carNomRaw && carNomRaw.toLowerCase().split(/\s+/)
+      .some((w) => w.length > 3 && titulo.toLowerCase().includes(w.slice(0, 5)));
+    const cargo = carNomCoherente ? carNomRaw : titulo;
 
     // Puestos: suma de listaOrganismoCantPuestos
     const puestosList = (l.listaOrganismoCantPuestos as Record<string, unknown>[] | undefined) ?? [];

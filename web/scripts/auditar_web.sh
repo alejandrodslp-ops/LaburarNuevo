@@ -59,6 +59,16 @@ for l in pt en fr it de sv no ja; do
   check_contains "sitemap incluye /$l" "$smap" "www.konexu.app/$l</loc>"
 done
 
+# ── 3b. Calidad de datos: el buscador debe devolver resultados RELEVANTES
+# (caso real 2026-07-17: "chofer" devolvía una tarjeta de "Abogado/a" porque
+# la API de Uruguay Concursa pegaba el mismo cargo a 408 llamados)
+if command -v supabase >/dev/null 2>&1 && [ -d "$(dirname "$0")/../../supabase" ]; then
+  REP=$(cd "$(dirname "$0")/../.." && supabase db query --linked "SELECT count(*) FROM concursos WHERE activo AND fuente='uruguay_concursa' AND cargo IS NOT NULL AND position(lower(split_part(cargo,' ',1)) IN lower(titulo))=0" 2>/dev/null | grep -o '"count": [0-9]*' | grep -o '[0-9]*')
+  if [ -n "$REP" ]; then
+    [ "$REP" -lt 20 ] && ok "calidad UY: cargos coherentes ($REP cruzados)" || fail "calidad UY" "$REP llamados con cargo cruzado"
+  fi
+fi
+
 # ── 4. Formulario de alertas: la API rechaza registros web incompletos
 ANON=$(grep NEXT_PUBLIC_SUPABASE_ANON_KEY "$(dirname "$0")/../.env.local" 2>/dev/null | cut -d= -f2)
 if [ -n "$ANON" ]; then
