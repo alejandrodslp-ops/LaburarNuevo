@@ -15,6 +15,9 @@ export function getLang(codigoPais) {
 
 export const T = {
   es: {
+    wl_share_msg: `👋 Encontré una página que te avisa por email cuando sale un trabajo de lo tuyo. Escribís tu oficio y listo, gratis: https://konexu.app`,
+    wl_share_btn: `Compartir por WhatsApp`,
+    wl_share_hint: `Un amigo tuyo puede estar buscando esto.`,
     nav_jobs:     'Ver empleos',
     nav_download: 'Alertas gratis',
     hero_sub_many:  (n, pais) => `Más de ${n.toLocaleString()} empleos activos en ${pais} · Actualizados diariamente`,
@@ -62,6 +65,9 @@ export const T = {
   },
 
   pt: {
+    wl_share_msg: `👋 Achei um site que te avisa por email quando aparece vaga da sua área. Você escreve sua profissão e pronto, grátis: https://konexu.app/pt`,
+    wl_share_btn: `Compartilhar no WhatsApp`,
+    wl_share_hint: `Algum amigo seu pode estar precisando disso.`,
     nav_jobs:     'Ver vagas',
     nav_download: 'Alertas grátis',
     hero_sub_many:  (n, pais) => `Mais de ${n.toLocaleString()} vagas ativas em ${pais} · Atualizadas diariamente`,
@@ -107,6 +113,9 @@ export const T = {
   },
 
   en: {
+    wl_share_msg: `👋 Found a site that emails you when a job matching your trade shows up. Type what you do, that's it — free: https://konexu.app/en`,
+    wl_share_btn: `Share on WhatsApp`,
+    wl_share_hint: `A friend of yours might need this.`,
     nav_jobs:     'Browse jobs',
     nav_download: 'Free alerts',
     hero_sub_many:  (n, pais) => `Over ${n.toLocaleString()} active jobs in ${pais} · Updated daily`,
@@ -152,6 +161,9 @@ export const T = {
   },
 
   fr: {
+    wl_share_msg: `👋 J'ai trouvé un site qui vous prévient par email quand une offre correspond à votre métier. Gratuit : https://konexu.app/fr`,
+    wl_share_btn: `Partager sur WhatsApp`,
+    wl_share_hint: `Un ami cherche peut-être exactement ça.`,
     nav_jobs:     'Voir les emplois',
     nav_download: 'Alertes gratuites',
     hero_sub_many:  (n, pais) => `Plus de ${n.toLocaleString()} emplois actifs en ${pais} · Mis à jour quotidiennement`,
@@ -197,6 +209,9 @@ export const T = {
   },
 
   it: {
+    wl_share_msg: `👋 Ho trovato un sito che ti avvisa via email quando esce un'offerta del tuo mestiere. Gratis: https://konexu.app/it`,
+    wl_share_btn: `Condividi su WhatsApp`,
+    wl_share_hint: `Un tuo amico potrebbe cercarlo.`,
     nav_jobs:     'Vedi lavori',
     nav_download: 'Avvisi gratis',
     hero_sub_many:  (n, pais) => `Oltre ${n.toLocaleString()} lavori attivi in ${pais} · Aggiornati ogni giorno`,
@@ -242,6 +257,9 @@ export const T = {
   },
 
   de: {
+    wl_share_msg: `👋 Ich habe eine Seite gefunden, die dir mailt, wenn eine Stelle für deinen Beruf erscheint. Kostenlos: https://konexu.app/de`,
+    wl_share_btn: `Auf WhatsApp teilen`,
+    wl_share_hint: `Vielleicht sucht ein Freund genau das.`,
     nav_jobs:     'Jobs ansehen',
     nav_download: 'Gratis-Alerts',
     hero_sub_many:  (n, pais) => `Über ${n.toLocaleString()} aktive Stellen in ${pais} · Täglich aktualisiert`,
@@ -287,6 +305,9 @@ export const T = {
   },
 
   sv: {
+    wl_share_msg: `👋 Hittade en sida som mejlar dig när ett jobb inom ditt yrke dyker upp. Gratis: https://konexu.app/sv`,
+    wl_share_btn: `Dela på WhatsApp`,
+    wl_share_hint: `En vän kanske letar efter just detta.`,
     nav_jobs:     'Visa jobb',
     nav_download: 'Gratis aviseringar',
     hero_sub_many:  (n, pais) => `Över ${n.toLocaleString()} aktiva jobb i ${pais} · Uppdateras dagligen`,
@@ -332,6 +353,9 @@ export const T = {
   },
 
   no: {
+    wl_share_msg: `👋 Fant en side som sender deg e-post når en stilling i ditt yrke dukker opp. Gratis: https://konexu.app/no`,
+    wl_share_btn: `Del på WhatsApp`,
+    wl_share_hint: `En venn ser kanskje etter akkurat dette.`,
     nav_jobs:     'Se jobber',
     nav_download: 'Gratis varsler',
     hero_sub_many:  (n, pais) => `Over ${n.toLocaleString()} aktive jobber i ${pais} · Oppdateres daglig`,
@@ -377,6 +401,9 @@ export const T = {
   },
 
   ja: {
+    wl_share_msg: `👋 自分の職種の求人が出るとメールで知らせてくれるサイトを見つけました。無料です: https://konexu.app/ja`,
+    wl_share_btn: `WhatsAppでシェア`,
+    wl_share_hint: `お仕事を探している友達にどうぞ。`,
     nav_jobs:     '求人を見る',
     nav_download: '無料アラート',
     hero_sub_many:  (n, pais) => `${pais}で${n.toLocaleString()}件以上の求人 · 毎日更新`,

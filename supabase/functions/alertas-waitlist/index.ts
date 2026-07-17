@@ -39,6 +39,7 @@ const LANG_POR_PAIS: Record<string, string> = {
 };
 const T: Record<string, Record<string, string | undefined>> = {
   es: {
+    wa_msg: `👋 Encontré una página que te avisa por email cuando sale un trabajo de lo tuyo. Gratis: https://konexu.app`, wa_btn: `Compartir por WhatsApp`,
     hola: "Hola", aparecieron: "Aparecieron {n} empleo{s} de", s: "s",
     justo: "Justo lo que buscabas. Estos son los nuevos:", ver: "Ver todos →",
     comparte: 'Comparte <a href="https://konexu.app" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app</a> con alguien que esté buscando trabajo — puede cambiarle la semana.',
@@ -47,6 +48,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} nuevo{s} empleo{s} de "{q}" para ti',
   },
   pt: {
+    wa_msg: `👋 Achei um site que te avisa por email quando aparece vaga da sua área. Grátis: https://konexu.app/pt`, wa_btn: `Compartilhar no WhatsApp`,
     hola: "Olá", aparecieron: "Apareceram {n} vaga{s} de", s: "s",
     justo: "Exatamente o que você procurava. Estas são as novas:", ver: "Ver todas →",
     comparte: 'Compartilhe <a href="https://konexu.app/pt" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/pt</a> com alguém que esteja procurando trabalho — pode mudar a semana dessa pessoa.',
@@ -55,6 +57,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} nova{s} vaga{s} de "{q}" para você',
   },
   en: {
+    wa_msg: `👋 Found a site that emails you when a job matching your trade shows up. Free: https://konexu.app/en`, wa_btn: `Share on WhatsApp`,
     hola: "Hi", aparecieron: "{n} new job{s} matching", s: "s",
     justo: "Just what you were looking for. Here are the new ones:", ver: "See all →",
     comparte: 'Share <a href="https://konexu.app/en" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/en</a> with someone looking for work — it might change their week.',
@@ -63,6 +66,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} new job{s} matching "{q}"',
   },
   fr: {
+    wa_msg: `👋 J'ai trouvé un site qui vous prévient par email des offres de votre métier. Gratuit : https://konexu.app/fr`, wa_btn: `Partager sur WhatsApp`,
     hola: "Bonjour", aparecieron: "{n} nouvelle{s} offre{s} pour", s: "s",
     justo: "Exactement ce que vous cherchiez. Voici les nouvelles :", ver: "Tout voir →",
     comparte: 'Partagez <a href="https://konexu.app/fr" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/fr</a> avec quelqu’un qui cherche du travail.',
@@ -71,6 +75,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} nouvelle{s} offre{s} pour « {q} »',
   },
   it: {
+    wa_msg: `👋 Ho trovato un sito che ti avvisa via email delle offerte del tuo mestiere. Gratis: https://konexu.app/it`, wa_btn: `Condividi su WhatsApp`,
     hola: "Ciao", aparecieron: "{n} nuove offerte di", aparecieron1: "1 nuova offerta di", s: "",
     justo: "Proprio quello che cercavi. Ecco le novità:", ver: "Vedi tutte →",
     comparte: 'Condividi <a href="https://konexu.app/it" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/it</a> con qualcuno che cerca lavoro.',
@@ -79,6 +84,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} nuove offerte di "{q}" per te', asunto1: '1 nuova offerta di "{q}" per te',
   },
   de: {
+    wa_msg: `👋 Diese Seite mailt dir neue Stellen für deinen Beruf. Kostenlos: https://konexu.app/de`, wa_btn: `Auf WhatsApp teilen`,
     hola: "Hallo", aparecieron: "{n} neue Stelle{s} für", s: "n",
     justo: "Genau das, was du gesucht hast. Hier die neuen:", ver: "Alle ansehen →",
     comparte: 'Teile <a href="https://konexu.app/de" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/de</a> mit jemandem, der Arbeit sucht.',
@@ -87,6 +93,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} neue Stelle{s} für "{q}"',
   },
   sv: {
+    wa_msg: `👋 Denna sida mejlar dig nya jobb inom ditt yrke. Gratis: https://konexu.app/sv`, wa_btn: `Dela på WhatsApp`,
     hola: "Hej", aparecieron: "{n} nya jobb för", s: "",
     justo: "Precis vad du letade efter. Här är de nya:", ver: "Se alla →",
     comparte: 'Dela <a href="https://konexu.app/sv" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/sv</a> med någon som söker jobb.',
@@ -95,6 +102,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} nya jobb för "{q}"',
   },
   no: {
+    wa_msg: `👋 Denne siden sender deg nye stillinger i ditt yrke. Gratis: https://konexu.app/no`, wa_btn: `Del på WhatsApp`,
     hola: "Hei", aparecieron: "{n} nye stillinger for", s: "",
     justo: "Akkurat det du lette etter. Her er de nye:", ver: "Se alle →",
     comparte: 'Del <a href="https://konexu.app/no" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/no</a> med noen som ser etter jobb.',
@@ -103,6 +111,7 @@ const T: Record<string, Record<string, string | undefined>> = {
     asunto: '{n} nye stillinger for "{q}"',
   },
   ja: {
+    wa_msg: `👋 自分の職種の求人をメールで知らせてくれるサイトです。無料: https://konexu.app/ja`, wa_btn: `WhatsAppでシェア`,
     hola: "こんにちは", aparecieron: "「{q}」の新着求人 {n} 件", s: "",
     justo: "お探しの条件に合う新着です：", ver: "すべて見る →",
     comparte: 'お役に立ちましたか？お仕事を探している方に <a href="https://konexu.app/ja" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app/ja</a> をぜひ紹介してください。',
@@ -144,6 +153,7 @@ function plantilla(nombre: string | null, busqueda: string, matches: any[], lang
       <table style="width:100%;border-collapse:collapse">${items}</table>
       <a href="${link}" style="display:inline-block;margin-top:22px;background:#C2502F;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:800;font-size:15px">${t.ver}</a>
       <p style="font-size:13px;color:#5A4E6A;margin-top:22px">${t.util ? t.util + " " : ""}${t.comparte}</p>
+      <a href="https://wa.me/?text=${encodeURIComponent(String(t.wa_msg ?? ""))}" style="display:inline-block;margin-top:10px;background:#25D366;color:#fff;text-decoration:none;padding:11px 20px;border-radius:10px;font-weight:800;font-size:13px">💬 ${t.wa_btn}</a>
       <p style="font-size:12px;color:#a99fb5;margin-top:12px">${t.pie}</p>
     </div>
   </div>`;

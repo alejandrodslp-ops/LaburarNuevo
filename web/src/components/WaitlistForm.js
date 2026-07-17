@@ -47,16 +47,26 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
     }
   }
 
-  if (estado === 'ok') return (
-    <div style={ss.successBox}>
-      <div style={ss.successIcon}>✓</div>
-      <h3 style={ss.successTit}>{tr.wl_ok_tit}</h3>
-      <p style={ss.successSub}>
-        {posicion ? tr.wl_ok_sub : tr.wl_ok_hab}
-      </p>
-      <p style={ss.successEmail}>{email}</p>
-    </div>
-  )
+  if (estado === 'ok') {
+    // Loop de WhatsApp: el pico de satisfacción (registro recién hecho) es el
+    // momento de máxima disposición a compartir — el canal default de LATAM.
+    const shareMsg = tr.wl_share_msg || T.es.wl_share_msg
+    const shareUrl = `https://wa.me/?text=${encodeURIComponent(shareMsg)}`
+    return (
+      <div style={ss.successBox}>
+        <div style={ss.successIcon}>✓</div>
+        <h3 style={ss.successTit}>{tr.wl_ok_tit}</h3>
+        <p style={ss.successSub}>
+          {posicion ? tr.wl_ok_sub : tr.wl_ok_hab}
+        </p>
+        <p style={ss.successEmail}>{email}</p>
+        <a href={shareUrl} target="_blank" rel="noopener noreferrer" style={ss.waBtn}>
+          <span style={{fontSize:18}}>💬</span> {tr.wl_share_btn || T.es.wl_share_btn}
+        </a>
+        <p style={ss.waHint}>{tr.wl_share_hint || T.es.wl_share_hint}</p>
+      </div>
+    )
+  }
 
   return (
     <form onSubmit={handleSubmit} style={ss.form}>
@@ -133,5 +143,7 @@ const ss = {
   successTit:  { fontSize:22, fontWeight:900, color:'#fff', marginBottom:8 },
   successSub:  { fontSize:15, color:'#94A3B8', lineHeight:1.6, marginBottom:12 },
   successEmail:{ fontSize:13, color:'#2DD4BF', fontWeight:600 },
+  waBtn:       { display:'inline-flex', alignItems:'center', gap:8, background:'#25D366', color:'#fff', textDecoration:'none', borderRadius:10, padding:'13px 24px', fontSize:15, fontWeight:800, marginTop:20 },
+  waHint:      { fontSize:12, color:'#94A3B8', marginTop:10 },
   spinner:     { width:18, height:18, border:'2.5px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%', animation:'spin 0.8s linear infinite', display:'inline-block' },
 }
