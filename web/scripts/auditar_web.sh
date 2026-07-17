@@ -13,7 +13,7 @@ check_contains() { # $1 desc, $2 haystack, $3 needle
 }
 
 # ── 1. Landings: HTTP, idioma del título, canonical, og:image (tag + archivo), formulario
-declare -a LANGS=("/:Concursos Públicos" "/pt:Pare de procurar|Vagas" "/en:Stop searching|straight to your email" "/fr:Arrêtez|travail" "/it:Smetti di cercare|lavoro" "/de:Hör auf|Arbeit" "/sv:Sluta leta|jobbet" "/no:Slutt å lete|jobben" "/ja:探すのをやめよう|仕事")
+declare -a LANGS=("/:Concursos Públicos" "/es-es:Ofertas recientes en España" "/pt:Pare de procurar|Vagas" "/en:Stop searching|straight to your email" "/fr:Arrêtez|travail" "/it:Smetti di cercare|lavoro" "/de:Hör auf|Arbeit" "/sv:Sluta leta|jobbet" "/no:Slutt å lete|jobben" "/ja:探すのをやめよう|仕事")
 for entry in "${LANGS[@]}"; do
   path="${entry%%:*}"; needles="${entry#*:}"
   html=$(curl -s -L --max-time 20 "$BASE$path")
@@ -39,6 +39,9 @@ for l in pt en fr it de sv no ja; do
   r=$(curl -s -o /dev/null -w "%{http_code} %{redirect_url}" --max-time 20 -H "Accept-Language: $l" "$BASE/")
   case "$r" in "307 $BASE/$l") ok "redirect $l → /$l";; *) fail "redirect $l" "$r";; esac
 done
+# España: es-ES redirige a /es-es
+r=$(curl -s -o /dev/null -w "%{http_code} %{redirect_url}" --max-time 20 -H "Accept-Language: es-ES" "$BASE/")
+case "$r" in "307 $BASE/es-es") ok "redirect es-ES → /es-es";; *) fail "redirect es-ES" "$r";; esac
 # controles: español y bots NO redirigen; otras rutas intactas
 r=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -H "Accept-Language: es-AR" "$BASE/")
 [ "$r" = "200" ] && ok "es NO redirige" || fail "es NO redirige" "HTTP $r"
