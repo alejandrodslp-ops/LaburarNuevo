@@ -51,7 +51,8 @@ function plantilla(nombre: string | null, busqueda: string, matches: any[]): str
       <p style="font-size:13px;color:#8c8492;margin:0 0 16px">Justo lo que buscabas. Estos son los nuevos:</p>
       <table style="width:100%;border-collapse:collapse">${items}</table>
       <a href="${link}" style="display:inline-block;margin-top:22px;background:#C2502F;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:800;font-size:15px">Ver todos →</a>
-      <p style="font-size:12px;color:#a99fb5;margin-top:24px">Te llega esto porque activaste alertas gratis en Konexu. Si no querés recibir más, respondé este correo.</p>
+      <p style="font-size:13px;color:#5A4E6A;margin-top:22px">¿Te resultó útil? Comparte <a href="https://konexu.app" style="color:#C2502F;font-weight:700;text-decoration:none">konexu.app</a> con alguien que esté buscando trabajo — puede cambiarle la semana.</p>
+      <p style="font-size:12px;color:#a99fb5;margin-top:12px">Te llega esto porque activaste alertas gratis en Konexu. Si no querés recibir más, respondé este correo.</p>
     </div>
   </div>`;
 }
