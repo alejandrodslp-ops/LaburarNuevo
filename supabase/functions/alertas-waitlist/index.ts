@@ -107,6 +107,23 @@ serve(async () => {
           p_pais: cod, p_desde: desde, p_terminos: terminosNorm,
         });
         matches = data;
+        // Fallback SOLO cuando hay CERO resultados: reintentar con la palabra
+        // más distintiva (la más larga, ≥5 letras) de cada término. Caso real:
+        // "técnico superior en hemoterapia" recibía 0 por la palabra "superior"
+        // mientras "técnico en hemoterapia" recibía 2. Quien ya recibe, no cambia.
+        if (!matches || matches.length === 0) {
+          const distintivas = [...new Set(
+            terminosNorm
+              .map((t) => t.split(" ").sort((a, b) => b.length - a.length)[0])
+              .filter((w) => w && w.length >= 5),
+          )];
+          if (distintivas.length > 0) {
+            const { data: data2 } = await db.rpc("buscar_concursos_alerta", {
+              p_pais: cod, p_desde: desde, p_terminos: distintivas,
+            });
+            matches = data2;
+          }
+        }
       } else {
         // Sin país: filtro ilike clásico. El RPC recorta el barrido global a las
         // 20k filas más recientes y perdería avisos viejos (regresión verificada).
