@@ -39,9 +39,10 @@ for l in pt en fr it de sv no ja; do
   r=$(curl -s -o /dev/null -w "%{http_code} %{redirect_url}" --max-time 20 -H "Accept-Language: $l" "$BASE/")
   case "$r" in "307 $BASE/$l") ok "redirect $l → /$l";; *) fail "redirect $l" "$r";; esac
 done
-# España: es-ES redirige a /es-es
-r=$(curl -s -o /dev/null -w "%{http_code} %{redirect_url}" --max-time 20 -H "Accept-Language: es-ES" "$BASE/")
-case "$r" in "307 $BASE/es-es") ok "redirect es-ES → /es-es";; *) fail "redirect es-ES" "$r";; esac
+# España: SOLO por geo — es-ES desde fuera de España NO debe redirigir
+# (el geo ES real no es simulable desde acá; la landing se chequea arriba)
+r=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -H "Accept-Language: es-ES" "$BASE/")
+[ "$r" = "200" ] && ok "es-ES fuera de España NO redirige" || fail "es-ES fuera de España" "HTTP $r"
 # controles: español y bots NO redirigen; otras rutas intactas
 r=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -H "Accept-Language: es-AR" "$BASE/")
 [ "$r" = "200" ] && ok "es NO redirige" || fail "es NO redirige" "HTTP $r"

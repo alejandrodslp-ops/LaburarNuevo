@@ -11,10 +11,11 @@ export function middleware(req) {
     return NextResponse.next()
   }
   const al = (req.headers.get('accept-language') || '').trim().toLowerCase()
-  // España: mismo idioma que LATAM pero otro mercado — se detecta por la
-  // variante del navegador (es-ES) o por el país real del visitante (Vercel).
+  // España: SOLO por el país real del visitante (geo de Vercel). El idioma
+  // es-ES NO sirve como señal: es el default de Chrome en media LATAM
+  // (caso real 2026-07-17: el usuario, en Uruguay, cayó en /es-es).
   const geoPais = req.headers.get('x-vercel-ip-country') || ''
-  if (al.startsWith('es') && (al.startsWith('es-es') || geoPais === 'ES')) {
+  if (al.startsWith('es') && geoPais === 'ES') {
     const url = req.nextUrl.clone()
     url.pathname = '/es-es'
     return NextResponse.redirect(url, 307)
