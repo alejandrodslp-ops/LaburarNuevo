@@ -50,8 +50,8 @@ Deno.serve(async (req) => {
     if (accion === "unirse") {
       // El formulario web manda origen:"web" — para él, país/ciudad/búsqueda son obligatorios.
       // La app (WaitlistScreen) no manda origen y queda exenta: no pide esos campos.
-      if (origen === "web" && (!pais || !busqueda?.trim() || !ciudad?.trim())) {
-        return err("País, ciudad y búsqueda son obligatorios");
+      if (origen === "web" && (!nombre?.trim() || !pais || !busqueda?.trim() || !ciudad?.trim())) {
+        return err("Nombre, país, ciudad y búsqueda son obligatorios");
       }
       const { data: existente } = await db.from("waitlist").select("posicion,habilitado").eq("email", emailLower).maybeSingle();
       if (existente) return ok({ ya_estaba: true, posicion: existente.posicion, habilitado: existente.habilitado });

@@ -76,6 +76,7 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
           placeholder={tr.wl_nombre_ph}
           value={nombre}
           onChange={e => setNombre(e.target.value)}
+          required
           style={ss.input}
         />
       </div>
