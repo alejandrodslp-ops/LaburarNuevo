@@ -50,10 +50,10 @@ export default async function Home() {
         @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
         .hero-anim { animation: fadeUp 0.6s ease both }
         .live-dot { animation: pulse 2s infinite }
-        .stat-card { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:16px; padding:20px 24px; text-align:center }
-        .stat-num  { font-size:clamp(28px,4vw,40px); font-weight:900; color:#E8785A; letter-spacing:-2px; line-height:1 }
-        .stat-lbl  { font-size:13px; color:#94A3B8; margin-top:4px; font-weight:500 }
-        .feature-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.07); border-radius:16px; padding:24px }
+        .stat-card { background:#FFFFFF; border:1px solid #EDE6DC; border-radius:16px; padding:20px 24px; text-align:center }
+        .stat-num  { font-size:clamp(28px,4vw,40px); font-weight:900; color:#C2502F; letter-spacing:-2px; line-height:1 }
+        .stat-lbl  { font-size:13px; color:#8c8492; margin-top:4px; font-weight:500 }
+        .feature-card { background:#FFFFFF; border:1px solid #EDE6DC; border-radius:16px; padding:24px }
         .hero-row{display:flex;align-items:center;justify-content:center;gap:50px;max-width:1080px;width:100%;margin:0 auto}
         .hero-copy{flex:1;min-width:0;max-width:560px}
         .hero-visual{flex-shrink:0}
@@ -97,23 +97,23 @@ export default async function Home() {
       </nav>
 
       {/* HERO */}
-      <section style={{ background:'radial-gradient(900px 500px at 80% 18%,rgba(232,120,90,0.12),transparent 60%),radial-gradient(700px 420px at 8% 82%,rgba(45,212,191,0.07),transparent 55%),#0D1117', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'80px 24px 60px', textAlign:'center' }}>
+      <section style={{ background:'radial-gradient(900px 500px at 80% 18%,rgba(232,120,90,0.10),transparent 60%),radial-gradient(700px 420px at 8% 82%,rgba(45,212,191,0.05),transparent 55%),#FBF8F4', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'80px 24px 60px', textAlign:'center' }}>
         <div className="hero-anim" style={{ width:'100%' }}>
          <div className="hero-row">
           <div className="hero-copy">
 
           {/* Badge EN VIVO */}
-          <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'rgba(45,212,191,0.1)', border:'1px solid rgba(45,212,191,0.25)', borderRadius:100, padding:'6px 16px', marginBottom:32 }}>
-            <span className="live-dot" style={{ width:7, height:7, borderRadius:'50%', background:'#2DD4BF', display:'inline-block' }}/>
-            <span style={{ fontSize:12, color:'#2DD4BF', fontWeight:700, letterSpacing:0.5 }}>EN VIVO — <CounterRealtime initialTotal={total} /> empleos activos hoy</span>
+          <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#E6FBF5', border:'1px solid #9BE8DC', borderRadius:100, padding:'6px 16px', marginBottom:32 }}>
+            <span className="live-dot" style={{ width:7, height:7, borderRadius:'50%', background:'#0E9E92', display:'inline-block' }}/>
+            <span style={{ fontSize:12, color:'#0E9E92', fontWeight:700, letterSpacing:0.5 }}>EN VIVO — <CounterRealtime initialTotal={total} /> empleos activos hoy</span>
           </div>
 
           {/* Título */}
-          <h1 className="hero-title" style={{ fontSize:'clamp(32px,5.4vw,56px)', fontWeight:900, color:'#F1F5F9', lineHeight:1.08, letterSpacing:-1.5, marginBottom:12 }}>
+          <h1 className="hero-title" style={{ fontSize:'clamp(32px,5.4vw,56px)', fontWeight:900, color:'#1A1020', lineHeight:1.08, letterSpacing:-1.5, marginBottom:12 }}>
             Haz que las oportunidades{' '}
-            <em style={{ color:'#E8785A', fontStyle:'italic' }}>te encuentren a ti</em>
+            <em style={{ color:'#C2502F', fontStyle:'italic' }}>te encuentren a ti</em>
           </h1>
-          <p style={{ fontSize:'clamp(15px,2.1vw,20px)', fontWeight:700, color:'#CBD5E1', letterSpacing:-0.3, marginBottom:18 }}>
+          <p style={{ fontSize:'clamp(15px,2.1vw,20px)', fontWeight:700, color:'#5A4E6A', letterSpacing:-0.3, marginBottom:18 }}>
             El empleo de América Latina en un solo lugar
           </p>
 
@@ -177,10 +177,10 @@ export default async function Home() {
       </section>
 
       {/* EMPLEOS RECIENTES */}
-      <section style={{ background:'#0D1117', padding:'64px 24px 48px', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
+      <section style={{ background:'#FBF8F4', padding:'64px 24px 48px', borderTop:'1px solid #EDE6DC' }}>
         <div style={{ maxWidth:900, margin:'0 auto' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
-            <h2 style={{ fontSize:20, fontWeight:800, color:'#F1F5F9', letterSpacing:-0.5 }}>Empleos recientes</h2>
+            <h2 style={{ fontSize:20, fontWeight:800, color:'#1A1020', letterSpacing:-0.5 }}>Empleos recientes</h2>
             <Link href="/empleos" style={{ color:'#E8785A', fontSize:13, fontWeight:700, textDecoration:'none' }}>Ver todos →</Link>
           </div>
           <JobsRealtime initialJobs={recentJobs} />
@@ -188,7 +188,7 @@ export default async function Home() {
       </section>
 
       {/* PULSO LABORAL LATAM BANNER */}
-      <section style={{ background:'#080D12', padding:'48px 24px', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
+      <section style={{ background:'#F5EFE6', padding:'48px 24px', borderTop:'1px solid #EDE6DC' }}>
         <div style={{ maxWidth:900, margin:'0 auto' }}>
           <Link href="/pulso-latam" style={{ display:'block', background:'linear-gradient(120deg,#0D1117,#0f1a14)', border:'1px solid rgba(45,212,191,0.2)', borderRadius:18, padding:'28px 32px', textDecoration:'none', transition:'border-color .2s' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, flexWrap:'wrap' }}>
@@ -211,9 +211,9 @@ export default async function Home() {
       </section>
 
       {/* FEATURES */}
-      <section style={{ background:'#080D12', padding:'64px 24px', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
+      <section style={{ background:'#F5EFE6', padding:'64px 24px', borderTop:'1px solid #EDE6DC' }}>
         <div style={{ maxWidth:900, margin:'0 auto' }}>
-          <h2 style={{ fontSize:'clamp(22px,4vw,34px)', fontWeight:900, color:'#F1F5F9', textAlign:'center', marginBottom:10, letterSpacing:-1 }}>¿Qué es Konexu?</h2>
+          <h2 style={{ fontSize:'clamp(22px,4vw,34px)', fontWeight:900, color:'#1A1020', textAlign:'center', marginBottom:10, letterSpacing:-1 }}>¿Qué es Konexu?</h2>
           <p style={{ color:'#64748B', textAlign:'center', marginBottom:48, fontSize:15 }}>Una plataforma diseñada para el mercado laboral de América Latina</p>
           <div className="feature-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
             {[
@@ -224,7 +224,7 @@ export default async function Home() {
             ].map((f, i) => (
               <div key={i} className="feature-card">
                 <div style={{ fontSize:32, marginBottom:12 }}>{f.icon}</div>
-                <div style={{ fontSize:15, fontWeight:800, color:'#F1F5F9', marginBottom:6 }}>{f.tit}</div>
+                <div style={{ fontSize:15, fontWeight:800, color:'#1A1020', marginBottom:6 }}>{f.tit}</div>
                 <div style={{ fontSize:13, color:'#64748B', lineHeight:1.6 }}>{f.desc}</div>
               </div>
             ))}
@@ -233,12 +233,12 @@ export default async function Home() {
       </section>
 
       {/* WAITLIST */}
-      <section style={{ background:'linear-gradient(160deg,#0D1117,#0d1a17)', padding:'80px 24px', textAlign:'center', borderTop:'1px solid rgba(255,255,255,0.06)' }}>
+      <section style={{ background:'#F5EFE6', padding:'80px 24px', textAlign:'center', borderTop:'1px solid #EDE6DC' }}>
         <div style={{ maxWidth:520, margin:'0 auto' }}>
-          <h2 style={{ fontSize:'clamp(22px,4vw,36px)', fontWeight:900, color:'#F1F5F9', marginBottom:10, letterSpacing:-1 }}>
+          <h2 style={{ fontSize:'clamp(22px,4vw,36px)', fontWeight:900, color:'#1A1020', marginBottom:10, letterSpacing:-1 }}>
             Deja de buscar. El trabajo te encuentra.
           </h2>
-          <p style={{ color:'#94A3B8', marginBottom:40, fontSize:15, lineHeight:1.6 }}>
+          <p style={{ color:'#5A4E6A', marginBottom:40, fontSize:15, lineHeight:1.6 }}>
             Regístrate y Konexu te avisa apenas aparece un empleo para ti —público o privado— en tu país. Gratis.
           </p>
           <div style={{ display:'flex', justifyContent:'center' }}>
