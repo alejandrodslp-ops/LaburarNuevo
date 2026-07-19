@@ -69,7 +69,7 @@ export default async function EmpleosPage({ searchParams }) {
   const nStr = concursos.length >= 360 ? '360+' : String(concursos.length)
   const titulo = q ? `🎉 Encontramos ${nStr} empleos de "${q}"${enDonde}` : `Todos los empleos${enDonde}`
   const avisoCiudad = ciudad.trim() && !exacto && q
-    ? `En ${ciudad.trim()} todavía no encontramos "${q}" — te mostramos todo lo de${enPais || ' la región'}:`
+    ? `En ${ciudad.trim()} todavía no encontramos "${q}" — te mostramos todo ${pais ? nombrePais(pais) : 'lo disponible'}:`
     : null
 
   return (
