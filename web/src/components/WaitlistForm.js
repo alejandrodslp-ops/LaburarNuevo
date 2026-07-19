@@ -16,13 +16,13 @@ const PAISES = [
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const ANON_KEY     = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', paisDefault = '' }) {
+export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', paisDefault = '', ciudadDefault = '' }) {
   const tr = T[lang] || T.es
   const [email,    setEmail]    = useState('')
   const [nombre,   setNombre]   = useState('')
   const [queBusca, setQueBusca] = useState(busqueda || '')
   const [pais,     setPais]     = useState(paisDefault)
-  const [ciudad,   setCiudad]   = useState('')
+  const [ciudad,   setCiudad]   = useState(ciudadDefault || '')
   const [estado,   setEstado]   = useState('idle')
   const [posicion, setPosicion] = useState(null)
   const [msg,      setMsg]      = useState('')

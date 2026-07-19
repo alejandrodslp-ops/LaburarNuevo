@@ -5,6 +5,7 @@ import SearchForm from './SearchForm'
 import JobsRealtime from '../JobsRealtime'
 import { headers } from 'next/headers'
 import { nombrePais } from '../../lib/utils'
+import { filtrarPorCiudad } from '../../lib/ciudad'
 import WaitlistForm from '../../components/WaitlistForm'
 
 const LATAM = ['UY','AR','BR','MX','CL','CO','PE','EC','BO','PY','VE','CR','GT','SV','HN','NI','PA','DO','CU']
@@ -46,18 +47,30 @@ async function getConcursos(q, pais) {
   return data ?? []
 }
 
+const PAISES_VALIDOS = [...LATAM, 'ES', 'US']
+
 export default async function EmpleosPage({ searchParams }) {
   const q    = searchParams?.q || ''
+  const ciudad = (searchParams?.ciudad || '').slice(0, 60)
   const override = (searchParams?.pais || '').toUpperCase()
   const h = await headers()
   const geo = (h.get('x-vercel-ip-country') || '').toUpperCase()
   const detected = override || geo
-  const pais = LATAM.includes(detected) ? detected : null
-  const concursos = await getConcursos(q, pais)
+  const pais = PAISES_VALIDOS.includes(detected) ? detected : null
+  const todos = await getConcursos(q, pais)
+
+  // Ciudad: filtro tolerante a errores (apodos + tildes + trigramas).
+  // Si en su ciudad no hay nada, se muestra el país entero AVISÁNDOLO —
+  // misma honestidad que los emails de alerta.
+  const { resultados: concursos, exacto, filtrado } = filtrarPorCiudad(todos, ciudad)
 
   const enPais = pais ? ` en ${nombrePais(pais)}` : ''
+  const enDonde = filtrado ? ` en ${ciudad.trim()}` : enPais
   const nStr = concursos.length >= 360 ? '360+' : String(concursos.length)
-  const titulo = q ? `🎉 Encontramos ${nStr} empleos de "${q}"${enPais}` : `Todos los empleos${enPais}`
+  const titulo = q ? `🎉 Encontramos ${nStr} empleos de "${q}"${enDonde}` : `Todos los empleos${enDonde}`
+  const avisoCiudad = ciudad.trim() && !exacto && q
+    ? `En ${ciudad.trim()} todavía no encontramos "${q}" — te mostramos todo lo de${enPais || ' la región'}:`
+    : null
 
   return (
     <>
@@ -67,10 +80,13 @@ export default async function EmpleosPage({ searchParams }) {
       </nav>
 
       <div className="container">
-        <SearchForm defaultQ={q} />
+        <SearchForm defaultQ={q} defaultPais={pais || ''} defaultCiudad={ciudad} />
 
         <div className="section-header" style={{ flexDirection:'column', alignItems:'flex-start', gap:6, marginBottom:18 }}>
           <span className="section-title" style={{ fontSize:'clamp(17px,3vw,22px)', textTransform:'none', letterSpacing:'-0.3px' }}>{titulo}</span>
+          {avisoCiudad && (
+            <span style={{ fontSize:14, fontWeight:600, color:'#B45309', background:'#FEF3C7', border:'1px solid #FDE68A', borderRadius:8, padding:'6px 12px' }}>{avisoCiudad}</span>
+          )}
           <span className="section-count">Mira los que quieras. Para postularte y recibir alertas, sigue en la app.</span>
         </div>
 
@@ -87,7 +103,7 @@ export default async function EmpleosPage({ searchParams }) {
         <p>Deja de buscar. El trabajo te encuentra.</p>
         <p>{q ? `Deja tu email y te avisamos apenas aparezca otro empleo de "${q}"${enPais}. Gratis.` : 'Deja tu email y te avisamos apenas aparezca un empleo para tu perfil. Gratis.'}</p>
         <div style={{ display:'flex', justifyContent:'center', marginTop:16 }}>
-          <WaitlistForm ctaLabel="Activar alertas gratis" busqueda={q} paisDefault={pais ? nombrePais(pais) : ''} />
+          <WaitlistForm ctaLabel="Activar alertas gratis" busqueda={q} paisDefault={pais ? nombrePais(pais) : ''} ciudadDefault={ciudad} />
         </div>
       </div>
 
