@@ -963,7 +963,7 @@ async function scrapeChile(): Promise<{ rows: ConcursoRow[]; errores: string[] }
   const addRows = (r: ConcursoRow[]) => { for (const x of r) { if (!seen.has(x.fuente_id)) { seen.add(x.fuente_id); rows.push(x); } } };
 
   // 1. Sector público: Computrabajo gobierno + Servicio Civil
-  const ct = await scrapeComputrabajo("cl", "CL", "chile_concursar");
+  const ct = await scrapeComputrabajo("cl", "CL", "chile_privado");
   addRows(ct.rows); errores.push(...ct.errores);
 
   // 2. Sector privado: Computrabajo /empleos — 5 páginas
@@ -1063,7 +1063,7 @@ async function scrapeColombia(): Promise<{ rows: ConcursoRow[]; errores: string[
   const [cnscRows, ct, ind,
     gn1, gn2, gn3, gn4, gn5, gn6, gn7, gn8, gn9, gn10] = await Promise.all([
     cnscPromise,
-    scrapeComputrabajoPaginado("co", "CO", "colombia_concursar", 10),
+    scrapeComputrabajoPaginado("co", "CO", "colombia_privado", 10),
     scrapeIndeed("co", "empleo trabajo vacante Bogotá Colombia", "CO", "colombia_indeed"),
     scrapeGoogleNews("US", "Colombia empleo convocatoria concurso público cargo vacante 2026", "colombia_googlenews", "CO", "es", 25),
     scrapeGoogleNews("US", "Colombia empleo trabajo empresa privada cargo disponible 2026", "colombia_googlenews2", "CO", "es", 25),
@@ -1347,7 +1347,7 @@ async function scrapePerú(): Promise<{ rows: ConcursoRow[]; errores: string[] }
 
   const [ctPub, ctPriv, ind,
     gn1, gn2, gn3, gn4, gn5, gn6, gn7] = await Promise.all([
-    scrapeComputrabajoPaginado("pe", "PE", "peru_concursar", 8),
+    scrapeComputrabajoPaginado("pe", "PE", "peru_privado", 8),
     scrapeComputrabajoPrivado("pe", "PE", "peru_privado", 5),
     scrapeIndeed("pe", "empleo trabajo vacante Lima Perú", "PE", "peru_indeed"),
     scrapeGoogleNews("US", "Perú empleo concurso público plaza vacante CAS SERVIR 2026", "peru_googlenews", "PE", "es", 25),
