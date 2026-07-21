@@ -9,7 +9,7 @@ Tem 97 mil vagas abertas no Brasil agora mesmo. Então por que é tão difícil 
 
 Porque o problema nunca foi falta de vaga — é que ninguém te avisa das certas. A vaga boa aparece, circula 3 dias entre quem ficou sabendo, e fecha antes de você ver.
 
-Eu tô construindo a solução: um site onde você escreve com suas palavras o que sabe fazer ("auxiliar de produção", "motorista", "atendente"...) e ele vigia as 97 mil por você. Quando aparece vaga do seu perfil, chega no seu email. De graça, sem cadastro complicado.
+Achei a solução: um site onde você escreve com suas palavras o que sabe fazer ("auxiliar de produção", "motorista", "atendente"...) e ele vigia as 97 mil por você. Quando aparece vaga do seu perfil, chega no seu email. De graça, sem cadastro complicado.
 
 Chega de caçar. Deixa a vaga te achar. 👉 konexu.app/pt
 
@@ -31,17 +31,17 @@ Ontem às 22h um usuário se cadastrou no site. Hoje de manhã acordou com 5 vag
 
 A sua área tá aí? Escreve ela com suas palavras em konexu.app/pt e deixa as vagas te acharem. Grátis.
 
-## BRASIL — Post 0 (versión "founder honesto", para grupos con moderación estricta)
+## BRASIL — Post 0 (versión corta, para grupos con moderación estricta)
 
 Pra quem tá procurando emprego e cansado de abrir dez sites diferentes:
 
-Estou construindo um site que junta as vagas do Brasil inteiro num lugar só. Agora mesmo tem 97 mil vagas ativas — 18 mil só em São Paulo, 15 mil em vendas, mais de mil pra motorista.
+Achei um site que junta as vagas do Brasil inteiro num lugar só. Agora mesmo tem 97 mil vagas ativas — 18 mil só em São Paulo, 15 mil em vendas, mais de mil pra motorista.
 
 O diferencial: você escreve com suas palavras o que sabe fazer ("babá", "motorista", "auxiliar de produção", o que for) e o site te avisa por email, todo dia, quando aparece vaga do seu perfil. De graça.
 
 👉 konexu.app/pt
 
-Tá começando e quero deixar ele cada vez melhor — se procurar sua área e não achar nada, me fala nos comentários que eu verifico.
+Testei e funciona — se procurar sua área e não achar nada, comenta aqui que a gente vê juntos.
 
 ## ARGENTINA — Post 1: "El Estado publica, nadie se entera" (grupos de empleo AR)
 
@@ -51,9 +51,9 @@ La mayoría son del Estado: hospitales nacionales, ministerios, universidades. C
 
 Esta semana pasó esto de verdad: una persona escribió "técnico en hemoterapia" — así, con sus palabras — y al otro día tenía en el mail los 2 llamados de hospitales nacionales que estaban abiertos. No buscó nada. Le llegaron.
 
-Estoy construyendo exactamente eso: escribís qué sabés hacer ("enfermera", "chofer", "administrativo", lo que sea) y cuando aparece algo para vos, te llega al mail. Gratis, sin bajar nada, sin vueltas.
+Encontré justo eso: escribís qué sabés hacer ("enfermera", "chofer", "administrativo", lo que sea) y cuando aparece algo para vos, te llega al mail. Gratis, sin bajar nada, sin vueltas.
 
-Sin humo: la herramienta está empezando y la mejoro todos los días. 👉 konexu.app
+Sin humo: la probé y funciona. 👉 konexu.app
 
 ¿Dudás de que haya algo de lo tuyo? Comentá tu oficio y te respondo con el número exacto de llamados abiertos hoy para eso. 🙌
 
@@ -141,7 +141,8 @@ Si la pruebas, comenta qué oficio pusiste — a ver si hay de tu área. 🙌
 
 ## REGLAS FIJAS DE TODOS LOS POSTS
 1. Un solo link por post y siempre a la web (konexu.app / konexu.app/pt). Nunca Telegram.
-2. Voz de RECOMENDACIÓN, nunca de creador: "encontré/me crucé/les comparto una página", jamás "estoy construyendo". Historias como testimonio propio verificable ("la probé con X: N resultados").
+2. Voz de RECOMENDACIÓN, nunca de creador: "encontré/me crucé/les comparto una página", jamás "estoy construyendo"/"armé". Historias como testimonio propio verificable ("la probé con X: N resultados"). SIN EXCEPCIONES por país o tipo de grupo.
+3. Al entregar un post: COPIAR el texto guardado abajo tal cual (solo refrescar números), NUNCA reescribirlo de memoria. Reescribir de cero fue lo que reintrodujo voz de creador en el post de Argentina el 2026-07-20 pese a que ya estaba corregido acá.
 
 ## Reglas de uso (investigadas, no inventadas)
 
