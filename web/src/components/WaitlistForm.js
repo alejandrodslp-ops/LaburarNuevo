@@ -16,12 +16,39 @@ const PAISES = [
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const ANON_KEY     = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Bloque opcional "reservar cuenta" — solo español por ahora (v1). Nadie
-// pierde nada si lo ignora: los campos de arriba siguen siendo lo único
-// obligatorio para recibir alertas, igual que siempre.
-const DISPONIBILIDAD_OPTS = ['Tiempo completo', 'Medio tiempo', 'Freelance / por proyecto']
-const TIPOS_EMPLEO_OPTS = ['Presencial', 'Remoto', 'Híbrido']
+// Bloque opcional "ampliar perfil". Nadie pierde nada si lo ignora: los
+// campos de arriba siguen siendo lo único obligatorio para recibir alertas,
+// igual que siempre. Los valores guardados (no las etiquetas mostradas) son
+// los mismos canónicos en español que usa EditarPerfilScreen.js en la app,
+// para que el perfil se lea bien ahí después.
+const DISPONIBILIDAD_OPTS = ['Inmediata', 'En 1 semana', 'En 2 semanas', 'A convenir']
+const TIPOS_EMPLEO_OPTS = ['Permanente', 'Temporal', 'Por tarea', 'Medio horario']
 const SEXO_OPTS = ['Masculino', 'Femenino', 'Otros']
+
+// Etiquetas mostradas por idioma para los selects de valor fijo (el valor
+// guardado siempre es la clave en español). Mismo criterio que SEXOS_TR /
+// DISPS_TR / TIPOS_TR en src/data/oficios.js.
+const DISPONIBILIDAD_TR = {
+  'Inmediata':    { pt:'Imediata',     en:'Immediate',    fr:'Immédiate',       it:'Immediata',      de:'Sofort',            sv:'Omedelbar',              no:'Umiddelbar',   ja:'即時' },
+  'En 1 semana':  { pt:'Em 1 semana',  en:'In 1 week',    fr:'Dans 1 semaine',  it:'In 1 settimana', de:'In 1 Woche',        sv:'Om 1 vecka',             no:'Om 1 uke',     ja:'1週間以内' },
+  'En 2 semanas': { pt:'Em 2 semanas', en:'In 2 weeks',   fr:'Dans 2 semaines', it:'In 2 settimane', de:'In 2 Wochen',       sv:'Om 2 veckor',            no:'Om 2 uker',    ja:'2週間以内' },
+  'A convenir':   { pt:'A combinar',   en:'To be agreed', fr:'À convenir',      it:'Da concordare',  de:'Nach Vereinbarung', sv:'Enligt överenskommelse', no:'Etter avtale', ja:'要相談' },
+}
+const TIPOS_EMPLEO_TR = {
+  'Permanente':    { pt:'Permanente',   en:'Permanent',  fr:'Permanent',  it:'Permanente',   de:'Dauerhaft',       sv:'Permanent',      no:'Permanent',    ja:'正社員' },
+  'Temporal':      { pt:'Temporário',   en:'Temporary',  fr:'Temporaire', it:'Temporaneo',   de:'Vorübergehend',   sv:'Tillfällig',     no:'Midlertidig',  ja:'臨時' },
+  'Por tarea':     { pt:'Por tarefa',   en:'Task-based', fr:'Par tâche',  it:'Per progetto', de:'Aufgabenbasiert', sv:'Projektbaserad', no:'Prosjektbasert', ja:'タスク別' },
+  'Medio horario': { pt:'Meio período', en:'Part-time',  fr:'Mi-temps',   it:'Part-time',    de:'Teilzeit',        sv:'Deltid',         no:'Deltid',       ja:'パートタイム' },
+}
+const SEXO_TR = {
+  'Masculino': { pt:'Masculino', en:'Male',   fr:'Masculin', it:'Maschio', de:'Männlich', sv:'Man',    no:'Mann',  ja:'男性' },
+  'Femenino':  { pt:'Feminino',  en:'Female', fr:'Féminin',  it:'Femmina', de:'Weiblich', sv:'Kvinna', no:'Kvinne', ja:'女性' },
+  'Otros':     { pt:'Outros',    en:'Other',  fr:'Autres',   it:'Altri',   de:'Andere',   sv:'Annat',  no:'Annet', ja:'その他' },
+}
+function trOpt(map, key, lang) {
+  if (!lang || lang === 'es') return key
+  return map[key]?.[lang] ?? key
+}
 
 export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', paisDefault = '', ciudadDefault = '' }) {
   const tr = T[lang] || T.es
@@ -167,59 +194,59 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
       </div>
       {!mostrarExtra && (
         <button type="button" onClick={() => setMostrarExtra(true)} style={ss.extraToggle}>
-          💼 + Ampliar mi perfil (opcional)
+          {tr.wl_extra_toggle || T.es.wl_extra_toggle}
         </button>
       )}
 
       {mostrarExtra && (
         <div style={ss.extraBox}>
-          <p style={ss.extraTit}>💼 Ampliá tu perfil laboral</p>
-          <p style={ss.extraCopy}>Contanos más sobre tu experiencia y lo que buscás — así afinamos las alertas y sumás posibilidades de matchear con la oportunidad justa. Opcional.</p>
+          <p style={ss.extraTit}>{tr.wl_extra_tit || T.es.wl_extra_tit}</p>
+          <p style={ss.extraCopy}>{tr.wl_extra_copy || T.es.wl_extra_copy}</p>
 
           <div style={ss.sueldoRow}>
-            <input type="text" placeholder="Primer apellido (opcional)" value={apellido1} onChange={e => setApellido1(e.target.value)} style={ss.input} />
-            <input type="text" placeholder="Segundo apellido (opcional)" value={apellido2} onChange={e => setApellido2(e.target.value)} style={ss.input} />
+            <input type="text" placeholder={tr.wl_extra_apellido1_ph || T.es.wl_extra_apellido1_ph} value={apellido1} onChange={e => setApellido1(e.target.value)} style={ss.input} />
+            <input type="text" placeholder={tr.wl_extra_apellido2_ph || T.es.wl_extra_apellido2_ph} value={apellido2} onChange={e => setApellido2(e.target.value)} style={ss.input} />
           </div>
 
-          <input type="tel" placeholder="WhatsApp (opcional)" value={telefono} onChange={e => setTelefono(e.target.value)} style={ss.input} />
+          <input type="tel" placeholder={tr.wl_extra_whatsapp_ph || T.es.wl_extra_whatsapp_ph} value={telefono} onChange={e => setTelefono(e.target.value)} style={ss.input} />
 
           <div style={ss.sueldoRow}>
             <input type="date" value={fechaNac} onChange={e => setFechaNac(e.target.value)} style={ss.input} />
             <select value={sexo} onChange={e => setSexo(e.target.value)} style={{...ss.input, color: sexo ? '#1A1020' : '#8c8492'}}>
-              <option value="">Sexo (opcional)</option>
-              {SEXO_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+              <option value="">{tr.wl_extra_sexo_ph || T.es.wl_extra_sexo_ph}</option>
+              {SEXO_OPTS.map(o => <option key={o} value={o}>{trOpt(SEXO_TR, o, lang)}</option>)}
             </select>
           </div>
 
-          <input type="text" placeholder="Oficios/profesiones (separados por coma)" value={profesiones} onChange={e => setProfesiones(e.target.value)} style={ss.input} />
-          <input type="number" min="0" placeholder="Años de experiencia" value={aniosExp} onChange={e => setAniosExp(e.target.value)} style={ss.input} />
-          <input type="text" placeholder="Especialidades (separadas por coma)" value={especialidades} onChange={e => setEspecialidades(e.target.value)} style={ss.input} />
-          <input type="text" placeholder="Idiomas (separados por coma)" value={idiomas} onChange={e => setIdiomas(e.target.value)} style={ss.input} />
+          <input type="text" placeholder={tr.wl_extra_profesiones_ph || T.es.wl_extra_profesiones_ph} value={profesiones} onChange={e => setProfesiones(e.target.value)} style={ss.input} />
+          <input type="number" min="0" placeholder={tr.wl_extra_anios_ph || T.es.wl_extra_anios_ph} value={aniosExp} onChange={e => setAniosExp(e.target.value)} style={ss.input} />
+          <input type="text" placeholder={tr.wl_extra_especialidades_ph || T.es.wl_extra_especialidades_ph} value={especialidades} onChange={e => setEspecialidades(e.target.value)} style={ss.input} />
+          <input type="text" placeholder={tr.wl_extra_idiomas_ph || T.es.wl_extra_idiomas_ph} value={idiomas} onChange={e => setIdiomas(e.target.value)} style={ss.input} />
 
           <select value={disponibilidad} onChange={e => setDisponibilidad(e.target.value)} style={{...ss.input, color: disponibilidad ? '#1A1020' : '#8c8492'}}>
-            <option value="">Disponibilidad (opcional)</option>
-            {DISPONIBILIDAD_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+            <option value="">{tr.wl_extra_disponibilidad_ph || T.es.wl_extra_disponibilidad_ph}</option>
+            {DISPONIBILIDAD_OPTS.map(o => <option key={o} value={o}>{trOpt(DISPONIBILIDAD_TR, o, lang)}</option>)}
           </select>
 
           <div style={ss.chipsRow}>
             {TIPOS_EMPLEO_OPTS.map(t => (
               <button key={t} type="button" onClick={() => toggleTipoEmpleo(t)}
                 style={{...ss.chip, ...(tiposEmpleo.includes(t) ? ss.chipOn : {})}}>
-                {t}
+                {trOpt(TIPOS_EMPLEO_TR, t, lang)}
               </button>
             ))}
           </div>
 
           <div style={ss.sueldoRow}>
-            <input type="number" min="0" placeholder="Pretensión mín. (opcional)" value={sueldoMin} onChange={e => setSueldoMin(e.target.value)} style={ss.input} />
-            <input type="number" min="0" placeholder="Pretensión máx. (opcional)" value={sueldoMax} onChange={e => setSueldoMax(e.target.value)} style={ss.input} />
+            <input type="number" min="0" placeholder={tr.wl_extra_sueldomin_ph || T.es.wl_extra_sueldomin_ph} value={sueldoMin} onChange={e => setSueldoMin(e.target.value)} style={ss.input} />
+            <input type="number" min="0" placeholder={tr.wl_extra_sueldomax_ph || T.es.wl_extra_sueldomax_ph} value={sueldoMax} onChange={e => setSueldoMax(e.target.value)} style={ss.input} />
           </div>
 
-          <textarea placeholder="Contanos brevemente sobre vos (opcional)" value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={3} style={{...ss.input, resize:'vertical', fontFamily:'inherit'}} />
+          <textarea placeholder={tr.wl_extra_descripcion_ph || T.es.wl_extra_descripcion_ph} value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={3} style={{...ss.input, resize:'vertical', fontFamily:'inherit'}} />
 
-          <p style={ss.extraNota}>Esta información es parte de tu perfil y no es accesible para empresas ni otros usuarios.</p>
+          <p style={ss.extraNota}>{tr.wl_extra_nota || T.es.wl_extra_nota}</p>
 
-          <button type="button" onClick={() => setMostrarExtra(false)} style={ss.extraCollapse}>Ocultar — solo quiero las alertas</button>
+          <button type="button" onClick={() => setMostrarExtra(false)} style={ss.extraCollapse}>{tr.wl_extra_ocultar || T.es.wl_extra_ocultar}</button>
         </div>
       )}
 
