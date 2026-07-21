@@ -139,6 +139,18 @@ Si la pruebas, comenta qué oficio pusiste — a ver si hay de tu área. 🙌
 
 (Clave MX: negar las estafas de frente — multinivel/depósitos/premios — ANTES de vender. Léxico: chamba, ahorita, un paro. Cero voseo.)
 
+## COSTA RICA — Post 1: "Pura vida, sin enredos" (números 2026-07-21, REFRESCAR)
+
+Les comparto algo que encontré y me pareció muy útil: una página donde usted escribe su oficio con sus propias palabras — "cocinera", "ventas", "bodeguero", lo que sea — y cuando aparece un puesto que le calza, le llega al correo. Gratis y sin enredos.
+
+La probé y ahora mismo tiene 120 puestos activos en Costa Rica (20 de ventas), y entran nuevos todos los días.
+
+👉 konexu.app
+
+Si la prueban, comenten qué oficio pusieron — ojalá le sirva a alguien más. Pura vida 🙌
+
+(Clave CR: trato de "usted", tono cálido sin urgencia agresiva, "pura vida" como cierre. Cero voseo.)
+
 ## REGLAS FIJAS DE TODOS LOS POSTS
 1. Un solo link por post y siempre a la web (konexu.app / konexu.app/pt). Nunca Telegram.
 2. Voz de RECOMENDACIÓN, nunca de creador: "encontré/me crucé/les comparto una página", jamás "estoy construyendo"/"armé". Historias como testimonio propio verificable ("la probé con X: N resultados"). SIN EXCEPCIONES por país o tipo de grupo.
