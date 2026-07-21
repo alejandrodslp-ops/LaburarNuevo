@@ -81,6 +81,15 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
     setTiposEmpleo(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
   }
   const aCsvArray = (s) => s.split(',').map(x => x.trim()).filter(Boolean)
+  // El input type="date" del navegador da "AAAA-MM-DD" — la app guarda y
+  // lee fecha_nac como "DD/MM/AAAA" (ver FechaNac en EditarPerfilScreen.js,
+  // que hace value.split("/") sin fallback). Convertimos acá para que el
+  // perfil se vea bien si la persona lo edita después en la app.
+  const aFechaAppFormat = (iso) => {
+    if (!iso) return null
+    const [a, m, d] = iso.split('-')
+    return `${d}/${m}/${a}`
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -91,7 +100,7 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
         apellido1: apellido1.trim() || null,
         apellido2: apellido2.trim() || null,
         telefono: telefono.trim() || null,
-        fecha_nac: fechaNac || null,
+        fecha_nac: aFechaAppFormat(fechaNac),
         sexo: sexo || null,
         anios_experiencia: aniosExp ? Number(aniosExp) : null,
         profesiones: profesiones.trim() ? aCsvArray(profesiones) : null,
