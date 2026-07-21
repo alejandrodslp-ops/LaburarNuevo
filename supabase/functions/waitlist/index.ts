@@ -20,7 +20,16 @@ Deno.serve(async (req) => {
   const db = createClient(URL, KEY, { auth: { persistSession: false } });
 
   try {
-    const { accion, email, nombre, push_token, pais, busqueda, ciudad, origen } = await req.json();
+    const {
+      accion, email, nombre, push_token, pais, busqueda, ciudad, origen,
+      // Bloque opcional "reservar cuenta" (2026-07-21) — si viene alguno de
+      // estos, además del insert normal a waitlist, se crea una cuenta real
+      // (auth.users + profiles). Nadie pierde el camino de solo-alertas si
+      // no manda ninguno de estos campos.
+      telefono, anios_experiencia, profesiones, especialidades, idiomas,
+      disponibilidad, tipos_empleo, sueldo_pretension_min, sueldo_pretension_max,
+      descripcion_libre,
+    } = await req.json();
 
     // ── Estado global de la waitlist ──────────────────────────────────────────
     if (accion === "estado") {
@@ -70,7 +79,65 @@ Deno.serve(async (req) => {
         body: "{}",
       }).catch(() => {});
 
-      return ok({ posicion: nuevo.posicion, habilitado: false, ya_estaba: false });
+      // ── Bloque opcional: crear cuenta real + perfil ──────────────────────
+      // Solo si trajo algo del bloque "reservar cuenta". Un fallo acá NUNCA
+      // debe romper la respuesta de la waitlist (esa parte ya se guardó bien).
+      const camposExtra = { telefono, anios_experiencia, profesiones, especialidades, idiomas, disponibilidad, tipos_empleo, sueldo_pretension_min, sueldo_pretension_max, descripcion_libre };
+      const quiereCuenta = Object.values(camposExtra).some((v) => v !== null && v !== undefined && v !== "");
+      let cuenta_creada = false;
+      if (quiereCuenta) {
+        try {
+          const passwordDescartable = crypto.randomUUID() + crypto.randomUUID();
+          const { data: nuevoUser, error: createErr } = await db.auth.admin.createUser({
+            email: emailLower, password: passwordDescartable, email_confirm: true,
+          });
+          if (createErr) {
+            // Email ya tiene cuenta real (se registró en la app antes) — no es un error, se omite.
+            if (!String(createErr.message ?? "").toLowerCase().includes("already")) {
+              console.log(`waitlist: no se pudo crear cuenta para ${emailLower}: ${createErr.message}`);
+            }
+          } else if (nuevoUser?.user?.id) {
+            const codigoReferido = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const { error: profErr } = await db.from("profiles").insert({
+              id: nuevoUser.user.id,
+              nombre: nombre?.trim() ?? null,
+              pais: pais ?? null,
+              ciudad: ciudad?.trim() ?? null,
+              empleo_buscado: busqueda?.trim() ?? null,
+              telefono: telefono ?? null,
+              anios_experiencia: anios_experiencia ?? null,
+              profesiones: profesiones ?? null,
+              especialidades: especialidades ?? null,
+              idiomas: idiomas ?? null,
+              disponibilidad: disponibilidad ?? null,
+              tipos_empleo: tipos_empleo ?? null,
+              sueldo_pretension_min: sueldo_pretension_min ?? null,
+              sueldo_pretension_max: sueldo_pretension_max ?? null,
+              descripcion_libre: descripcion_libre ?? null,
+              rol: "worker",
+              codigo_referido: codigoReferido,
+              periodo_gratis_hasta: null, // se activa recién en el lanzamiento, no ahora
+            });
+            if (profErr) {
+              console.log(`waitlist: cuenta creada pero falló el perfil de ${emailLower}: ${profErr.message}`);
+            } else {
+              // El trigger trigger_perfil_gratis pone perfil_activo=true en CUALQUIER
+              // insert a profiles, sin condición — y BuscarScreen.js filtra empleadores
+              // por perfil_activo=true. Sin este paso, alguien que solo llenó el
+              // formulario web (nunca puso contraseña, no sabe que tiene cuenta)
+              // quedaría visible y contactable por empleadores ya mismo. Se corrige
+              // acá; activar-preregistrados lo vuelve a poner en true recién en el
+              // lanzamiento real.
+              await db.from("profiles").update({ perfil_activo: false }).eq("id", nuevoUser.user.id);
+              cuenta_creada = true;
+            }
+          }
+        } catch (e: any) {
+          console.log(`waitlist: excepción creando cuenta para ${emailLower}: ${e.message}`);
+        }
+      }
+
+      return ok({ posicion: nuevo.posicion, habilitado: false, ya_estaba: false, cuenta_creada });
     }
 
     // ── Marcar como registrado (llamar después del signUp exitoso) ────────────

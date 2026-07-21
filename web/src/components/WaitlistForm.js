@@ -16,6 +16,12 @@ const PAISES = [
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const ANON_KEY     = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+// Bloque opcional "reservar cuenta" — solo español por ahora (v1). Nadie
+// pierde nada si lo ignora: los campos de arriba siguen siendo lo único
+// obligatorio para recibir alertas, igual que siempre.
+const DISPONIBILIDAD_OPTS = ['Tiempo completo', 'Medio tiempo', 'Freelance / por proyecto']
+const TIPOS_EMPLEO_OPTS = ['Presencial', 'Remoto', 'Híbrido']
+
 export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', paisDefault = '', ciudadDefault = '' }) {
   const tr = T[lang] || T.es
   const [email,    setEmail]    = useState('')
@@ -27,15 +33,44 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
   const [posicion, setPosicion] = useState(null)
   const [msg,      setMsg]      = useState('')
 
+  const [mostrarExtra, setMostrarExtra] = useState(false)
+  const [telefono,     setTelefono]     = useState('')
+  const [aniosExp,     setAniosExp]     = useState('')
+  const [profesiones,  setProfesiones]  = useState('')
+  const [especialidades, setEspecialidades] = useState('')
+  const [idiomas,      setIdiomas]      = useState('')
+  const [disponibilidad, setDisponibilidad] = useState('')
+  const [tiposEmpleo,  setTiposEmpleo]  = useState([])
+  const [sueldoMin,    setSueldoMin]    = useState('')
+  const [sueldoMax,    setSueldoMax]    = useState('')
+  const [descripcion,  setDescripcion]  = useState('')
+
+  function toggleTipoEmpleo(t) {
+    setTiposEmpleo(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])
+  }
+  const aCsvArray = (s) => s.split(',').map(x => x.trim()).filter(Boolean)
+
   async function handleSubmit(e) {
     e.preventDefault()
     if (!email || !email.includes('@')) { setMsg(tr.wl_err_email); return }
     setEstado('loading')
     try {
+      const extra = mostrarExtra ? {
+        telefono: telefono.trim() || null,
+        anios_experiencia: aniosExp ? Number(aniosExp) : null,
+        profesiones: profesiones.trim() ? aCsvArray(profesiones) : null,
+        especialidades: especialidades.trim() ? aCsvArray(especialidades) : null,
+        idiomas: idiomas.trim() ? aCsvArray(idiomas) : null,
+        disponibilidad: disponibilidad || null,
+        tipos_empleo: tiposEmpleo.length ? tiposEmpleo : null,
+        sueldo_pretension_min: sueldoMin ? Number(sueldoMin) : null,
+        sueldo_pretension_max: sueldoMax ? Number(sueldoMax) : null,
+        descripcion_libre: descripcion.trim() || null,
+      } : {}
       const res = await fetch(`${SUPABASE_URL}/functions/v1/waitlist`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` },
-        body:    JSON.stringify({ accion: 'unirse', origen: 'web', email: email.trim().toLowerCase(), nombre: nombre.trim() || null, pais: pais || paisDefault || null, ciudad: ciudad.trim() || null, busqueda: queBusca.trim() || null }),
+        body:    JSON.stringify({ accion: 'unirse', origen: 'web', email: email.trim().toLowerCase(), nombre: nombre.trim() || null, pais: pais || paisDefault || null, ciudad: ciudad.trim() || null, busqueda: queBusca.trim() || null, ...extra }),
       })
       const data = await res.json()
       if (data.posicion) { setPosicion(data.posicion); setEstado('ok') }
@@ -121,6 +156,48 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
           style={ss.input}
         />
       </div>
+      {!mostrarExtra && (
+        <button type="button" onClick={() => setMostrarExtra(true)} style={ss.extraToggle}>
+          🎁 Reservá tu cuenta gratis antes del lanzamiento (opcional)
+        </button>
+      )}
+
+      {mostrarExtra && (
+        <div style={ss.extraBox}>
+          <p style={ss.extraTit}>🎁 Reservá tu cuenta gratis antes del lanzamiento</p>
+          <p style={ss.extraCopy}>Completá esto y creamos tu cuenta en Konexu ya mismo, con período gratis. Te avisamos por mail cuando puedas activarla con tu contraseña. Es opcional — si preferís solo las alertas, dejalo así.</p>
+
+          <input type="tel" placeholder="Teléfono (opcional)" value={telefono} onChange={e => setTelefono(e.target.value)} style={ss.input} />
+          <input type="number" min="0" placeholder="Años de experiencia" value={aniosExp} onChange={e => setAniosExp(e.target.value)} style={ss.input} />
+          <input type="text" placeholder="Oficios/profesiones (separados por coma)" value={profesiones} onChange={e => setProfesiones(e.target.value)} style={ss.input} />
+          <input type="text" placeholder="Especialidades (separadas por coma)" value={especialidades} onChange={e => setEspecialidades(e.target.value)} style={ss.input} />
+          <input type="text" placeholder="Idiomas (separados por coma)" value={idiomas} onChange={e => setIdiomas(e.target.value)} style={ss.input} />
+
+          <select value={disponibilidad} onChange={e => setDisponibilidad(e.target.value)} style={{...ss.input, color: disponibilidad ? '#1A1020' : '#8c8492'}}>
+            <option value="">Disponibilidad (opcional)</option>
+            {DISPONIBILIDAD_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+
+          <div style={ss.chipsRow}>
+            {TIPOS_EMPLEO_OPTS.map(t => (
+              <button key={t} type="button" onClick={() => toggleTipoEmpleo(t)}
+                style={{...ss.chip, ...(tiposEmpleo.includes(t) ? ss.chipOn : {})}}>
+                {t}
+              </button>
+            ))}
+          </div>
+
+          <div style={ss.sueldoRow}>
+            <input type="number" min="0" placeholder="Pretensión mín. (opcional)" value={sueldoMin} onChange={e => setSueldoMin(e.target.value)} style={ss.input} />
+            <input type="number" min="0" placeholder="Pretensión máx. (opcional)" value={sueldoMax} onChange={e => setSueldoMax(e.target.value)} style={ss.input} />
+          </div>
+
+          <textarea placeholder="Contanos brevemente sobre vos (opcional)" value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={3} style={{...ss.input, resize:'vertical', fontFamily:'inherit'}} />
+
+          <button type="button" onClick={() => setMostrarExtra(false)} style={ss.extraCollapse}>Ocultar — solo quiero las alertas</button>
+        </div>
+      )}
+
       {msg && <p style={ss.errorMsg}>{msg}</p>}
       <button type="submit" style={ss.btn} disabled={estado === 'loading'}>
         {estado === 'loading'
@@ -147,4 +224,13 @@ const ss = {
   waBtn:       { display:'inline-flex', alignItems:'center', gap:8, background:'#25D366', color:'#fff', textDecoration:'none', borderRadius:10, padding:'13px 24px', fontSize:15, fontWeight:800, marginTop:20 },
   waHint:      { fontSize:12, color:'#8c8492', marginTop:10 },
   spinner:     { width:18, height:18, border:'2.5px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%', animation:'spin 0.8s linear infinite', display:'inline-block' },
+  extraToggle: { background:'#FFF7ED', border:'1.5px dashed #F0B573', borderRadius:10, padding:'12px 16px', fontSize:13, fontWeight:700, color:'#9A5B15', cursor:'pointer', textAlign:'center' },
+  extraBox:    { display:'flex', flexDirection:'column', gap:10, background:'#FFFBF5', border:'1.5px solid #F0DCC0', borderRadius:12, padding:16 },
+  extraTit:    { fontSize:14, fontWeight:800, color:'#1A1020', margin:0 },
+  extraCopy:   { fontSize:12, color:'#6B5D4F', lineHeight:1.5, margin:'0 0 4px' },
+  chipsRow:    { display:'flex', gap:8, flexWrap:'wrap' },
+  chip:        { border:'1.5px solid #E4DCD2', background:'#fff', color:'#5A4E6A', borderRadius:20, padding:'8px 14px', fontSize:12, fontWeight:700, cursor:'pointer' },
+  chipOn:      { background:'var(--coral-cta)', borderColor:'var(--coral-cta)', color:'#fff' },
+  sueldoRow:   { display:'flex', gap:8 },
+  extraCollapse:{ background:'none', border:'none', color:'#8c8492', fontSize:12, textDecoration:'underline', cursor:'pointer', alignSelf:'center' },
 }
