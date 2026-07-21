@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
       // estos, además del insert normal a waitlist, se crea una cuenta real
       // (auth.users + profiles). Nadie pierde el camino de solo-alertas si
       // no manda ninguno de estos campos.
-      telefono, fecha_nac, sexo, anios_experiencia, profesiones, especialidades, idiomas,
+      apellido1, apellido2, telefono, fecha_nac, sexo, anios_experiencia, profesiones, especialidades, idiomas,
       disponibilidad, tipos_empleo, sueldo_pretension_min, sueldo_pretension_max,
       descripcion_libre,
     } = await req.json();
@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
       // ── Bloque opcional: crear cuenta real + perfil ──────────────────────
       // Solo si trajo algo del bloque "reservar cuenta". Un fallo acá NUNCA
       // debe romper la respuesta de la waitlist (esa parte ya se guardó bien).
-      const camposExtra = { telefono, fecha_nac, sexo, anios_experiencia, profesiones, especialidades, idiomas, disponibilidad, tipos_empleo, sueldo_pretension_min, sueldo_pretension_max, descripcion_libre };
+      const camposExtra = { apellido1, apellido2, telefono, fecha_nac, sexo, anios_experiencia, profesiones, especialidades, idiomas, disponibilidad, tipos_empleo, sueldo_pretension_min, sueldo_pretension_max, descripcion_libre };
       const quiereCuenta = Object.values(camposExtra).some((v) => v !== null && v !== undefined && v !== "");
       let cuenta_creada = false;
       if (quiereCuenta) {
@@ -101,6 +101,8 @@ Deno.serve(async (req) => {
             const { error: profErr } = await db.from("profiles").insert({
               id: nuevoUser.user.id,
               nombre: nombre?.trim() ?? null,
+              apellido1: apellido1?.trim() ?? null,
+              apellido2: apellido2?.trim() ?? null,
               pais: pais ?? null,
               ciudad: ciudad?.trim() ?? null,
               empleo_buscado: busqueda?.trim() ?? null,

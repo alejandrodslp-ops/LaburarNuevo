@@ -35,6 +35,8 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
   const [msg,      setMsg]      = useState('')
 
   const [mostrarExtra, setMostrarExtra] = useState(false)
+  const [apellido1,    setApellido1]    = useState('')
+  const [apellido2,    setApellido2]    = useState('')
   const [telefono,     setTelefono]     = useState('')
   const [fechaNac,     setFechaNac]     = useState('')
   const [sexo,         setSexo]         = useState('')
@@ -59,6 +61,8 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
     setEstado('loading')
     try {
       const extra = mostrarExtra ? {
+        apellido1: apellido1.trim() || null,
+        apellido2: apellido2.trim() || null,
         telefono: telefono.trim() || null,
         fecha_nac: fechaNac || null,
         sexo: sexo || null,
@@ -171,6 +175,11 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
         <div style={ss.extraBox}>
           <p style={ss.extraTit}>💼 Ampliá tu perfil laboral</p>
           <p style={ss.extraCopy}>Contanos más sobre tu experiencia y lo que buscás — así afinamos las alertas y sumás posibilidades de matchear con la oportunidad justa. Opcional.</p>
+
+          <div style={ss.sueldoRow}>
+            <input type="text" placeholder="Primer apellido (opcional)" value={apellido1} onChange={e => setApellido1(e.target.value)} style={ss.input} />
+            <input type="text" placeholder="Segundo apellido (opcional)" value={apellido2} onChange={e => setApellido2(e.target.value)} style={ss.input} />
+          </div>
 
           <input type="tel" placeholder="WhatsApp (opcional)" value={telefono} onChange={e => setTelefono(e.target.value)} style={ss.input} />
 
