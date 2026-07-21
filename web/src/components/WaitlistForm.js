@@ -191,8 +191,8 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
             </select>
           </div>
 
-          <input type="number" min="0" placeholder="Años de experiencia" value={aniosExp} onChange={e => setAniosExp(e.target.value)} style={ss.input} />
           <input type="text" placeholder="Oficios/profesiones (separados por coma)" value={profesiones} onChange={e => setProfesiones(e.target.value)} style={ss.input} />
+          <input type="number" min="0" placeholder="Años de experiencia" value={aniosExp} onChange={e => setAniosExp(e.target.value)} style={ss.input} />
           <input type="text" placeholder="Especialidades (separadas por coma)" value={especialidades} onChange={e => setEspecialidades(e.target.value)} style={ss.input} />
           <input type="text" placeholder="Idiomas (separados por coma)" value={idiomas} onChange={e => setIdiomas(e.target.value)} style={ss.input} />
 
