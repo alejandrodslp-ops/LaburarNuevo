@@ -158,14 +158,14 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
       </div>
       {!mostrarExtra && (
         <button type="button" onClick={() => setMostrarExtra(true)} style={ss.extraToggle}>
-          🎁 Reservá tu cuenta gratis antes del lanzamiento (opcional)
+          💼 + Ampliar mi perfil (opcional)
         </button>
       )}
 
       {mostrarExtra && (
         <div style={ss.extraBox}>
-          <p style={ss.extraTit}>🎁 Reservá tu cuenta gratis antes del lanzamiento</p>
-          <p style={ss.extraCopy}>Completá esto y creamos tu cuenta en Konexu ya mismo, con período gratis. Te avisamos por mail cuando puedas activarla con tu contraseña. Es opcional — si preferís solo las alertas, dejalo así.</p>
+          <p style={ss.extraTit}>💼 Ampliá tu perfil laboral</p>
+          <p style={ss.extraCopy}>Contanos más sobre tu experiencia y lo que buscás — así afinamos las alertas y sumás posibilidades de matchear con la oportunidad justa. Opcional.</p>
 
           <input type="tel" placeholder="Teléfono (opcional)" value={telefono} onChange={e => setTelefono(e.target.value)} style={ss.input} />
           <input type="number" min="0" placeholder="Años de experiencia" value={aniosExp} onChange={e => setAniosExp(e.target.value)} style={ss.input} />
@@ -193,6 +193,8 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
           </div>
 
           <textarea placeholder="Contanos brevemente sobre vos (opcional)" value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={3} style={{...ss.input, resize:'vertical', fontFamily:'inherit'}} />
+
+          <p style={ss.extraNota}>Esta información es parte de tu perfil y no es accesible para empresas ni otros usuarios.</p>
 
           <button type="button" onClick={() => setMostrarExtra(false)} style={ss.extraCollapse}>Ocultar — solo quiero las alertas</button>
         </div>
@@ -232,5 +234,6 @@ const ss = {
   chip:        { border:'1.5px solid #E4DCD2', background:'#fff', color:'#5A4E6A', borderRadius:20, padding:'8px 14px', fontSize:12, fontWeight:700, cursor:'pointer' },
   chipOn:      { background:'var(--coral-cta)', borderColor:'var(--coral-cta)', color:'#fff' },
   sueldoRow:   { display:'flex', gap:8 },
+  extraNota:   { fontSize:11, color:'#8c8492', lineHeight:1.5, margin:'0' },
   extraCollapse:{ background:'none', border:'none', color:'#8c8492', fontSize:12, textDecoration:'underline', cursor:'pointer', alignSelf:'center' },
 }
