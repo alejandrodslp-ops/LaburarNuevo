@@ -63,21 +63,34 @@ Deno.serve(async (req) => {
         return err("Nombre, país, ciudad y búsqueda son obligatorios");
       }
       const { data: existente } = await db.from("waitlist").select("posicion,habilitado").eq("email", emailLower).maybeSingle();
-      if (existente) return ok({ ya_estaba: true, posicion: existente.posicion, habilitado: existente.habilitado });
 
-      const { data: nuevo, error: insErr } = await db.from("waitlist")
-        .insert({ email: emailLower, nombre: nombre?.trim() ?? null, push_token: push_token ?? null, pais: pais ?? null, busqueda: busqueda?.trim()?.slice(0, 120) || null, ciudad: ciudad?.trim()?.slice(0, 80) || null })
-        .select("posicion")
-        .single();
+      let posicionFinal: number;
+      let habilitadoFinal: boolean;
+      const yaEstaba = !!existente;
 
-      if (insErr) return err(insErr.message);
+      if (existente) {
+        // Ya estaba anotado (solo alertas). Si ahora manda datos del bloque
+        // opcional, igual lo dejamos seguir hasta la creación de cuenta más
+        // abajo — no hay que forzarlo a anotarse de nuevo para ampliar su perfil.
+        posicionFinal = existente.posicion;
+        habilitadoFinal = existente.habilitado;
+      } else {
+        const { data: nuevo, error: insErr } = await db.from("waitlist")
+          .insert({ email: emailLower, nombre: nombre?.trim() ?? null, push_token: push_token ?? null, pais: pais ?? null, busqueda: busqueda?.trim()?.slice(0, 120) || null, ciudad: ciudad?.trim()?.slice(0, 80) || null })
+          .select("posicion")
+          .single();
 
-      // Disparar autorizador en background (no esperamos respuesta)
-      fetch(`${URL}/functions/v1/waitlist-autorizador`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${KEY}`, "Content-Type": "application/json" },
-        body: "{}",
-      }).catch(() => {});
+        if (insErr) return err(insErr.message);
+        posicionFinal = nuevo.posicion;
+        habilitadoFinal = false;
+
+        // Disparar autorizador en background solo para altas nuevas (no esperamos respuesta)
+        fetch(`${URL}/functions/v1/waitlist-autorizador`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${KEY}`, "Content-Type": "application/json" },
+          body: "{}",
+        }).catch(() => {});
+      }
 
       // ── Bloque opcional: crear cuenta real + perfil ──────────────────────
       // Solo si trajo algo del bloque "reservar cuenta". Un fallo acá NUNCA
@@ -141,7 +154,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      return ok({ posicion: nuevo.posicion, habilitado: false, ya_estaba: false, cuenta_creada });
+      return ok({ posicion: posicionFinal, habilitado: habilitadoFinal, ya_estaba: yaEstaba, cuenta_creada });
     }
 
     // ── Marcar como registrado (llamar después del signUp exitoso) ────────────
