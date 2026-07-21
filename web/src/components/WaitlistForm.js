@@ -21,6 +21,7 @@ const ANON_KEY     = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 // obligatorio para recibir alertas, igual que siempre.
 const DISPONIBILIDAD_OPTS = ['Tiempo completo', 'Medio tiempo', 'Freelance / por proyecto']
 const TIPOS_EMPLEO_OPTS = ['Presencial', 'Remoto', 'Híbrido']
+const SEXO_OPTS = ['Masculino', 'Femenino', 'Otros']
 
 export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', paisDefault = '', ciudadDefault = '' }) {
   const tr = T[lang] || T.es
@@ -35,6 +36,8 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
 
   const [mostrarExtra, setMostrarExtra] = useState(false)
   const [telefono,     setTelefono]     = useState('')
+  const [fechaNac,     setFechaNac]     = useState('')
+  const [sexo,         setSexo]         = useState('')
   const [aniosExp,     setAniosExp]     = useState('')
   const [profesiones,  setProfesiones]  = useState('')
   const [especialidades, setEspecialidades] = useState('')
@@ -57,6 +60,8 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
     try {
       const extra = mostrarExtra ? {
         telefono: telefono.trim() || null,
+        fecha_nac: fechaNac || null,
+        sexo: sexo || null,
         anios_experiencia: aniosExp ? Number(aniosExp) : null,
         profesiones: profesiones.trim() ? aCsvArray(profesiones) : null,
         especialidades: especialidades.trim() ? aCsvArray(especialidades) : null,
@@ -167,7 +172,16 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
           <p style={ss.extraTit}>💼 Ampliá tu perfil laboral</p>
           <p style={ss.extraCopy}>Contanos más sobre tu experiencia y lo que buscás — así afinamos las alertas y sumás posibilidades de matchear con la oportunidad justa. Opcional.</p>
 
-          <input type="tel" placeholder="Teléfono (opcional)" value={telefono} onChange={e => setTelefono(e.target.value)} style={ss.input} />
+          <input type="tel" placeholder="WhatsApp (opcional)" value={telefono} onChange={e => setTelefono(e.target.value)} style={ss.input} />
+
+          <div style={ss.sueldoRow}>
+            <input type="date" value={fechaNac} onChange={e => setFechaNac(e.target.value)} style={ss.input} />
+            <select value={sexo} onChange={e => setSexo(e.target.value)} style={{...ss.input, color: sexo ? '#1A1020' : '#8c8492'}}>
+              <option value="">Sexo (opcional)</option>
+              {SEXO_OPTS.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+
           <input type="number" min="0" placeholder="Años de experiencia" value={aniosExp} onChange={e => setAniosExp(e.target.value)} style={ss.input} />
           <input type="text" placeholder="Oficios/profesiones (separados por coma)" value={profesiones} onChange={e => setProfesiones(e.target.value)} style={ss.input} />
           <input type="text" placeholder="Especialidades (separadas por coma)" value={especialidades} onChange={e => setEspecialidades(e.target.value)} style={ss.input} />
