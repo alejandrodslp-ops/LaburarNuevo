@@ -867,6 +867,7 @@ function TabUsuarios({ onDetalleUsuario, refreshing, setRefreshing }) {
   const FILTROS = [
     { id: 'todos', label: 'Todos' }, { id: 'activo', label: '✅ Activos' },
     { id: 'inactivo', label: '⭕ Inactivos' }, { id: 'con_saldo', label: '💳 Con saldo' },
+    { id: 'web', label: '🌐 Web' },
   ];
 
   const cargar = useCallback(async (q, f, p, c, pag = 0, esRefresh = false) => {

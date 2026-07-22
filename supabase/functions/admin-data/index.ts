@@ -10,6 +10,7 @@ const SUPABASE_URL         = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const SUPABASE_JWT_SECRET  = Deno.env.get("SUPABASE_JWT_SECRET") ?? Deno.env.get("NEXU_JWT_SECRET") ?? "";
 const ADMIN_EMAIL          = "alejandrodslp@gmail.com";
+const NEXU_SISTEMA_ID      = "43a7baf9-f88e-463b-8e4c-385bd3fb8151"; // cuenta sistema (mensaje-bienvenida) — nunca un usuario real
 
 function ok(data: unknown) {
   return new Response(JSON.stringify(data), { headers: { "Content-Type": "application/json", ...CORS } });
@@ -184,6 +185,22 @@ async function listarUsuarios(db: ReturnType<typeof createClient>, params: any) 
   const limite    = Math.min(100, Math.max(1, Number(params?.limite ?? 40)));
   const esEmailSearch = busqueda.includes("@");
 
+  // Filtro "web": perfiles worker creados desde el bloque opcional del
+  // formulario web (konexu.app), que todavía nunca iniciaron sesión en la
+  // app. Necesitamos los ids ANTES de armar la consulta a profiles, por eso
+  // se resuelve aparte, paginado completo (no limitado a una sola página).
+  let idsWeb: string[] = [];
+  if (filtro === "web") {
+    let page = 1;
+    while (true) {
+      const { data: pageData, error: listErr } = await db.auth.admin.listUsers({ page, perPage: 1000 });
+      if (listErr) break;
+      idsWeb.push(...(pageData.users ?? []).filter((u: any) => !u.last_sign_in_at && u.id !== NEXU_SISTEMA_ID).map((u: any) => u.id));
+      if (!pageData.users || pageData.users.length < 1000) break;
+      page++;
+    }
+  }
+
   let q = db.from("profiles").select(
     "id, nombre, apellido1, servicios, profesiones, pais, ciudad, perfil_activo, perfil_activo_hasta, vistas, contactos, rating, avatar_url, visualizaciones_disponibles, created_at",
     { count: "exact" }
@@ -193,6 +210,7 @@ async function listarUsuarios(db: ReturnType<typeof createClient>, params: any) 
   if (filtro === "activo")    q = q.eq("perfil_activo", true);
   if (filtro === "inactivo")  q = q.eq("perfil_activo", false);
   if (filtro === "con_saldo") q = q.gt("visualizaciones_disponibles", 0);
+  if (filtro === "web")       q = q.eq("rol", "worker").in("id", idsWeb.length ? idsWeb : ["00000000-0000-0000-0000-000000000000"]);
   if (paisFlt)   q = q.ilike("pais",   `%${paisFlt}%`);
   if (ciudadFlt) q = q.ilike("ciudad", `%${ciudadFlt}%`);
 
