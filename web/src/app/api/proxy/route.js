@@ -27,6 +27,9 @@ const ALLOWED = new Set([
   // Indeed — varios países (via proxy para bypass CF)
   'pt.indeed.com', 'jp.indeed.com',
   'au.indeed.com', 'ca.indeed.com',
+  // Paraguay / Ecuador — investigación 2026-07-22, portales oficiales candidatos
+  'paraempleo.mtess.gov.py',
+  'encuentraempleo.trabajo.gob.ec',
 ]);
 
 export async function GET(request) {
