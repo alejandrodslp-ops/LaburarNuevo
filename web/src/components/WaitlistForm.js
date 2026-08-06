@@ -24,6 +24,10 @@ const ANON_KEY     = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const DISPONIBILIDAD_OPTS = ['Inmediata', 'En 1 semana', 'En 2 semanas', 'A convenir']
 const TIPOS_EMPLEO_OPTS = ['Permanente', 'Temporal', 'Por tarea', 'Medio horario']
 const SEXO_OPTS = ['Masculino', 'Femenino', 'Otros']
+// Rango de edad — obligatorio en el formulario base (no en el bloque
+// "ampliar perfil"). Valores numéricos, sin palabras, para no necesitar
+// traducción por idioma (a diferencia de SEXO_OPTS/DISPONIBILIDAD_OPTS).
+const RANGO_EDAD_OPTS = ['18-25', '26-35', '36-45', '46-55', '56+']
 
 // Etiquetas mostradas por idioma para los selects de valor fijo (el valor
 // guardado siempre es la clave en español). Mismo criterio que SEXOS_TR /
@@ -57,6 +61,7 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
   const [queBusca, setQueBusca] = useState(busqueda || '')
   const [pais,     setPais]     = useState(paisDefault)
   const [ciudad,   setCiudad]   = useState(ciudadDefault || '')
+  const [rangoEdad, setRangoEdad] = useState('')
   const [estado,   setEstado]   = useState('idle')
   const [posicion, setPosicion] = useState(null)
   const [msg,      setMsg]      = useState('')
@@ -115,7 +120,7 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
       const res = await fetch(`${SUPABASE_URL}/functions/v1/waitlist`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` },
-        body:    JSON.stringify({ accion: 'unirse', origen: 'web', email: email.trim().toLowerCase(), nombre: nombre.trim() || null, pais: pais || paisDefault || null, ciudad: ciudad.trim() || null, busqueda: queBusca.trim() || null, ...extra }),
+        body:    JSON.stringify({ accion: 'unirse', origen: 'web', email: email.trim().toLowerCase(), nombre: nombre.trim() || null, pais: pais || paisDefault || null, ciudad: ciudad.trim() || null, busqueda: queBusca.trim() || null, rango_edad: rangoEdad || null, ...extra }),
       })
       const data = await res.json()
       if (data.posicion) { setPosicion(data.posicion); setEstado('ok') }
@@ -200,6 +205,17 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
           required
           style={ss.input}
         />
+      </div>
+      <div style={ss.inputGroup}>
+        <select
+          value={rangoEdad}
+          onChange={e => setRangoEdad(e.target.value)}
+          required
+          style={{...ss.input, color: rangoEdad ? '#1A1020' : '#8c8492'}}
+        >
+          <option value="">{tr.wl_edad_ph || T.es.wl_edad_ph}</option>
+          {RANGO_EDAD_OPTS.map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
       </div>
       {!mostrarExtra && (
         <button type="button" onClick={() => setMostrarExtra(true)} style={ss.extraToggle}>
