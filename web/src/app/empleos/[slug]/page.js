@@ -1,7 +1,6 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import { db } from '../../../lib/supabase'
-import { idFromSlug, toSlug, nombrePais, bandPais, fmtFecha, employmentType, paisSlug } from '../../../lib/utils'
+import { idFromSlug, paisFromSlug, toSlug, nombrePais, bandPais, fmtFecha, employmentType, paisSlug } from '../../../lib/utils'
 import AppCta from '../../AppCta'
 
 export const revalidate = 3600
@@ -14,6 +13,19 @@ async function getConcurso(slug) {
   if (!id || !/^[0-9a-f-]{36}$/.test(id)) return null
   const { data } = await db.from('concursos').select('*').eq('id', id).single()
   return data ?? null
+}
+
+// Cuando el aviso original ya no existe: sugerencias por país sacado del slug
+async function getSimilaresPorPais(pais) {
+  if (!pais) return []
+  const { data } = await db
+    .from('concursos')
+    .select('id,titulo,cargo,organismo,pais,lugar,fecha_cierre')
+    .eq('activo', true)
+    .eq('pais', pais)
+    .order('created_at', { ascending: false })
+    .limit(3)
+  return data ?? []
 }
 
 async function getSimilares(c) {
@@ -32,7 +44,7 @@ async function getSimilares(c) {
 
 export async function generateMetadata({ params }) {
   const c = await getConcurso(params.slug)
-  if (!c) return { title: 'Empleo no encontrado' }
+  if (!c) return { title: 'Empleo no disponible — Konexu', robots: { index: false, follow: true } }
   const cargo = c.cargo || c.titulo
   const loc   = c.lugar || nombrePais(c.pais)
   const org   = c.organismo ? ` en ${c.organismo}` : ''
@@ -49,7 +61,69 @@ export async function generateMetadata({ params }) {
 
 export default async function ConcursoPage({ params }) {
   const c = await getConcurso(params.slug)
-  if (!c) notFound()
+
+  if (!c) {
+    const pais = paisFromSlug(params.slug)
+    const sugeridos = await getSimilaresPorPais(pais)
+    return (
+      <>
+        <nav className="nav">
+          <Link href="/" className="nav-logo"><span>Konexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
+          <a href="/download" className="nav-btn">Alertas gratis</a>
+        </nav>
+
+        <div className="container">
+          <div className="empty-state" style={{ paddingTop: 60, paddingBottom: sugeridos.length ? 40 : 0 }}>
+            <p style={{ fontSize: 48, marginBottom: 16 }}>🔍</p>
+            <p style={{ fontSize: 20, fontWeight: 800, color: '#1A3A5C', marginBottom: 8 }}>
+              Este empleo ya no está disponible
+            </p>
+            <p style={{ marginBottom: 24 }}>
+              Puede que haya vencido o que la posición ya fue cubierta{pais ? ` en ${nombrePais(pais)}` : ''}.
+            </p>
+            <Link href="/empleos" className="btn-primary" style={{ display: 'inline-block' }}>
+              Ver empleos disponibles →
+            </Link>
+          </div>
+
+          {sugeridos.length > 0 && (
+            <>
+              <div className="similar-title">Empleos similares en {nombrePais(pais)}</div>
+              <div className="jobs-grid">
+                {sugeridos.map(s => (
+                  <Link key={s.id} href={`/empleos/${toSlug(s)}`} className="job-card">
+                    <div className="job-icon">🏛️</div>
+                    <div className="job-body">
+                      <div className="job-title">{s.cargo || s.titulo}</div>
+                      <div className="job-org">{s.organismo || '—'}</div>
+                      <div className="job-meta">
+                        <span className="job-tag">
+                          {bandPais(s.pais)} {nombrePais(s.pais)}{s.lugar ? ` · ${s.lugar}` : ''}
+                        </span>
+                        {s.fecha_cierre && (
+                          <span className="job-tag job-tag-coral">
+                            Cierra {fmtFecha(s.fecha_cierre)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="job-arrow">›</span>
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <footer className="footer">
+          <p>
+            © {new Date().getFullYear()} Konexu · konexu.app ·{' '}
+            <Link href="/empleos" style={{ color: 'inherit' }}>Ver todos los empleos</Link>
+          </p>
+        </footer>
+      </>
+    )
+  }
 
   const similares  = await getSimilares(c)
   const esPublico  = c.tipo_vinculo?.toLowerCase() !== 'privado'

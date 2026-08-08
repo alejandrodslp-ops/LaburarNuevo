@@ -67,6 +67,15 @@ export function idFromSlug(slug) {
   return typeof slug === 'string' ? slug.slice(-36) : null
 }
 
+// El código de país (2 letras) va justo antes del UUID: cargo-pais-uuid.
+// Se usa para sugerir empleos similares aun cuando el aviso original ya no existe.
+export function paisFromSlug(slug) {
+  if (typeof slug !== 'string' || slug.length <= 37) return null
+  const resto = slug.slice(0, -37) // saca "-" + uuid(36)
+  const codigo = resto.split('-').pop()?.toUpperCase()
+  return codigo && PAIS[codigo] ? codigo : null
+}
+
 export function fmtFecha(iso) {
   if (!iso) return null
   return new Date(iso).toLocaleDateString('es-UY', {
