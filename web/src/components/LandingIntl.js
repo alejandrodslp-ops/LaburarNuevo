@@ -9,10 +9,6 @@ export default function LandingIntl({ lang, t, total, jobs }) {
   return (
     <>
       <style>{`
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-        .hero-anim { animation: fadeUp 0.6s ease both }
-        .live-dot { animation: pulse 2s infinite }
         .stat-card { background:#FFFFFF; border:1px solid #EDE6DC; border-radius:16px; padding:20px 24px; text-align:center }
         .stat-num  { font-size:clamp(28px,4vw,40px); font-weight:900; color:#C2502F; letter-spacing:-2px; line-height:1 }
         .stat-lbl  { font-size:13px; color:#8c8492; margin-top:4px; font-weight:500 }

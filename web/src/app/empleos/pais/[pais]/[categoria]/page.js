@@ -159,22 +159,27 @@ export default async function CategoriaPage({ params }) {
         <a href="/download" className="nav-btn">{t(lang, 'nav_download')}</a>
       </nav>
 
-      <div className="hero">
-        <p className="hero-pre">{bandera} {nombre} · {catNombre}</p>
-        <h1>
-          {t(lang, 'hero_h1_1')} <em>{t(lang, 'hero_h1_em')}</em><br />{t(lang, 'hero_h1_2')}
-        </h1>
-        <p className="hero-sub">
-          {total > concursos.length
-            ? t(lang, 'hero_sub_many', total, nombre)
-            : t(lang, 'hero_sub_few', total, nombre)}
-          {' · '}{catNombre}
-        </p>
-        <div className="hero-btns">
-          <a href="/download" className="btn-primary">{t(lang, 'hero_btn_primary')}</a>
-          <a href="#empleos" className="btn-outline">{t(lang, 'hero_btn_outline')}</a>
+      <section style={{ background:'radial-gradient(900px 500px at 80% 18%,rgba(232,120,90,0.10),transparent 60%),radial-gradient(700px 420px at 8% 82%,rgba(45,212,191,0.05),transparent 55%),#FBF8F4', padding:'80px 24px 60px', textAlign:'center' }}>
+        <div className="hero-anim" style={{ width:'100%', maxWidth:640, margin:'0 auto' }}>
+          <div style={{ display:'inline-flex', alignItems:'center', gap:8, background:'#E6FBF5', border:'1px solid #9BE8DC', borderRadius:100, padding:'6px 16px', marginBottom:32 }}>
+            <span className="live-dot" style={{ width:7, height:7, borderRadius:'50%', background:'#0E9E92', display:'inline-block' }}/>
+            <span style={{ fontSize:12, color:'#0E9E92', fontWeight:700, letterSpacing:0.5 }}>{bandera} {nombre} · {catNombre}</span>
+          </div>
+          <h1 style={{ fontSize:'clamp(32px,5.4vw,56px)', fontWeight:900, color:'#1A1020', lineHeight:1.08, letterSpacing:-1.5, marginBottom:12 }}>
+            {t(lang, 'hero_h1_1')} <em style={{ color:'#C2502F', fontStyle:'italic' }}>{t(lang, 'hero_h1_em')}</em><br />{t(lang, 'hero_h1_2')}
+          </h1>
+          <p style={{ fontSize:'clamp(15px,2.1vw,20px)', fontWeight:700, color:'#5A4E6A', letterSpacing:-0.3, marginBottom:28 }}>
+            {total > concursos.length
+              ? t(lang, 'hero_sub_many', total, nombre)
+              : t(lang, 'hero_sub_few', total, nombre)}
+            {' · '}{catNombre}
+          </p>
+          <div className="hero-btns" style={{ marginBottom:8 }}>
+            <a href="/download" style={{ background:'var(--coral-cta)', color:'#fff', borderRadius:10, padding:'14px 28px', fontSize:15, fontWeight:800, textDecoration:'none', letterSpacing:-0.3 }}>{t(lang, 'hero_btn_primary')}</a>
+            <a href="#empleos" style={{ background:'rgba(0,0,0,0.04)', color:'#1A1020', borderRadius:10, padding:'14px 28px', fontSize:15, fontWeight:700, textDecoration:'none', border:'1px solid rgba(0,0,0,0.08)' }}>{t(lang, 'hero_btn_outline')}</a>
+          </div>
         </div>
-      </div>
+      </section>
 
       <div className="container" id="empleos">
         {/* Migas de pan */}
