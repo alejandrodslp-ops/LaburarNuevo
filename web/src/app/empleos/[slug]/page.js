@@ -12,6 +12,11 @@ async function getConcurso(slug) {
   // Valida que parece un UUID válido
   if (!id || !/^[0-9a-f-]{36}$/.test(id)) return null
   const { data } = await db.from('concursos').select('*').eq('id', id).single()
+  // Un empleo inactivo (vencido / posición cubierta) se trata como "ya no
+  // disponible": la página cae en el estado amable + similares (bloque !c de
+  // abajo) y queda noindex (generateMetadata), para que Google suelte del
+  // índice los avisos viejos en vez de mantenerlos indexados.
+  if (data && !data.activo) return null
   return data ?? null
 }
 
@@ -53,6 +58,12 @@ export async function generateMetadata({ params }) {
     description: `Concurso para ${cargo}${org}. ${loc}. ${c.fecha_cierre ? `Cierre: ${fmtFecha(c.fecha_cierre)}.` : ''} Registrate gratis en Konexu.`,
     alternates: { canonical: `${SITE}/empleos/${params.slug}` },
     openGraph: {
+      title: `${cargo} — ${loc}`,
+      description: c.descripcion?.slice(0, 160) ?? `Concurso para ${cargo} en ${loc}.`,
+      images: [{ url: '/og-konexu.png', width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
       title: `${cargo} — ${loc}`,
       description: c.descripcion?.slice(0, 160) ?? `Concurso para ${cargo} en ${loc}.`,
     },
