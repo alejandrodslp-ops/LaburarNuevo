@@ -13,6 +13,19 @@ export function getLang(codigoPais) {
   return LANG_MAP[codigoPais] || 'es'
 }
 
+// Imagen de vista previa (og:image) por idioma — usadas al compartir en redes.
+export const OG_IMAGE = {
+  es: '/og-konexu.png',
+  pt: '/og-konexu-pt.png',
+  en: '/og-konexu-en.png',
+  fr: '/og-konexu-fr.png',
+  it: '/og-konexu-it.png',
+  de: '/og-konexu-de.png',
+  sv: '/og-konexu-sv.png',
+  no: '/og-konexu-no.png',
+  ja: '/og-konexu-ja.png',
+}
+
 export const T = {
   es: {
     wl_share_msg: `👋 Encontré una página que te avisa por email cuando sale un trabajo de lo tuyo. Escribís tu oficio y listo, gratis: https://konexu.app`,

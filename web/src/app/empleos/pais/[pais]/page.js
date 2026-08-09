@@ -2,9 +2,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { db } from '../../../../lib/supabase'
 import { bandPais, PAIS } from '../../../../lib/utils'
-import { getLang, t } from '../../../../lib/i18n'
+import { getLang, t, OG_IMAGE } from '../../../../lib/i18n'
 import AppCta from '../../../AppCta'
 import JobsRealtime from '../../../JobsRealtime'
+import SetHtmlLang from '../../../SetHtmlLang'
 
 // ISR on-demand: se genera al primer hit y se sirve de caché 6h (los concursos
 // se actualizan 3x/día). Antes era force-dynamic: cada hit de crawler quemaba
@@ -66,9 +67,15 @@ export async function generateMetadata({ params }) {
   if (!codigo) return { title: 'País no encontrado' }
   const nombre = PAIS[codigo]?.nombre ?? params.pais
   const lang   = getLang(codigo)
+  // Página de país sin empleos = contenido fino → no indexar (pero seguir
+  // links), mismo criterio que la página de categoría. Evita que Google indexe
+  // países vacíos (mercados extranjeros sin inventario) como contenido fino.
+  const { data: hay } = await db.from('concursos').select('id').eq('activo', true).eq('pais', codigo).limit(1)
+  const conContenido = (hay?.length ?? 0) > 0
   return {
     title: t(lang, 'meta_title', nombre),
     description: t(lang, 'meta_desc', nombre),
+    ...(conContenido ? {} : { robots: { index: false, follow: true } }),
     alternates: {
       canonical: `${SITE}/empleos/pais/${params.pais}`,
       languages: {
@@ -80,9 +87,10 @@ export async function generateMetadata({ params }) {
       title: t(lang, 'meta_og_title', nombre),
       description: t(lang, 'meta_og_desc', nombre),
       url: `/empleos/pais/${params.pais}`,
+      images: [{ url: OG_IMAGE[lang] || OG_IMAGE.es, width: 1200, height: 630 }],
     },
     twitter: {
-      card: 'summary',
+      card: 'summary_large_image',
       title: t(lang, 'meta_og_title', nombre),
       description: t(lang, 'meta_og_desc', nombre),
     },
@@ -164,6 +172,7 @@ export default async function PaisPage({ params }) {
 
   return (
     <>
+      <SetHtmlLang lang={lang} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/<\/script>/gi, '<\\/script>') }}

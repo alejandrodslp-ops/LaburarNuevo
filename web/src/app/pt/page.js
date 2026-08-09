@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import WaitlistForm from '../../components/WaitlistForm'
 import JobsRealtime from '../JobsRealtime'
 import CounterRealtime from '../CounterRealtime'
+import SetHtmlLang from '../SetHtmlLang'
 
 export const revalidate = 300
 export const fetchCache = 'force-no-store'
@@ -54,6 +55,7 @@ export default async function HomePT() {
 
   return (
     <>
+      <SetHtmlLang lang="pt" />
       <style>{`
         .stat-card { background:#FFFFFF; border:1px solid #EDE6DC; border-radius:16px; padding:20px 24px; text-align:center }
         .stat-num  { font-size:clamp(28px,4vw,40px); font-weight:900; color:#C2502F; letter-spacing:-2px; line-height:1 }

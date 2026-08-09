@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { db } from '../../../../../lib/supabase'
 import { bandPais, PAIS } from '../../../../../lib/utils'
-import { getLang, t } from '../../../../../lib/i18n'
+import { getLang, t, OG_IMAGE } from '../../../../../lib/i18n'
 import { CATEGORIAS, SLUGS_CATEGORIA } from '../../../../../lib/categorias'
 import AppCta from '../../../../AppCta'
 import JobsRealtime from '../../../../JobsRealtime'
@@ -71,8 +71,9 @@ export async function generateMetadata({ params }) {
       title: `${catNombre} en ${nombre} | Konexu`,
       description: desc,
       url: `/empleos/pais/${params.pais}/${params.categoria}`,
+      images: [{ url: OG_IMAGE[lang] || OG_IMAGE.es, width: 1200, height: 630 }],
     },
-    twitter: { card: 'summary', title: `${catNombre} en ${nombre} | Konexu`, description: desc },
+    twitter: { card: 'summary_large_image', title: `${catNombre} en ${nombre} | Konexu`, description: desc },
   }
 }
 
