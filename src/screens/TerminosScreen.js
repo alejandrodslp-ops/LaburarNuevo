@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useI18n } from '../services/I18nContext';
 
-const ULTIMA_ACTUALIZACION = '1 de enero de 2025';
+const ULTIMA_ACTUALIZACION = '9 de agosto de 2026';
 const EMAIL_LEGAL = 'legal@konexu.app';
 const EMPRESA = 'Konexu S.A.S.';
 const PAIS = 'República Oriental del Uruguay';
@@ -198,7 +198,58 @@ export default function TerminosScreen({ navigation }) {
           </P>
         </Seccion>
 
-        <Seccion titulo="9. Limitación de Responsabilidad">
+        <Seccion titulo="9. Contenido del Usuario: Garantías, Responsabilidad y Retiro">
+          <P>
+            Al subir o publicar cualquier contenido en Konexu (incluyendo fotos de perfil, imágenes,
+            textos, currículums y descripciones), <Text style={ss.negrita}>declarás y
+            garantizás que sos el titular de todos los derechos sobre ese contenido, o que contás con
+            las autorizaciones y licencias necesarias para usarlo.</Text> En particular, garantizás
+            que el contenido no infringe derechos de autor, marcas registradas, derechos de imagen,
+            privacidad ni ningún otro derecho de terceros.
+          </P>
+          <P>
+            Queda prohibido subir imágenes, logotipos, fotografías u otro material protegido por
+            derechos de propiedad intelectual o registrado a nombre de terceros sin su autorización expresa.
+          </P>
+          <P>
+            <Text style={ss.negrita}>Sos el único y exclusivo responsable del contenido que subís.</Text>{' '}
+            Konexu actúa como alojamiento pasivo de dicho contenido, no lo genera ni lo revisa o aprueba
+            previamente. Konexu se reserva el derecho de retirar o bloquear, sin aviso previo, cualquier
+            contenido que considere que infringe estos Términos, la ley o derechos de terceros.
+          </P>
+          <P>
+            <Text style={ss.negrita}>Notificación y retiro:</Text> Si considerás que un contenido
+            publicado en Konexu infringe tus derechos, notificalo a {EMAIL_LEGAL} indicando: (a) el
+            contenido y su ubicación en la plataforma; (b) prueba de tu titularidad del derecho;
+            (c) tus datos de contacto. Konexu evaluará el reclamo y, de corresponder, retirará el
+            contenido en un plazo razonable. Las cuentas que infrinjan derechos de terceros de forma
+            reiterada serán suspendidas.
+          </P>
+        </Seccion>
+
+        <Seccion titulo="10. Uso de Inteligencia Artificial y Herramientas Automatizadas">
+          <P>
+            Konexu utiliza tecnología de análisis automatizado de terceros para la{' '}
+            <Text style={ss.negrita}>moderación de las imágenes de perfil</Text>: mediante servicios de
+            visión por computadora, se analizan las imágenes que subís para detectar contenido
+            inapropiado o que incumpla estos Términos.
+          </P>
+          <P>
+            <Text style={ss.negrita}>Al subir una imagen autorizás expresamente</Text> que sea procesada
+            con ese fin por Konexu y por sus proveedores tecnológicos, conforme a las condiciones de estos.
+            La imagen se procesa únicamente para esa moderación y <Text style={ss.negrita}>no se utiliza
+            para entrenar modelos de inteligencia artificial propios de Konexu.</Text>
+          </P>
+          <P>
+            Los sistemas automatizados de moderación <Text style={ss.negrita}>pueden cometer errores: no
+            garantizan detectar todo el contenido inapropiado, ni la ausencia de falsos positivos.</Text>{' '}
+            Konexu no será responsable por las decisiones de estos sistemas, y seguís siendo el único
+            responsable del contenido que subís. El sistema de compatibilidad entre perfiles y llamados se
+            basa en criterios algorítmicos y de palabras clave, no en inteligencia artificial generativa.
+          </P>
+        </Seccion>
+
+        <Seccion titulo="11. Limitación de Responsabilidad">
           <P>
             Konexu actúa exclusivamente como intermediario y <Text style={ss.negrita}>no es parte de
             ninguna relación laboral</Text> entre trabajadores y empleadores. En ningún caso {EMPRESA}
@@ -216,7 +267,18 @@ export default function TerminosScreen({ navigation }) {
           </P>
         </Seccion>
 
-        <Seccion titulo="10. Modificaciones">
+        <Seccion titulo="12. Indemnización">
+          <P>
+            Aceptás <Text style={ss.negrita}>defender, indemnizar y mantener indemne a {EMPRESA}</Text>,
+            sus directores, empleados y proveedores, frente a cualquier reclamo, demanda, daño, pérdida,
+            costo o gasto (incluidos honorarios legales razonables) que surja de: (a) el contenido que
+            subís o publicás; (b) tu incumplimiento de estos Términos o de la legislación aplicable;
+            (c) la infracción de derechos de terceros por tu parte, incluyendo derechos de propiedad
+            intelectual, marcas o imagen; (d) el uso indebido de la plataforma.
+          </P>
+        </Seccion>
+
+        <Seccion titulo="13. Modificaciones">
           <P>
             Konexu puede modificar estos Términos en cualquier momento. Los cambios significativos
             serán notificados por email y/o mediante aviso en la aplicación con al menos 15 días
@@ -225,7 +287,7 @@ export default function TerminosScreen({ navigation }) {
           </P>
         </Seccion>
 
-        <Seccion titulo="11. Ley Aplicable y Jurisdicción">
+        <Seccion titulo="14. Ley Aplicable y Jurisdicción">
           <P>
             Estos Términos se rigen por las leyes de la República Oriental del Uruguay,
             incluyendo la Ley N° 18.331 de Protección de Datos Personales y Acción de
@@ -239,7 +301,7 @@ export default function TerminosScreen({ navigation }) {
           </P>
         </Seccion>
 
-        <Seccion titulo="12. Contacto">
+        <Seccion titulo="15. Contacto">
           <P>
             Para consultas sobre estos Términos, podés contactarnos en:{'\n'}
             {EMAIL_LEGAL}

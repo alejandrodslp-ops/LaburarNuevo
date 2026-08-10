@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useI18n } from '../services/I18nContext';
 
-const ULTIMA_ACTUALIZACION = '1 de enero de 2025';
+const ULTIMA_ACTUALIZACION = '9 de agosto de 2026';
 const EMAIL_PRIVACIDAD = 'privacidad@konexu.app';
 const EMPRESA = 'Konexu S.A.S.';
 
@@ -123,6 +123,11 @@ export default function PrivacidadScreen({ navigation }) {
             garantizan protección equivalente de datos.
           </Li>
           <Li>
+            <Text style={ss.negrita}>Proveedor de visión por computadora</Text>: analiza de forma
+            automática las imágenes de perfil que subís, con el único fin de moderar contenido
+            inapropiado. La imagen se procesa solo para eso y no se utiliza para entrenar sus modelos.
+          </Li>
+          <Li>
             <Text style={ss.negrita}>Autoridades competentes</Text>: cuando sea exigido por ley,
             orden judicial o requerimiento de autoridad reguladora.
           </Li>
@@ -135,6 +140,11 @@ export default function PrivacidadScreen({ navigation }) {
             de Uruguay) se realizan con las garantías adecuadas exigidas por la Ley 18.331, incluyendo
             cláusulas contractuales estándar reconocidas por la Unidad Reguladora y de Control
             de Datos Personales (URCDP).
+          </P>
+          <P>
+            La moderación de imágenes de perfil es un <Text style={ss.negrita}>procesamiento
+            automatizado</Text>. Si una imagen tuya es rechazada y considerás que fue un error, podés
+            solicitar su revisión escribiendo a {EMAIL_PRIVACIDAD}.
           </P>
         </Seccion>
 
