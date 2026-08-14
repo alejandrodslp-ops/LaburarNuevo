@@ -51,7 +51,7 @@ export const T = {
     meta_og_desc:  (pais) => `Encontrá trabajo en ${pais}. Concursos públicos, convocatorias y llamados actualizados todos los días.`,
     // Waitlist form
     wl_nombre_ph: 'Tu nombre',
-    wl_busca_ph: '¿Qué trabajo buscas? Escríbelo con tus palabras (ej: niñera, chofer...)',
+    wl_busca_ph: '¿Qué puesto u oficio buscas? (ej: niñera, chofer, enfermera, contador)',
     wl_ciudad_ph: 'Tu ciudad (ej: Córdoba, Montevideo...)',
     wl_edad_ph:   '¿Tu edad? *',
     wl_email_ph:  'Tu email *',
@@ -118,7 +118,7 @@ export const T = {
     meta_og_title: (pais) => `Empregos e concursos em ${pais} | Konexu`,
     meta_og_desc:  (pais) => `Encontre trabalho em ${pais}. Concursos públicos e vagas atualizados todos os dias.`,
     wl_nombre_ph: 'Seu nome',
-    wl_busca_ph: 'Que trabalho você procura? Escreva com suas palavras (ex: babá, motorista...)',
+    wl_busca_ph: 'Que cargo ou profissão você procura? (ex: babá, motorista, enfermeira, contador)',
     wl_ciudad_ph: 'Sua cidade (ex: São Paulo, Recife...)',
     wl_edad_ph:   'Sua idade? *',
     wl_email_ph:  'Seu e-mail *',
