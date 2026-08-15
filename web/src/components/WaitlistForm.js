@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { T } from '../lib/i18n'
+import { pareceDeseo } from '../lib/detectarDeseo'
 
 const PAISES = [
   '🇧🇷 Brasil','🇦🇷 Argentina','🇺🇾 Uruguay','🇨🇱 Chile','🇨🇴 Colombia',
@@ -65,6 +66,10 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
   const [estado,   setEstado]   = useState('idle')
   const [posicion, setPosicion] = useState(null)
   const [msg,      setMsg]      = useState('')
+
+  // Aviso suave si la persona escribió un deseo ("un buen clima laboral") en vez
+  // de un puesto. NO bloquea el envío — solo guía a dar mejor dato. Ver detectarDeseo.js.
+  const hintDeseo = pareceDeseo(queBusca)
 
   const [mostrarExtra, setMostrarExtra] = useState(false)
   const [apellido1,    setApellido1]    = useState('')
@@ -174,6 +179,7 @@ export default function WaitlistForm({ lang = 'es', ctaLabel, busqueda = '', pai
           required
           style={ss.input}
         />
+        {hintDeseo && <p style={ss.hintDeseo}>{tr.wl_busca_hint || T.es.wl_busca_hint}</p>}
       </div>
       <div style={ss.inputGroup}>
         <input
@@ -290,6 +296,7 @@ const ss = {
   form:        { display:'flex', flexDirection:'column', gap:12, width:'100%', maxWidth:440 },
   inputGroup:  { width:'100%' },
   input:       { width:'100%', padding:'14px 18px', borderRadius:10, border:'1.5px solid #E4DCD2', background:'#FFFFFF', color:'#1A1020', fontSize:15, outline:'none', boxSizing:'border-box' },
+  hintDeseo:   { fontSize:12.5, color:'#9A5B15', background:'#FFF7ED', border:'1px solid #F0DCC0', borderRadius:8, padding:'8px 12px', margin:'6px 0 0', lineHeight:1.45 },
   btn:         { background:'var(--coral-cta)', color:'#fff', border:'none', borderRadius:10, padding:'16px 32px', fontSize:16, fontWeight:800, cursor:'pointer', letterSpacing:-0.3, display:'flex', alignItems:'center', justifyContent:'center', gap:8 },
   errorMsg:    { color:'#C0392B', fontSize:13, margin:'-4px 0' },
   legal:       { color:'#8c8492', fontSize:12, textAlign:'center', marginTop:4 },

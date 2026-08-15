@@ -52,6 +52,7 @@ export const T = {
     // Waitlist form
     wl_nombre_ph: 'Tu nombre',
     wl_busca_ph: '¿Qué puesto u oficio buscas? (ej: niñera, chofer, enfermera, contador)',
+    wl_busca_hint: '💡 Escribe el puesto u oficio que buscas (ej: administrativa, vendedor, enfermera), no lo que esperas del trabajo — así te llegan avisos que sí te sirven.',
     wl_ciudad_ph: 'Tu ciudad (ej: Córdoba, Montevideo...)',
     wl_edad_ph:   '¿Tu edad? *',
     wl_email_ph:  'Tu email *',
@@ -119,6 +120,7 @@ export const T = {
     meta_og_desc:  (pais) => `Encontre trabalho em ${pais}. Concursos públicos e vagas atualizados todos os dias.`,
     wl_nombre_ph: 'Seu nome',
     wl_busca_ph: 'Que cargo ou profissão você procura? (ex: babá, motorista, enfermeira, contador)',
+    wl_busca_hint: '💡 Escreva o cargo ou profissão que você procura (ex: administrativa, vendedor, enfermeira), não o que espera do trabalho — assim você recebe vagas que realmente servem.',
     wl_ciudad_ph: 'Sua cidade (ex: São Paulo, Recife...)',
     wl_edad_ph:   'Sua idade? *',
     wl_email_ph:  'Seu e-mail *',
