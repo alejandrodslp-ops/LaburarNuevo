@@ -14,7 +14,8 @@
 const PALABRAS_DESEO = new Set([
   'salario', 'salarios', 'sueldo', 'sueldos', 'paga', 'remuneracion', 'remunerado',
   'ambiente', 'clima', 'estable', 'estabilidad', 'tranquilo', 'tranquila', 'tranquilidad',
-  'comodo', 'crecimiento', 'crecer', 'oportunidad', 'oportunidades', 'respeto', 'trato',
+  // "trato" quitada 2026-08-15: falso-positiveaba "Cuidador trato directo" (oficio real).
+  'comodo', 'crecimiento', 'crecer', 'oportunidad', 'oportunidades', 'respeto',
   'buen', 'buena', 'bueno', 'buenos', 'buenas', 'mejor', 'cerca',
 ])
 
