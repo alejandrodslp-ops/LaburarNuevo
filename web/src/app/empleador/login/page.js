@@ -153,15 +153,14 @@ export default function EmpleadorLogin() {
     if (data.user) {
       await supabaseBrowser.from('profiles').upsert({
         id: data.user.id,
-        nombre: v.nombre || empresa.trim(),
-        nombre_empresa: empresa.trim(),
+        nombre: v.nombre || empresa.trim(),   // el nombre de la empresa vive en `nombre` (única fuente)
         rol: 'employer',
+        es_empleador: true,
         pais: pais === 'OTHER' ? null : pais,
         telefono: telefono.trim(),
-        sitio_web: sitioWeb.trim() || null,
         id_fiscal: idFiscal.trim() || null,
+        sitio_web: sitioWeb.trim() || null,
         verificacion_metodo: v.metodo || null,
-        activo: true,
       })
     }
     router.replace('/empleador')

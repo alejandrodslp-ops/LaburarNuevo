@@ -7,8 +7,10 @@ import { toSlug, bandPais, nombrePais, fmtFecha } from '../lib/utils'
 function JobCard({ c }) {
   const esPublico = c.tipo_vinculo?.toLowerCase() !== 'privado'
 
-  if (!esPublico) {
-    // Empleo privado — teaser con candado, no linkea al detalle
+  if (!esPublico && !c._esOferta) {
+    // Concurso privado scrapeado (sin contacto entregable) — teaser con candado.
+    // Las ofertas de empleador (_esOferta) SÍ linkean al detalle: ahí se muestra
+    // el contacto real (email/WhatsApp) que el empleador cargó.
     return (
       <div className="job-card" style={{ cursor: 'default', opacity: 0.92 }}>
         <div className="job-icon">🏢</div>
@@ -36,13 +38,13 @@ function JobCard({ c }) {
     )
   }
 
-  // Empleo público — linkea al detalle
+  // Empleo público (concurso) u oferta de empleador — linkean al detalle
   return (
     <Link href={`/empleos/${toSlug(c)}`} className="job-card">
-      <div className="job-icon">🏛️</div>
+      <div className="job-icon">{c._esOferta ? '🏢' : '🏛️'}</div>
       <div className="job-body">
         <div className="job-title">{c.cargo || c.titulo}</div>
-        <div className="job-org">{c.organismo || '—'}</div>
+        <div className="job-org">{c.organismo || (c._esOferta ? 'Empresa' : '—')}</div>
         <div className="job-meta">
           {c.lugar && <span className="job-tag">{c.lugar}</span>}
           {c.pais && !c.lugar && <span className="job-tag">{bandPais(c.pais)} {nombrePais(c.pais)}</span>}

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { db } from '../../../../lib/supabase'
+import { empresaNombres } from '../../../../lib/ofertas'
 import { bandPais, PAIS } from '../../../../lib/utils'
 import { getLang, t, OG_IMAGE } from '../../../../lib/i18n'
 import AppCta from '../../../AppCta'
@@ -109,6 +110,26 @@ async function getConcursosPais(codigo) {
   return { concursos: list, total: list.length >= 300 ? list.length + 1 : list.length }
 }
 
+// Ofertas propias de empleadores del país (tabla `ofertas`, chica → 1 query).
+// Se muestran primero; linkean al detalle donde está el contacto real.
+async function getOfertasPais(codigo) {
+  const { data } = await db
+    .from('ofertas')
+    .select('id,titulo,pais,ciudad,lugar,fecha_cierre,created_at,employer_id')
+    .eq('activa', true)
+    .eq('pais', codigo)
+    .order('created_at', { ascending: false })
+    .limit(40)
+  const ofertas = data ?? []
+  const nombres = await empresaNombres(ofertas.map(o => o.employer_id))
+  return ofertas.map(o => ({
+    id: o.id, titulo: o.titulo, cargo: o.titulo, organismo: nombres[o.employer_id] || null,
+    pais: o.pais, lugar: o.lugar || o.ciudad || null,
+    fecha_cierre: o.fecha_cierre, created_at: o.created_at,
+    tipo_vinculo: 'privado', _esOferta: true,
+  }))
+}
+
 export default async function PaisPage({ params }) {
   const codigo = SLUG_A_CODIGO[params.pais]
   if (!codigo) notFound()
@@ -116,7 +137,13 @@ export default async function PaisPage({ params }) {
   const lang    = getLang(codigo)
   const nombre  = PAIS[codigo]?.nombre ?? params.pais
   const bandera = bandPais(codigo)
-  const { concursos, total } = await getConcursosPais(codigo)
+  const [{ concursos: soloConcursos, total: totalConcursos }, ofertas] = await Promise.all([
+    getConcursosPais(codigo),
+    getOfertasPais(codigo),
+  ])
+  // Ofertas de empleador primero (diferencial, contactables desde el detalle).
+  const concursos = [...ofertas, ...soloConcursos]
+  const total = totalConcursos + ofertas.length
 
   const jsonLd = [
     {

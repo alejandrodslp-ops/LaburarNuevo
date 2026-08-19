@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { db } from '../../../lib/supabase'
+import { empresaNombres } from '../../../lib/ofertas'
 import { idFromSlug, paisFromSlug, toSlug, nombrePais, bandPais, fmtFecha, employmentType, paisSlug } from '../../../lib/utils'
 import AppCta from '../../AppCta'
 
@@ -28,6 +29,7 @@ const TXT = {
     badgePub: '🏛️ Concurso oficial',
     badgePriv: '🏢 Empleo privado',
     organismo: 'Organismo',
+    empresa: 'Empresa',
     pais: 'País',
     lugar: 'Lugar',
     cierre: 'Fecha de cierre',
@@ -68,6 +70,7 @@ const TXT = {
     badgePub: '🏛️ Concurso oficial',
     badgePriv: '🏢 Vaga privada',
     organismo: 'Órgão',
+    empresa: 'Empresa',
     pais: 'País',
     lugar: 'Local',
     cierre: 'Data de encerramento',
@@ -111,8 +114,9 @@ async function getConcurso(slug) {
   //    del detalle y se marca con _esOferta + el contacto de postulación real.
   const { data: o } = await db.from('ofertas').select('*').eq('id', id).maybeSingle()
   if (o && o.activa) {
+    const nombres = await empresaNombres([o.employer_id])
     return {
-      id: o.id, titulo: o.titulo, cargo: o.titulo, organismo: null,
+      id: o.id, titulo: o.titulo, cargo: o.titulo, organismo: nombres[o.employer_id] || null,
       pais: o.pais, lugar: o.lugar || o.ciudad || null,
       fecha_cierre: o.fecha_cierre, descripcion: o.descripcion, requisitos: o.requisitos,
       tipo_vinculo: 'privado', tipo_tarea: null, puestos: null, numero_llamado: null,
@@ -330,7 +334,7 @@ export default async function ConcursoPage({ params }) {
         <div className="detail-grid">
           {c.organismo && (
             <div className="detail-item">
-              <div className="detail-item-label">{L.organismo}</div>
+              <div className="detail-item-label">{c._esOferta ? L.empresa : L.organismo}</div>
               <div className="detail-item-value">{c.organismo}</div>
             </div>
           )}

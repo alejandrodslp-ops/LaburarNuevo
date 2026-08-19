@@ -5,6 +5,7 @@ import SearchForm from './SearchForm'
 import JobsRealtime from '../JobsRealtime'
 import { headers } from 'next/headers'
 import { nombrePais } from '../../lib/utils'
+import { empresaNombres } from '../../lib/ofertas'
 import { filtrarPorCiudad } from '../../lib/ciudad'
 import WaitlistForm from '../../components/WaitlistForm'
 
@@ -47,6 +48,29 @@ async function getConcursos(q, pais) {
   return data ?? []
 }
 
+// Ofertas propias de empleadores (tabla `ofertas`). Son el diferencial: contactables
+// directo desde el detalle. Tabla chica. El nombre de la empresa se lee server-side
+// desde profiles con la service key (helper empresaNombres) — no expone nada.
+async function getOfertas(q, pais) {
+  const safe = (q || '').replace(/[%_'"\\;]/g, c => `\\${c}`).slice(0, 100)
+  let query = db
+    .from('ofertas')
+    .select('id,titulo,pais,ciudad,lugar,fecha_cierre,created_at,employer_id')
+    .eq('activa', true)
+  if (pais) query = query.eq('pais', pais)
+  query = query.order('created_at', { ascending: false }).limit(60)
+  if (safe) query = query.ilike('titulo', `%${safe}%`)
+  const { data } = await query
+  const ofertas = data ?? []
+  const nombres = await empresaNombres(ofertas.map(o => o.employer_id))
+  return ofertas.map(o => ({
+    id: o.id, titulo: o.titulo, cargo: o.titulo, organismo: nombres[o.employer_id] || null,
+    pais: o.pais, lugar: o.lugar || o.ciudad || null,
+    fecha_cierre: o.fecha_cierre, created_at: o.created_at,
+    tipo_vinculo: 'privado', _esOferta: true,
+  }))
+}
+
 const PAISES_VALIDOS = [...LATAM, 'ES', 'US']
 
 export default async function EmpleosPage({ searchParams }) {
@@ -57,12 +81,15 @@ export default async function EmpleosPage({ searchParams }) {
   const geo = (h.get('x-vercel-ip-country') || '').toUpperCase()
   const detected = override || geo
   const pais = PAISES_VALIDOS.includes(detected) ? detected : null
-  const todos = await getConcursos(q, pais)
+  const [todos, ofertas] = await Promise.all([getConcursos(q, pais), getOfertas(q, pais)])
 
   // Ciudad: filtro tolerante a errores (apodos + tildes + trigramas).
   // Si en su ciudad no hay nada, se muestra el país entero AVISÁNDOLO —
   // misma honestidad que los emails de alerta.
-  const { resultados: concursos, exacto, filtrado } = filtrarPorCiudad(todos, ciudad)
+  const { resultados: soloConcursos, exacto, filtrado } = filtrarPorCiudad(todos, ciudad)
+  // Ofertas de empleador primero (diferencial, contactables), a nivel país —
+  // sin filtro de ciudad: son pocas y de alto valor.
+  const concursos = [...ofertas, ...soloConcursos]
 
   const enPais = pais ? ` en ${nombrePais(pais)}` : ''
   const enDonde = filtrado ? ` en ${ciudad.trim()}` : enPais
