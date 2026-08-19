@@ -1,13 +1,47 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabaseBrowser } from '../../../lib/supabase-browser'
+import { useLang } from '../../../lib/useLang'
 
-function formatFecha(iso) {
+const TXT = {
+  es: {
+    confirmDel: '¿Eliminar esta oferta? Esta acción no se puede deshacer.',
+    titulo: 'Mis ofertas',
+    contador: (n) => `${n} ${n === 1 ? 'oferta publicada' : 'ofertas publicadas'}`,
+    nueva: '+ Nueva oferta',
+    emptyTit: 'Sin ofertas publicadas',
+    emptyDesc: 'Publicá tu primera oferta y llegá a cientos de trabajadores calificados.',
+    emptyBtn: 'Publicar oferta',
+    activa: 'Activa', inactiva: 'Inactiva', pausada: 'Pausada',
+    cierra: (f) => `⏳ Cierra ${f}`,
+    lVistas: 'vistas', lContactos: 'contactos',
+    editar: 'Editar', eliminar: 'Eliminar',
+    locale: 'es-UY',
+  },
+  pt: {
+    confirmDel: 'Excluir esta vaga? Esta ação não pode ser desfeita.',
+    titulo: 'Minhas vagas',
+    contador: (n) => `${n} ${n === 1 ? 'vaga publicada' : 'vagas publicadas'}`,
+    nueva: '+ Nova vaga',
+    emptyTit: 'Sem vagas publicadas',
+    emptyDesc: 'Publique sua primeira vaga e alcance centenas de trabalhadores qualificados.',
+    emptyBtn: 'Publicar vaga',
+    activa: 'Ativa', inactiva: 'Inativa', pausada: 'Pausada',
+    cierra: (f) => `⏳ Encerra ${f}`,
+    lVistas: 'visualizações', lContactos: 'contatos',
+    editar: 'Editar', eliminar: 'Excluir',
+    locale: 'pt-BR',
+  },
+}
+
+function formatFecha(iso, locale) {
   if (!iso) return null
-  return new Date(iso).toLocaleDateString('es-UY', { day: '2-digit', month: '2-digit', year: '2-digit' })
+  return new Date(iso).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
 export default function OfertasEmpleador() {
+  const lang = useLang()
+  const L = TXT[lang]
   const [ofertas, setOfertas] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -29,7 +63,7 @@ export default function OfertasEmpleador() {
   }
 
   async function eliminar(id) {
-    if (!confirm('¿Eliminár esta oferta? Esta acción no se puede deshacer.')) return
+    if (!confirm(L.confirmDel)) return
     setOfertas(prev => prev.filter(o => o.id !== id))
     const { data } = await supabaseBrowser.auth.getUser()
     const user = data?.user
@@ -43,21 +77,21 @@ export default function OfertasEmpleador() {
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 16px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)' }}>Mis ofertas</h1>
-          <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 2 }}>{ofertas.length} oferta{ofertas.length !== 1 ? 's' : ''} publicada{ofertas.length !== 1 ? 's' : ''}</p>
+          <h1 style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)' }}>{L.titulo}</h1>
+          <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 2 }}>{L.contador(ofertas.length)}</p>
         </div>
         <a href="/empleador/ofertas/nueva" style={{ background: 'var(--coral)', color: 'white', borderRadius: 10, padding: '10px 20px', fontWeight: 700, fontSize: 14 }}>
-          + Nueva oferta
+          {L.nueva}
         </a>
       </div>
 
       {ofertas.length === 0 ? (
         <div style={{ background: 'white', border: '1.5px dashed var(--border)', borderRadius: 16, padding: 48, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
-          <p style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Sin ofertas publicadas</p>
-          <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 24 }}>Publicá tu primera oferta y llegá a cientos de trabajadores calificados.</p>
+          <p style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{L.emptyTit}</p>
+          <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 24 }}>{L.emptyDesc}</p>
           <a href="/empleador/ofertas/nueva" style={{ background: 'var(--coral)', color: 'white', borderRadius: 10, padding: '12px 24px', fontWeight: 700 }}>
-            Publicar oferta
+            {L.emptyBtn}
           </a>
         </div>
       ) : (
@@ -69,7 +103,7 @@ export default function OfertasEmpleador() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                     <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{o.titulo}</h3>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: o.activa ? '#E6FBF5' : '#F2EDE6', color: o.activa ? 'var(--verde-fuerte)' : '#A898B8' }}>
-                      {o.activa ? 'Activa' : 'Inactiva'}
+                      {o.activa ? L.activa : L.inactiva}
                     </span>
                   </div>
                   {o.cargo && <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{o.cargo}</p>}
@@ -77,12 +111,12 @@ export default function OfertasEmpleador() {
                     {o.ciudad && <Tag>📍 {o.ciudad}</Tag>}
                     {o.modalidad && <Tag>{o.modalidad === 'remoto' ? '💻' : o.modalidad === 'hibrido' ? '🔄' : '🏢'} {o.modalidad}</Tag>}
                     {o.tipo_contrato && <Tag>📋 {o.tipo_contrato.replace('_', ' ')}</Tag>}
-                    {o.fecha_cierre && <Tag>⏳ Cierra {formatFecha(o.fecha_cierre)}</Tag>}
+                    {o.fecha_cierre && <Tag>{L.cierra(formatFecha(o.fecha_cierre, L.locale))}</Tag>}
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, minWidth: 120 }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{o.activa ? 'Activa' : 'Pausada'}</span>
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{o.activa ? L.activa : L.pausada}</span>
                     <div onClick={() => toggleActiva(o)} style={{ width: 40, height: 22, borderRadius: 11, background: o.activa ? 'var(--teal)' : 'var(--border)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s' }}>
                       <div style={{ position: 'absolute', top: 3, left: o.activa ? 21 : 3, width: 16, height: 16, borderRadius: '50%', background: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
                     </div>
@@ -92,12 +126,12 @@ export default function OfertasEmpleador() {
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', gap: 16 }}>
-                  <Stat icon="👁" val={o.vistas || 0} label="vistas" />
-                  <Stat icon="✉️" val={o.postulaciones || 0} label="contactos" />
+                  <Stat icon="👁" val={o.vistas || 0} label={L.lVistas} />
+                  <Stat icon="✉️" val={o.postulaciones || 0} label={L.lContactos} />
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <a href={`/empleador/ofertas/nueva?id=${o.id}`} style={btnSecondary}>Editar</a>
-                  <button onClick={() => eliminar(o.id)} style={{ ...btnSecondary, color: '#EF4444', border: '1.5px solid #FECACA', background: '#FFF5F5', cursor: 'pointer' }}>Eliminar</button>
+                  <a href={`/empleador/ofertas/nueva?id=${o.id}`} style={btnSecondary}>{L.editar}</a>
+                  <button onClick={() => eliminar(o.id)} style={{ ...btnSecondary, color: '#EF4444', border: '1.5px solid #FECACA', background: '#FFF5F5', cursor: 'pointer' }}>{L.eliminar}</button>
                 </div>
               </div>
             </div>

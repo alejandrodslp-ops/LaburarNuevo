@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabaseBrowser } from '../../../lib/supabase-browser'
+import { useLang } from '../../../lib/useLang'
 
 const PAISES = [
   { code: 'UY', label: '🇺🇾 Uruguay', idLabel: null, idPlaceholder: null },
@@ -16,8 +17,79 @@ const PAISES = [
   { code: 'OTHER', label: '🌎 Otro país', idLabel: null, idPlaceholder: null },
 ]
 
+const TXT = {
+  es: {
+    panelSub: 'Panel de empleadores',
+    tabLogin: 'Iniciar sesión',
+    tabRegistro: 'Crear cuenta',
+    lEmail: 'Email',
+    lPassword: 'Contraseña',
+    errLogin: 'Email o contraseña incorrectos.',
+    btnCargando: 'Cargando...',
+    btnEntrar: 'Entrar',
+    lEmpresa: 'Nombre de la empresa *',
+    phEmpresa: 'Ej: Constructora ABC S.A.',
+    lPais: 'País *',
+    verificar: 'Verificar',
+    empVerificada: (n) => `✅ Empresa verificada: ${n}`,
+    lEmailCorp: 'Email corporativo *',
+    phEmailCorpUY: 'contacto@tuempresa.com',
+    phEmailCorp: 'empresa@email.com',
+    uyWarn: <>⚠️ <b>Uruguay:</b> Para verificar tu empresa usamos tu email corporativo. No se aceptan Gmail, Hotmail, Yahoo ni similares. Usá el email de tu dominio empresarial (ej: <i>contacto@tuempresa.com</i>).</>,
+    lPasswordReg: 'Contraseña *',
+    phPassword: 'Mínimo 6 caracteres',
+    lTelefono: 'Teléfono de contacto *',
+    phTelefono: 'Ej: +598 99 123 456',
+    lSitio: 'Sitio web',
+    phSitio: 'https://tuempresa.com',
+    errEmpresa: 'El nombre de empresa es obligatorio.',
+    errTelefono: 'El teléfono es obligatorio.',
+    errIdFiscal: (id) => `El ${id} es obligatorio.`,
+    btnCreando: 'Creando cuenta...',
+    btnCrear: 'Crear cuenta empresa',
+    footerPre: '¿Buscás trabajo? ',
+    footerLink: 'Descargá la app',
+    opcional: '(opcional)',
+  },
+  pt: {
+    panelSub: 'Painel de empregadores',
+    tabLogin: 'Entrar',
+    tabRegistro: 'Criar conta',
+    lEmail: 'E-mail',
+    lPassword: 'Senha',
+    errLogin: 'E-mail ou senha incorretos.',
+    btnCargando: 'Carregando...',
+    btnEntrar: 'Entrar',
+    lEmpresa: 'Nome da empresa *',
+    phEmpresa: 'Ex: Construtora ABC Ltda.',
+    lPais: 'País *',
+    verificar: 'Verificar',
+    empVerificada: (n) => `✅ Empresa verificada: ${n}`,
+    lEmailCorp: 'E-mail corporativo *',
+    phEmailCorpUY: 'contato@suaempresa.com',
+    phEmailCorp: 'empresa@email.com',
+    uyWarn: <>⚠️ <b>Uruguai:</b> Para verificar sua empresa usamos seu e-mail corporativo. Não aceitamos Gmail, Hotmail, Yahoo nem similares. Use o e-mail do seu domínio empresarial (ex: <i>contato@suaempresa.com</i>).</>,
+    lPasswordReg: 'Senha *',
+    phPassword: 'Mínimo 6 caracteres',
+    lTelefono: 'Telefone de contato *',
+    phTelefono: 'Ex: +55 11 91234 5678',
+    lSitio: 'Site',
+    phSitio: 'https://suaempresa.com',
+    errEmpresa: 'O nome da empresa é obrigatório.',
+    errTelefono: 'O telefone é obrigatório.',
+    errIdFiscal: (id) => `O ${id} é obrigatório.`,
+    btnCreando: 'Criando conta...',
+    btnCrear: 'Criar conta empresa',
+    footerPre: 'Procurando emprego? ',
+    footerLink: 'Baixe o app',
+    opcional: '(opcional)',
+  },
+}
+
 export default function EmpleadorLogin() {
   const router = useRouter()
+  const lang = useLang()
+  const L = TXT[lang]
   const [modo, setModo] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -55,15 +127,15 @@ export default function EmpleadorLogin() {
     e.preventDefault()
     setLoading(true); setError('')
     const { error } = await supabaseBrowser.auth.signInWithPassword({ email, password })
-    if (error) { setError('Email o contraseña incorrectos.'); setLoading(false); return }
+    if (error) { setError(L.errLogin); setLoading(false); return }
     router.replace('/empleador')
   }
 
   async function handleRegistro(e) {
     e.preventDefault()
-    if (!empresa.trim()) { setError('El nombre de empresa es obligatorio.'); return }
-    if (!telefono.trim()) { setError('El teléfono es obligatorio.'); return }
-    if (requiereIdFiscal && !idFiscal.trim()) { setError(`El ${paisConfig?.idLabel} es obligatorio.`); return }
+    if (!empresa.trim()) { setError(L.errEmpresa); return }
+    if (!telefono.trim()) { setError(L.errTelefono); return }
+    if (requiereIdFiscal && !idFiscal.trim()) { setError(L.errIdFiscal(paisConfig?.idLabel)); return }
 
     setLoading(true); setError('')
 
@@ -100,7 +172,7 @@ export default function EmpleadorLogin() {
       <div style={{ width: '100%', maxWidth: 460 }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <span style={{ color: 'var(--coral)', fontWeight: 900, fontSize: 28, letterSpacing: '-1px' }}>Konexu🧩</span>
-          <p style={{ color: 'rgba(255,255,255,0.5)', marginTop: 6, fontSize: 14 }}>Panel de empleadores</p>
+          <p style={{ color: 'rgba(255,255,255,0.5)', marginTop: 6, fontSize: 14 }}>{L.panelSub}</p>
         </div>
 
         <div style={{ background: 'white', borderRadius: 16, padding: 32, boxShadow: 'var(--sh)', border: '1px solid var(--border)' }}>
@@ -108,24 +180,24 @@ export default function EmpleadorLogin() {
             {['login', 'registro'].map(m => (
               <button key={m} onClick={() => { setModo(m); setError(''); setVerificacion(null) }}
                 style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 14, background: modo === m ? 'white' : 'transparent', color: modo === m ? 'var(--text)' : 'var(--muted)', boxShadow: modo === m ? 'var(--sh)' : 'none' }}>
-                {m === 'login' ? 'Iniciar sesión' : 'Crear cuenta'}
+                {m === 'login' ? L.tabLogin : L.tabRegistro}
               </button>
             ))}
           </div>
 
           {modo === 'login' ? (
             <form onSubmit={handleLogin}>
-              <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="empresa@email.com" />
-              <Field label="Contraseña" type="password" value={password} onChange={setPassword} placeholder="••••••••" minLength={6} />
+              <Field label={L.lEmail} type="email" value={email} onChange={setEmail} placeholder="empresa@email.com" L={L} />
+              <Field label={L.lPassword} type="password" value={password} onChange={setPassword} placeholder="••••••••" minLength={6} L={L} />
               {error && <ErrorMsg>{error}</ErrorMsg>}
-              <SubmitBtn loading={loading}>{loading ? 'Cargando...' : 'Entrar'}</SubmitBtn>
+              <SubmitBtn loading={loading}>{loading ? L.btnCargando : L.btnEntrar}</SubmitBtn>
             </form>
           ) : (
             <form onSubmit={handleRegistro}>
-              <Field label="Nombre de la empresa *" value={empresa} onChange={setEmpresa} placeholder="Ej: Constructora ABC S.A." />
+              <Field label={L.lEmpresa} value={empresa} onChange={setEmpresa} placeholder={L.phEmpresa} L={L} />
 
               <div style={{ marginBottom: 16 }}>
-                <label style={lbl}>País *</label>
+                <label style={lbl}>{L.lPais}</label>
                 <select value={pais} onChange={e => { setPais(e.target.value); setIdFiscal(''); setVerificacion(null) }} style={{ ...inp, cursor: 'pointer' }} required>
                   {PAISES.map(p => <option key={p.code} value={p.code}>{p.label}</option>)}
                 </select>
@@ -138,11 +210,11 @@ export default function EmpleadorLogin() {
                     <input style={{ ...inp, flex: 1 }} value={idFiscal} onChange={e => { setIdFiscal(e.target.value); setVerificacion(null) }} placeholder={paisConfig?.idPlaceholder} required />
                     <button type="button" onClick={verificarEmpresa} disabled={verificando || !idFiscal.trim()}
                       style={{ padding: '10px 14px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', opacity: (!idFiscal.trim() || verificando) ? 0.5 : 1 }}>
-                      {verificando ? '...' : 'Verificar'}
+                      {verificando ? '...' : L.verificar}
                     </button>
                   </div>
                   {verificacion?.ok && (
-                    <p style={{ fontSize: 12, color: 'var(--verde-fuerte)', marginTop: 6, fontWeight: 600 }}>✅ Empresa verificada: {verificacion.nombre}</p>
+                    <p style={{ fontSize: 12, color: 'var(--verde-fuerte)', marginTop: 6, fontWeight: 600 }}>{L.empVerificada(verificacion.nombre)}</p>
                   )}
                   {verificacion && !verificacion.ok && (
                     <p style={{ fontSize: 12, color: '#EF4444', marginTop: 6 }}>❌ {verificacion.error}</p>
@@ -150,38 +222,38 @@ export default function EmpleadorLogin() {
                 </div>
               )}
 
-              <Field label="Email corporativo *" type="email" value={email} onChange={e => { setEmail(e); setVerificacion(null) }} placeholder={esUY ? 'contacto@tuempresa.com' : 'empresa@email.com'} />
+              <Field label={L.lEmailCorp} type="email" value={email} onChange={e => { setEmail(e); setVerificacion(null) }} placeholder={esUY ? L.phEmailCorpUY : L.phEmailCorp} L={L} />
 
               {esUY && (
                 <div style={{ background: '#FFF8E6', border: '1px solid #F59E0B', borderRadius: 8, padding: '10px 12px', marginBottom: 16, marginTop: -8 }}>
                   <p style={{ fontSize: 12, color: '#92400E', lineHeight: 1.5 }}>
-                    ⚠️ <b>Uruguay:</b> Para verificar tu empresa usamos tu email corporativo. No se aceptan Gmail, Hotmail, Yahoo ni similares. Usá el email de tu dominio empresarial (ej: <i>contacto@tuempresa.com</i>).
+                    {L.uyWarn}
                   </p>
                 </div>
               )}
 
-              <Field label="Contraseña *" type="password" value={password} onChange={setPassword} placeholder="Mínimo 6 caracteres" minLength={6} />
-              <Field label="Teléfono de contacto *" value={telefono} onChange={setTelefono} placeholder="Ej: +598 99 123 456" />
-              <Field label="Sitio web" value={sitioWeb} onChange={setSitioWeb} placeholder="https://tuempresa.com" optional />
+              <Field label={L.lPasswordReg} type="password" value={password} onChange={setPassword} placeholder={L.phPassword} minLength={6} L={L} />
+              <Field label={L.lTelefono} value={telefono} onChange={setTelefono} placeholder={L.phTelefono} L={L} />
+              <Field label={L.lSitio} value={sitioWeb} onChange={setSitioWeb} placeholder={L.phSitio} optional L={L} />
 
               {error && <ErrorMsg>{error}</ErrorMsg>}
-              <SubmitBtn loading={loading}>{loading ? 'Creando cuenta...' : 'Crear cuenta empresa'}</SubmitBtn>
+              <SubmitBtn loading={loading}>{loading ? L.btnCreando : L.btnCrear}</SubmitBtn>
             </form>
           )}
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>
-          ¿Buscás trabajo? <a href="/" style={{ color: 'var(--coral)', fontWeight: 700 }}>Descargá la app</a>
+          {L.footerPre}<a href="/" style={{ color: 'var(--coral)', fontWeight: 700 }}>{L.footerLink}</a>
         </p>
       </div>
     </div>
   )
 }
 
-function Field({ label, value, onChange, placeholder, type = 'text', minLength, optional }) {
+function Field({ label, value, onChange, placeholder, type = 'text', minLength, optional, L }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      <label style={lbl}>{label} {optional && <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(opcional)</span>}</label>
+      <label style={lbl}>{label} {optional && <span style={{ color: 'var(--muted)', fontWeight: 400 }}>{L?.opcional ?? '(opcional)'}</span>}</label>
       <input style={inp} type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} minLength={minLength} required={!optional} />
     </div>
   )

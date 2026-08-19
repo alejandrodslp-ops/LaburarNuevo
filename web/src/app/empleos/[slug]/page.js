@@ -13,6 +13,92 @@ const APP_LANZADA = false
 
 const SITE = 'https://www.konexu.app'
 
+// Textos ES/PT del detalle. Idioma por país: BR → pt, resto → es (misma
+// convención que <AppCta lang=…>). Requisito del usuario: el sitio debe estar
+// disponible al menos en español y portugués (Brasil es el mercado #1).
+const TXT = {
+  es: {
+    alertasGratis: 'Alertas gratis',
+    volver: '← Todos los empleos',
+    verTodos: 'Ver todos los empleos',
+    noDispTit: 'Este empleo ya no está disponible',
+    noDispSub: (p) => `Puede que haya vencido o que la posición ya fue cubierta${p ? ` en ${p}` : ''}.`,
+    verDisponibles: 'Ver empleos disponibles →',
+    similaresEnPais: (p) => `Empleos similares en ${p}`,
+    badgePub: '🏛️ Concurso oficial',
+    badgePriv: '🏢 Empleo privado',
+    organismo: 'Organismo',
+    pais: 'País',
+    lugar: 'Lugar',
+    cierre: 'Fecha de cierre',
+    puestos: 'Puestos',
+    tipoTarea: 'Tipo de tarea',
+    tipoVinculo: 'Tipo de vínculo',
+    numLlamado: 'N° de llamado',
+    descTit: 'Descripción del puesto',
+    reqTit: 'Requisitos',
+    postTit: 'Postulate a este empleo',
+    enviarCV: (e) => `✉️ Enviar CV a ${e}`,
+    whatsapp: (w) => `💬 WhatsApp ${w}`,
+    contactoDirecto: 'Contactás directo al empleador — sin intermediarios.',
+    verOferta: 'Ver la oferta y postularme →',
+    avisoPre: '¿Querés que te avisemos gratis cuando aparezcan vacantes como esta? ',
+    avisoLink: 'Activá alertas en Konexu →',
+    verBases: 'Para ver las bases y postularte',
+    registrate: '📱 Registrate gratis en Konexu',
+    completaPerfil: 'Completá tu perfil y te avisamos cuando se publiquen concursos y oportunidades laborales en las cuales puedas aplicar o se ajusten a ti.',
+    similares: 'Empleos similares',
+    cierra: (f) => `Cierra ${f}`,
+    // SEO (metadata + JSON-LD)
+    metaEn: 'en',
+    metaNoDisp: 'Empleo no disponible — Konexu',
+    metaDesc: (cargo, org, loc, fecha) => `Concurso para ${cargo}${org}. ${loc}. ${fecha ? `Cierre: ${fecha}.` : ''} Registrate gratis en Konexu.`,
+    metaOg: (cargo, loc) => `Concurso para ${cargo} en ${loc}.`,
+    ldCta: 'Registrate gratis en Konexu para recibir alertas de concursos similares.',
+    ldOrg: 'Organismo público',
+  },
+  pt: {
+    alertasGratis: 'Alertas grátis',
+    volver: '← Todas as vagas',
+    verTodos: 'Ver todas as vagas',
+    noDispTit: 'Esta vaga não está mais disponível',
+    noDispSub: (p) => `Pode ter expirado ou a posição já foi preenchida${p ? ` em ${p}` : ''}.`,
+    verDisponibles: 'Ver vagas disponíveis →',
+    similaresEnPais: (p) => `Vagas parecidas em ${p}`,
+    badgePub: '🏛️ Concurso oficial',
+    badgePriv: '🏢 Vaga privada',
+    organismo: 'Órgão',
+    pais: 'País',
+    lugar: 'Local',
+    cierre: 'Data de encerramento',
+    puestos: 'Vagas',
+    tipoTarea: 'Tipo de tarefa',
+    tipoVinculo: 'Tipo de vínculo',
+    numLlamado: 'Nº do edital',
+    descTit: 'Descrição da vaga',
+    reqTit: 'Requisitos',
+    postTit: 'Candidate-se a esta vaga',
+    enviarCV: (e) => `✉️ Enviar currículo para ${e}`,
+    whatsapp: (w) => `💬 WhatsApp ${w}`,
+    contactoDirecto: 'Você fala direto com o empregador — sem intermediários.',
+    verOferta: 'Ver a vaga e me candidatar →',
+    avisoPre: 'Quer que a gente te avise de graça quando aparecerem vagas como esta? ',
+    avisoLink: 'Ative alertas na Konexu →',
+    verBases: 'Para ver os detalhes e se candidatar',
+    registrate: '📱 Cadastre-se grátis na Konexu',
+    completaPerfil: 'Complete seu perfil e a gente te avisa quando surgirem concursos e vagas para os quais você se encaixa.',
+    similares: 'Vagas parecidas',
+    cierra: (f) => `Encerra ${f}`,
+    // SEO (metadata + JSON-LD)
+    metaEn: 'em',
+    metaNoDisp: 'Vaga não disponível — Konexu',
+    metaDesc: (cargo, org, loc, fecha) => `Vaga para ${cargo}${org}. ${loc}. ${fecha ? `Encerramento: ${fecha}.` : ''} Cadastre-se grátis na Konexu.`,
+    metaOg: (cargo, loc) => `Vaga para ${cargo} em ${loc}.`,
+    ldCta: 'Cadastre-se grátis na Konexu para receber alertas de vagas parecidas.',
+    ldOrg: 'Órgão público',
+  },
+}
+
 async function getConcurso(slug) {
   const id = idFromSlug(slug)
   // Valida que parece un UUID válido
@@ -67,23 +153,25 @@ async function getSimilares(c) {
 
 export async function generateMetadata({ params }) {
   const c = await getConcurso(params.slug)
-  if (!c) return { title: 'Empleo no disponible — Konexu', robots: { index: false, follow: true } }
+  const lang = (c ? c.pais : paisFromSlug(params.slug)) === 'BR' ? 'pt' : 'es'
+  const L = TXT[lang]
+  if (!c) return { title: L.metaNoDisp, robots: { index: false, follow: true } }
   const cargo = c.cargo || c.titulo
   const loc   = c.lugar || nombrePais(c.pais)
-  const org   = c.organismo ? ` en ${c.organismo}` : ''
+  const org   = c.organismo ? ` ${L.metaEn} ${c.organismo}` : ''
   return {
     title: `${cargo}${org} — ${loc}`,
-    description: `Concurso para ${cargo}${org}. ${loc}. ${c.fecha_cierre ? `Cierre: ${fmtFecha(c.fecha_cierre)}.` : ''} Registrate gratis en Konexu.`,
+    description: L.metaDesc(cargo, org, loc, c.fecha_cierre ? fmtFecha(c.fecha_cierre) : ''),
     alternates: { canonical: `${SITE}/empleos/${params.slug}` },
     openGraph: {
       title: `${cargo} — ${loc}`,
-      description: c.descripcion?.slice(0, 160) ?? `Concurso para ${cargo} en ${loc}.`,
+      description: c.descripcion?.slice(0, 160) ?? L.metaOg(cargo, loc),
       images: [{ url: '/og-konexu.png', width: 1200, height: 630 }],
     },
     twitter: {
       card: 'summary_large_image',
       title: `${cargo} — ${loc}`,
-      description: c.descripcion?.slice(0, 160) ?? `Concurso para ${cargo} en ${loc}.`,
+      description: c.descripcion?.slice(0, 160) ?? L.metaOg(cargo, loc),
     },
   }
 }
@@ -93,31 +181,32 @@ export default async function ConcursoPage({ params }) {
 
   if (!c) {
     const pais = paisFromSlug(params.slug)
+    const L = TXT[pais === 'BR' ? 'pt' : 'es']
     const sugeridos = await getSimilaresPorPais(pais)
     return (
       <>
         <nav className="nav">
           <Link href="/" className="nav-logo"><span>Konexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
-          <a href="/download" className="nav-btn">Alertas gratis</a>
+          <a href="/download" className="nav-btn">{L.alertasGratis}</a>
         </nav>
 
         <div className="container">
           <div className="empty-state" style={{ paddingTop: 60, paddingBottom: sugeridos.length ? 40 : 0 }}>
             <p style={{ fontSize: 48, marginBottom: 16 }}>🔍</p>
             <p style={{ fontSize: 20, fontWeight: 800, color: '#1A3A5C', marginBottom: 8 }}>
-              Este empleo ya no está disponible
+              {L.noDispTit}
             </p>
             <p style={{ marginBottom: 24 }}>
-              Puede que haya vencido o que la posición ya fue cubierta{pais ? ` en ${nombrePais(pais)}` : ''}.
+              {L.noDispSub(pais ? nombrePais(pais) : '')}
             </p>
             <Link href="/empleos" className="btn-primary" style={{ display: 'inline-block' }}>
-              Ver empleos disponibles →
+              {L.verDisponibles}
             </Link>
           </div>
 
           {sugeridos.length > 0 && (
             <>
-              <div className="similar-title">Empleos similares en {nombrePais(pais)}</div>
+              <div className="similar-title">{L.similaresEnPais(nombrePais(pais))}</div>
               <div className="jobs-grid">
                 {sugeridos.map(s => (
                   <Link key={s.id} href={`/empleos/${toSlug(s)}`} className="job-card">
@@ -131,7 +220,7 @@ export default async function ConcursoPage({ params }) {
                         </span>
                         {s.fecha_cierre && (
                           <span className="job-tag job-tag-coral">
-                            Cierra {fmtFecha(s.fecha_cierre)}
+                            {L.cierra(fmtFecha(s.fecha_cierre))}
                           </span>
                         )}
                       </div>
@@ -147,7 +236,7 @@ export default async function ConcursoPage({ params }) {
         <footer className="footer">
           <p>
             © {new Date().getFullYear()} Konexu · konexu.app ·{' '}
-            <Link href="/empleos" style={{ color: 'inherit' }}>Ver todos los empleos</Link>
+            <Link href="/empleos" style={{ color: 'inherit' }}>{L.verTodos}</Link>
           </p>
         </footer>
       </>
@@ -155,6 +244,7 @@ export default async function ConcursoPage({ params }) {
   }
 
   const similares  = await getSimilares(c)
+  const L          = TXT[c.pais === 'BR' ? 'pt' : 'es']
   const esPublico  = c.tipo_vinculo?.toLowerCase() !== 'privado'
   const cargo      = c.cargo || c.titulo
   const lugar      = c.lugar || nombrePais(c.pais)
@@ -163,11 +253,11 @@ export default async function ConcursoPage({ params }) {
   const descripcion =
     c.descripcion ||
     [
-      `${cargo}${c.organismo ? ` en ${c.organismo}` : ''}.`,
-      c.lugar      ? `Lugar de desempeño: ${c.lugar}.`       : '',
-      c.tipo_tarea ? `Tipo de tarea: ${c.tipo_tarea}.`       : '',
+      `${cargo}${c.organismo ? ` ${L.metaEn} ${c.organismo}` : ''}.`,
+      c.lugar      ? `${L.lugar}: ${c.lugar}.`               : '',
+      c.tipo_tarea ? `${L.tipoTarea}: ${c.tipo_tarea}.`      : '',
       c.requisitos ? c.requisitos                             : '',
-      `Registrate gratis en Konexu para recibir alertas de concursos similares.`,
+      L.ldCta,
     ].filter(Boolean).join(' ')
 
   // ─── BreadcrumbList ────────────────────────────────────────────────────────
@@ -196,7 +286,7 @@ export default async function ConcursoPage({ params }) {
     employmentType: employmentType(c.tipo_vinculo),
     hiringOrganization: {
       '@type': 'Organization',
-      name: c.organismo || 'Organismo público',
+      name: c.organismo || L.ldOrg,
       sameAs: SITE,
     },
     jobLocation: {
@@ -224,14 +314,14 @@ export default async function ConcursoPage({ params }) {
 
       <nav className="nav">
         <Link href="/" className="nav-logo"><span>Konexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
-        <a href="/download" className="nav-btn">Alertas gratis</a>
+        <a href="/download" className="nav-btn">{L.alertasGratis}</a>
       </nav>
 
       <div className="container">
-        <Link href="/empleos" className="detail-back">← Todos los empleos</Link>
+        <Link href="/empleos" className="detail-back">{L.volver}</Link>
 
         <div className={`detail-badge ${esPublico ? 'badge-pub' : 'badge-priv'}`}>
-          {esPublico ? '🏛️ Concurso oficial' : '🏢 Empleo privado'}
+          {esPublico ? L.badgePub : L.badgePriv}
         </div>
 
         <h1 className="detail-title">{cargo}</h1>
@@ -240,23 +330,23 @@ export default async function ConcursoPage({ params }) {
         <div className="detail-grid">
           {c.organismo && (
             <div className="detail-item">
-              <div className="detail-item-label">Organismo</div>
+              <div className="detail-item-label">{L.organismo}</div>
               <div className="detail-item-value">{c.organismo}</div>
             </div>
           )}
           <div className="detail-item">
-            <div className="detail-item-label">País</div>
+            <div className="detail-item-label">{L.pais}</div>
             <div className="detail-item-value">{bandPais(c.pais)} {nombrePais(c.pais)}</div>
           </div>
           {c.lugar && (
             <div className="detail-item">
-              <div className="detail-item-label">Lugar</div>
+              <div className="detail-item-label">{L.lugar}</div>
               <div className="detail-item-value">{c.lugar}</div>
             </div>
           )}
           {c.fecha_cierre && (
             <div className="detail-item">
-              <div className="detail-item-label">Fecha de cierre</div>
+              <div className="detail-item-label">{L.cierre}</div>
               <div className="detail-item-value" style={{ color: 'var(--coral-cta)' }}>
                 {fmtFecha(c.fecha_cierre)}
               </div>
@@ -264,25 +354,25 @@ export default async function ConcursoPage({ params }) {
           )}
           {c.puestos > 0 && (
             <div className="detail-item">
-              <div className="detail-item-label">Puestos</div>
+              <div className="detail-item-label">{L.puestos}</div>
               <div className="detail-item-value">{c.puestos}</div>
             </div>
           )}
           {c.tipo_tarea && (
             <div className="detail-item">
-              <div className="detail-item-label">Tipo de tarea</div>
+              <div className="detail-item-label">{L.tipoTarea}</div>
               <div className="detail-item-value">{c.tipo_tarea}</div>
             </div>
           )}
           {c.tipo_vinculo && (
             <div className="detail-item">
-              <div className="detail-item-label">Tipo de vínculo</div>
+              <div className="detail-item-label">{L.tipoVinculo}</div>
               <div className="detail-item-value">{c.tipo_vinculo}</div>
             </div>
           )}
           {c.numero_llamado && (
             <div className="detail-item">
-              <div className="detail-item-label">N° de llamado</div>
+              <div className="detail-item-label">{L.numLlamado}</div>
               <div className="detail-item-value">{c.numero_llamado}</div>
             </div>
           )}
@@ -291,7 +381,7 @@ export default async function ConcursoPage({ params }) {
         {/* Descripción */}
         {c.descripcion && (
           <div className="detail-section">
-            <h3>Descripción del puesto</h3>
+            <h3>{L.descTit}</h3>
             <p>{c.descripcion}</p>
           </div>
         )}
@@ -299,7 +389,7 @@ export default async function ConcursoPage({ params }) {
         {/* Requisitos */}
         {c.requisitos && (
           <div className="detail-section">
-            <h3>Requisitos</h3>
+            <h3>{L.reqTit}</h3>
             <p>{c.requisitos}</p>
           </div>
         )}
@@ -312,43 +402,43 @@ export default async function ConcursoPage({ params }) {
         }}>
           {(!APP_LANZADA && c._esOferta && (c.contacto_email || c.contacto_whatsapp)) ? (
             <>
-              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>Postulate a este empleo</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>{L.postTit}</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 380, margin: '0 auto' }}>
                 {c.contacto_email && (
                   <a href={`mailto:${c.contacto_email}`} style={{ display: 'block', background: 'var(--coral-cta)', color: 'white', borderRadius: 8, padding: '14px 22px', fontSize: 15, fontWeight: 800, textDecoration: 'none' }}>
-                    ✉️ Enviar CV a {c.contacto_email}
+                    {L.enviarCV(c.contacto_email)}
                   </a>
                 )}
                 {c.contacto_whatsapp && (
                   <a href={`https://wa.me/${c.contacto_whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ display: 'block', background: '#25D366', color: 'white', borderRadius: 8, padding: '14px 22px', fontSize: 15, fontWeight: 800, textDecoration: 'none' }}>
-                    💬 WhatsApp {c.contacto_whatsapp}
+                    {L.whatsapp(c.contacto_whatsapp)}
                   </a>
                 )}
               </div>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 18, maxWidth: 400, margin: '18px auto 0' }}>
-                Contactás directo al empleador — sin intermediarios.
+                {L.contactoDirecto}
               </p>
             </>
           ) : (!APP_LANZADA && (c.url_postulacion || c.url_detalle)) ? (
             <>
-              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>Postulate a este empleo</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>{L.postTit}</h2>
               <a href={c.url_postulacion || c.url_detalle} target="_blank" rel="noopener noreferrer nofollow" style={{ display: 'inline-block', background: 'var(--coral-cta)', color: 'white', borderRadius: 8, padding: '15px 30px', fontSize: 16, fontWeight: 800, textDecoration: 'none' }}>
-                Ver la oferta y postularme →
+                {L.verOferta}
               </a>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 18, maxWidth: 400, margin: '18px auto 0' }}>
-                ¿Querés que te avisemos gratis cuando aparezcan vacantes como esta?{' '}
-                <a href="/download" style={{ color: '#F0A588', fontWeight: 700, textDecoration: 'none' }}>Activá alertas en Konexu →</a>
+                {L.avisoPre}
+                <a href="/download" style={{ color: '#F0A588', fontWeight: 700, textDecoration: 'none' }}>{L.avisoLink}</a>
               </p>
             </>
           ) : (
             <>
               <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
-              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>Para ver las bases y postularte</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>{L.verBases}</h2>
               <a href="/download" style={{ display: 'inline-block', background: 'var(--coral-cta)', color: 'white', borderRadius: 8, padding: '14px 28px', fontSize: 15, fontWeight: 800, textDecoration: 'none' }}>
-                📱 Registrate gratis en Konexu
+                {L.registrate}
               </a>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 16, maxWidth: 380, margin: '16px auto 0' }}>
-                Completá tu perfil y te avisamos cuando se publiquen concursos y oportunidades laborales en las cuales puedas aplicar o se ajusten a ti.
+                {L.completaPerfil}
               </p>
             </>
           )}
@@ -357,7 +447,7 @@ export default async function ConcursoPage({ params }) {
         {/* Concursos similares */}
         {similares.length > 0 && (
           <>
-            <div className="similar-title">Empleos similares</div>
+            <div className="similar-title">{L.similares}</div>
             <div className="jobs-grid">
               {similares.map(s => (
                 <Link key={s.id} href={`/empleos/${toSlug(s)}`} className="job-card">
@@ -371,7 +461,7 @@ export default async function ConcursoPage({ params }) {
                       </span>
                       {s.fecha_cierre && (
                         <span className="job-tag job-tag-coral">
-                          Cierra {fmtFecha(s.fecha_cierre)}
+                          {L.cierra(fmtFecha(s.fecha_cierre))}
                         </span>
                       )}
                     </div>
@@ -389,7 +479,7 @@ export default async function ConcursoPage({ params }) {
       <footer className="footer">
         <p>
           © {new Date().getFullYear()} Konexu · konexu.app ·{' '}
-          <Link href="/empleos" style={{ color: 'inherit' }}>Ver todos los empleos</Link>
+          <Link href="/empleos" style={{ color: 'inherit' }}>{L.verTodos}</Link>
         </p>
       </footer>
     </>

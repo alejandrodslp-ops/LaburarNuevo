@@ -1,25 +1,83 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabaseBrowser } from '../../../lib/supabase-browser'
+import { useLang } from '../../../lib/useLang'
 
 const PAISES = ['UY','AR','BR','CL','CO','PE','MX','PY','BO','EC','VE','GT','HN','NI','PA','SV','DO','CR','CU','ES','PT','IT','DE','FR','GB','SE','NO','US','CA','AU','JP','IN']
+
+const TXT = {
+  es: {
+    titulo: 'Buscar candidatos',
+    sub: 'Explorá perfiles de trabajadores disponibles.',
+    phBuscar: 'Buscar por servicio u oficio...',
+    btnBuscar: 'Buscar',
+    buscando: 'Buscando...',
+    sinResultados: (pais) => `No hay candidatos disponibles en ${pais} con ese criterio.`,
+    enviado: '✅ Enviado',
+    contactar: 'Contactar',
+    actHoy: 'Activo hoy',
+    actAyer: 'Activo ayer',
+    actDias: (d) => `Activo hace ${d} días`,
+    actSemanas: (s) => `Activo hace ${s} semanas`,
+    actMeses: (m) => `Activo hace ${m} meses`,
+    mDisponibilidad: 'Disponibilidad',
+    mExperiencia: 'Experiencia',
+    mPretension: 'Pretensión',
+    anios: (n) => `${n} años`,
+    servicios: 'SERVICIOS',
+    descripcion: 'DESCRIPCIÓN',
+    calificaciones: (n) => `(${n} calificaciones)`,
+    propuestaEnviada: '✅ Propuesta enviada — el trabajador recibirá una notificación.',
+    enviando: 'Enviando...',
+    iniciarContacto: 'Iniciar contacto',
+    empleadorFallback: 'Empleador',
+  },
+  pt: {
+    titulo: 'Buscar candidatos',
+    sub: 'Explore perfis de trabalhadores disponíveis.',
+    phBuscar: 'Buscar por serviço ou ofício...',
+    btnBuscar: 'Buscar',
+    buscando: 'Buscando...',
+    sinResultados: (pais) => `Não há candidatos disponíveis em ${pais} com esse critério.`,
+    enviado: '✅ Enviado',
+    contactar: 'Contatar',
+    actHoy: 'Ativo hoje',
+    actAyer: 'Ativo ontem',
+    actDias: (d) => `Ativo há ${d} dias`,
+    actSemanas: (s) => `Ativo há ${s} semanas`,
+    actMeses: (m) => `Ativo há ${m} meses`,
+    mDisponibilidad: 'Disponibilidade',
+    mExperiencia: 'Experiência',
+    mPretension: 'Pretensão',
+    anios: (n) => `${n} anos`,
+    servicios: 'SERVIÇOS',
+    descripcion: 'DESCRIÇÃO',
+    calificaciones: (n) => `(${n} avaliações)`,
+    propuestaEnviada: '✅ Proposta enviada — o trabalhador receberá uma notificação.',
+    enviando: 'Enviando...',
+    iniciarContacto: 'Iniciar contato',
+    empleadorFallback: 'Empregador',
+  },
+}
 
 function estrellas(r) {
   const n = Math.round(r || 0)
   return '★'.repeat(n) + '☆'.repeat(5 - n)
 }
 
-function calcularActividad(updatedAt) {
+function calcularActividad(updatedAt, L) {
   if (!updatedAt) return null
   const dias = Math.floor((new Date() - new Date(updatedAt)) / (1000 * 60 * 60 * 24))
-  if (dias === 0) return 'Activo hoy'
-  if (dias === 1) return 'Activo ayer'
-  if (dias < 7) return `Activo hace ${dias} días`
-  if (dias < 30) return `Activo hace ${Math.floor(dias / 7)} semanas`
-  return `Activo hace ${Math.floor(dias / 30)} meses`
+  if (dias === 0) return L.actHoy
+  if (dias === 1) return L.actAyer
+  if (dias < 7) return L.actDias(dias)
+  if (dias < 30) return L.actSemanas(Math.floor(dias / 7))
+  return L.actMeses(Math.floor(dias / 30))
 }
 
 export default function CandidatosEmpleador() {
+  const lang = useLang()
+  const L = TXT[lang]
   const [perfiles, setPerfiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [pais, setPais] = useState('UY')
@@ -57,7 +115,7 @@ export default function CandidatosEmpleador() {
     if (!user) { setEnviando(false); return }
 
     const { data: emp } = await supabaseBrowser.from('profiles').select('nombre, apellido1').eq('id', user.id).single()
-    const empleadorNombre = emp ? (emp.apellido1 ? `${emp.nombre} ${emp.apellido1[0]}.` : emp.nombre) : 'Empleador'
+    const empleadorNombre = emp ? (emp.apellido1 ? `${emp.nombre} ${emp.apellido1[0]}.` : emp.nombre) : L.empleadorFallback
 
     const { data: ofertas } = await supabaseBrowser.from('ofertas').select('titulo, empleo, lugar, descripcion').eq('employer_id', user.id).order('created_at', { ascending: false }).limit(1)
 
@@ -80,24 +138,24 @@ export default function CandidatosEmpleador() {
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 16px' }}>
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)' }}>Buscar candidatos</h1>
-        <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 2 }}>Explorá perfiles de trabajadores disponibles.</p>
+        <h1 style={{ fontSize: 22, fontWeight: 900, color: 'var(--text)' }}>{L.titulo}</h1>
+        <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 2 }}>{L.sub}</p>
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
         <select value={pais} onChange={e => setPais(e.target.value)} style={sel}>
           {PAISES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
-        <input style={{ ...sel, flex: 1, minWidth: 200 }} placeholder="Buscar por servicio u oficio..." value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={e => e.key === 'Enter' && buscar()} />
-        <button onClick={buscar} style={{ background: 'var(--coral)', color: 'white', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer' }}>Buscar</button>
+        <input style={{ ...sel, flex: 1, minWidth: 200 }} placeholder={L.phBuscar} value={busqueda} onChange={e => setBusqueda(e.target.value)} onKeyDown={e => e.key === 'Enter' && buscar()} />
+        <button onClick={buscar} style={{ background: 'var(--coral)', color: 'white', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, cursor: 'pointer' }}>{L.btnBuscar}</button>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)' }}>Buscando...</div>
+        <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)' }}>{L.buscando}</div>
       ) : perfiles.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-          <p>No hay candidatos disponibles en {pais} con ese criterio.</p>
+          <p>{L.sinResultados(pais)}</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
@@ -129,11 +187,11 @@ export default function CandidatosEmpleador() {
               {p.bio && <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.bio}</p>}
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                <span style={{ fontSize: 11, color: 'var(--muted)' }}>{calcularActividad(p.updated_at)}</span>
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>{calcularActividad(p.updated_at, L)}</span>
                 {enviado.has(p.id)
-                  ? <span style={{ fontSize: 12, color: 'var(--verde-fuerte)', fontWeight: 700 }}>✅ Enviado</span>
+                  ? <span style={{ fontSize: 12, color: 'var(--verde-fuerte)', fontWeight: 700 }}>{L.enviado}</span>
                   : <button onClick={e => { e.stopPropagation(); enviarInteres(p) }} disabled={enviando} style={{ background: 'var(--coral)', color: 'white', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                      Contactar
+                      {L.contactar}
                     </button>
                 }
               </div>
@@ -143,13 +201,13 @@ export default function CandidatosEmpleador() {
       )}
 
       {selected && (
-        <Modal perfil={selected} onClose={() => setSelected(null)} onContactar={() => enviarInteres(selected)} enviado={enviado.has(selected.id)} enviando={enviando} />
+        <Modal perfil={selected} onClose={() => setSelected(null)} onContactar={() => enviarInteres(selected)} enviado={enviado.has(selected.id)} enviando={enviando} L={L} />
       )}
     </div>
   )
 }
 
-function Modal({ perfil, onClose, onContactar, enviado, enviando }) {
+function Modal({ perfil, onClose, onContactar, enviado, enviando, L }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', padding: 28 }}>
@@ -159,17 +217,17 @@ function Modal({ perfil, onClose, onContactar, enviado, enviando }) {
         </div>
 
         {perfil.ciudad && <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 12 }}>📍 {perfil.ciudad}</p>}
-        {perfil.total_calificaciones > 0 && <p style={{ fontSize: 14, color: '#F59E0B', marginBottom: 12 }}>{estrellas(perfil.estrellas)} {Number(perfil.estrellas || 0).toFixed(1)} <span style={{ color: 'var(--muted)', fontSize: 12 }}>({perfil.total_calificaciones} calificaciones)</span></p>}
+        {perfil.total_calificaciones > 0 && <p style={{ fontSize: 14, color: '#F59E0B', marginBottom: 12 }}>{estrellas(perfil.estrellas)} {Number(perfil.estrellas || 0).toFixed(1)} <span style={{ color: 'var(--muted)', fontSize: 12 }}>{L.calificaciones(perfil.total_calificaciones)}</span></p>}
 
-        {perfil.disponibilidad && <InfoRow icon="📅" label="Disponibilidad" val={perfil.disponibilidad} />}
-        {perfil.anios_experiencia && <InfoRow icon="📊" label="Experiencia" val={`${perfil.anios_experiencia} años`} />}
+        {perfil.disponibilidad && <InfoRow icon="📅" label={L.mDisponibilidad} val={perfil.disponibilidad} />}
+        {perfil.anios_experiencia && <InfoRow icon="📊" label={L.mExperiencia} val={L.anios(perfil.anios_experiencia)} />}
         {(perfil.sueldo_pretension_min || perfil.sueldo_pretension_max) && (
-          <InfoRow icon="💰" label="Pretensión" val={`${perfil.sueldo_moneda || 'USD'} ${perfil.sueldo_pretension_min || ''}${perfil.sueldo_pretension_max ? ` - ${perfil.sueldo_pretension_max}` : ''}`} />
+          <InfoRow icon="💰" label={L.mPretension} val={`${perfil.sueldo_moneda || 'USD'} ${perfil.sueldo_pretension_min || ''}${perfil.sueldo_pretension_max ? ` - ${perfil.sueldo_pretension_max}` : ''}`} />
         )}
 
         {perfil.servicios?.length > 0 && (
           <div style={{ marginBottom: 14 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 6, letterSpacing: 1 }}>SERVICIOS</p>
+            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 6, letterSpacing: 1 }}>{L.servicios}</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {perfil.servicios.map((s, i) => <span key={i} style={{ fontSize: 12, background: '#F0FDFA', color: 'var(--teal)', borderRadius: 20, padding: '4px 10px', fontWeight: 600 }}>{s}</span>)}
             </div>
@@ -178,16 +236,16 @@ function Modal({ perfil, onClose, onContactar, enviado, enviando }) {
 
         {perfil.bio && (
           <div style={{ marginBottom: 14 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 6, letterSpacing: 1 }}>DESCRIPCIÓN</p>
+            <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 6, letterSpacing: 1 }}>{L.descripcion}</p>
             <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>{perfil.bio}</p>
           </div>
         )}
 
         <div style={{ marginTop: 20 }}>
           {enviado
-            ? <div style={{ background: '#E6FBF5', borderRadius: 10, padding: 14, textAlign: 'center', color: 'var(--verde-fuerte)', fontWeight: 700 }}>✅ Propuesta enviada — el trabajador recibirá una notificación.</div>
+            ? <div style={{ background: '#E6FBF5', borderRadius: 10, padding: 14, textAlign: 'center', color: 'var(--verde-fuerte)', fontWeight: 700 }}>{L.propuestaEnviada}</div>
             : <button onClick={onContactar} disabled={enviando} style={{ width: '100%', background: 'var(--coral)', color: 'white', border: 'none', borderRadius: 12, padding: 16, fontSize: 15, fontWeight: 800, cursor: 'pointer' }}>
-                {enviando ? 'Enviando...' : 'Iniciar contacto'}
+                {enviando ? L.enviando : L.iniciarContacto}
               </button>
           }
         </div>

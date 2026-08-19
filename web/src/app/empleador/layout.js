@@ -2,10 +2,17 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabaseBrowser } from '../../lib/supabase-browser'
+import { useLang } from '../../lib/useLang'
+
+const NAV = {
+  es: { dashboard: 'Dashboard', ofertas: 'Mis ofertas', candidatos: 'Candidatos', sistema: '⚙️ Sistema', salir: 'Salir' },
+  pt: { dashboard: 'Painel', ofertas: 'Minhas vagas', candidatos: 'Candidatos', sistema: '⚙️ Sistema', salir: 'Sair' },
+}
 
 export default function EmpleadorLayout({ children }) {
   const router = useRouter()
   const pathname = usePathname()
+  const L = NAV[useLang()]
   const [user, setUser] = useState(undefined) // undefined = loading
 
   useEffect(() => {
@@ -46,14 +53,14 @@ export default function EmpleadorLayout({ children }) {
         <nav style={{ background: 'var(--dark)', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', position: 'sticky', top: 0, zIndex: 100 }}>
           <a href="/empleador" style={{ display:'inline-flex', alignItems:'flex-end', background:'#151c2c', border:'2px solid var(--coral)', borderRadius:12, padding:'4px 13px', color:'var(--coral)', fontWeight:900, fontSize:20, letterSpacing:'-0.5px', textDecoration:'none' }}><span>Konexu</span><span style={{fontSize:'0.42em',marginLeft:'-9px',lineHeight:1,marginBottom:'3px'}}>🧩</span></a>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <NavLink href="/empleador" label="Dashboard" pathname={pathname} />
-            <NavLink href="/empleador/ofertas" label="Mis ofertas" pathname={pathname} />
-            <NavLink href="/empleador/candidatos" label="Candidatos" pathname={pathname} />
+            <NavLink href="/empleador" label={L.dashboard} pathname={pathname} />
+            <NavLink href="/empleador/ofertas" label={L.ofertas} pathname={pathname} />
+            <NavLink href="/empleador/candidatos" label={L.candidatos} pathname={pathname} />
             {user?.email === 'alejandrodslp@gmail.com' && (
-              <NavLink href="/empleador/sistema" label="⚙️ Sistema" pathname={pathname} />
+              <NavLink href="/empleador/sistema" label={L.sistema} pathname={pathname} />
             )}
             <button onClick={cerrarSesion} style={{ marginLeft: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.6)', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: 13 }}>
-              Salir
+              {L.salir}
             </button>
           </div>
         </nav>
