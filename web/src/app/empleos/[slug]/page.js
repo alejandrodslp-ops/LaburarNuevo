@@ -5,6 +5,12 @@ import AppCta from '../../AppCta'
 
 export const revalidate = 3600
 
+// Estrategia (decisión del usuario 2026-08-18): PRE-LANZAMIENTO damos el servicio
+// gratis y mostramos el link real de la oferta para captar usuarios. Cuando se
+// lance la app, poner APP_LANZADA = true y la postulación vuelve a gatearse detrás
+// de /download (descargar la app). Es el único cambio necesario para ese giro.
+const APP_LANZADA = false
+
 const SITE = 'https://www.konexu.app'
 
 async function getConcurso(slug) {
@@ -286,26 +292,47 @@ export default async function ConcursoPage({ params }) {
           </div>
         )}
 
-        {/* Gate de registro — ver bases y postularse requiere la app */}
+        {/* Postulación — ver nota de estrategia arriba (APP_LANZADA). */}
         <div style={{
           background: '#0D1117', borderRadius: 16,
           padding: '32px 24px', textAlign: 'center',
           margin: '24px 0', color: 'white',
         }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
-          <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>
-            Para ver las bases y postularte
-          </h2>
-          <a href="/download" style={{
-            display: 'inline-block', background: 'var(--coral-cta)',
-            color: 'white', borderRadius: 8, padding: '14px 28px',
-            fontSize: 15, fontWeight: 800, textDecoration: 'none',
-          }}>
-            📱 Registrate gratis en Konexu
-          </a>
-          <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 16, maxWidth: 380, margin: '16px auto 0' }}>
-            Completá tu perfil y te avisamos cuando se publiquen concursos y oportunidades laborales en las cuales puedas aplicar o se ajusten a ti.
-          </p>
+          {(!APP_LANZADA && (c.url_postulacion || c.url_detalle)) ? (
+            <>
+              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>
+                Postulate a este empleo
+              </h2>
+              <a href={c.url_postulacion || c.url_detalle} target="_blank" rel="noopener noreferrer nofollow" style={{
+                display: 'inline-block', background: 'var(--coral-cta)',
+                color: 'white', borderRadius: 8, padding: '15px 30px',
+                fontSize: 16, fontWeight: 800, textDecoration: 'none',
+              }}>
+                Ver la oferta y postularme →
+              </a>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 18, maxWidth: 400, margin: '18px auto 0' }}>
+                ¿Querés que te avisemos gratis cuando aparezcan vacantes como esta?{' '}
+                <a href="/download" style={{ color: '#F0A588', fontWeight: 700, textDecoration: 'none' }}>Activá alertas en Konexu →</a>
+              </p>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
+              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>
+                Para ver las bases y postularte
+              </h2>
+              <a href="/download" style={{
+                display: 'inline-block', background: 'var(--coral-cta)',
+                color: 'white', borderRadius: 8, padding: '14px 28px',
+                fontSize: 15, fontWeight: 800, textDecoration: 'none',
+              }}>
+                📱 Registrate gratis en Konexu
+              </a>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 16, maxWidth: 380, margin: '16px auto 0' }}>
+                Completá tu perfil y te avisamos cuando se publiquen concursos y oportunidades laborales en las cuales puedas aplicar o se ajusten a ti.
+              </p>
+            </>
+          )}
         </div>
 
         {/* Concursos similares */}
