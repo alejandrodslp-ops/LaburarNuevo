@@ -17,13 +17,25 @@ async function getConcurso(slug) {
   const id = idFromSlug(slug)
   // Valida que parece un UUID válido
   if (!id || !/^[0-9a-f-]{36}$/.test(id)) return null
-  const { data } = await db.from('concursos').select('*').eq('id', id).single()
-  // Un empleo inactivo (vencido / posición cubierta) se trata como "ya no
-  // disponible": la página cae en el estado amable + similares (bloque !c de
-  // abajo) y queda noindex (generateMetadata), para que Google suelte del
-  // índice los avisos viejos en vez de mantenerlos indexados.
-  if (data && !data.activo) return null
-  return data ?? null
+  // 1) Concurso scrapeado. Inactivo (vencido/cubierto) → "ya no disponible"
+  //    (estado amable + noindex vía generateMetadata) para soltar avisos viejos.
+  const { data: c } = await db.from('concursos').select('*').eq('id', id).maybeSingle()
+  if (c) return c.activo ? c : null
+  // 2) Oferta propia de un empleador (tabla ofertas). Se normaliza a la forma
+  //    del detalle y se marca con _esOferta + el contacto de postulación real.
+  const { data: o } = await db.from('ofertas').select('*').eq('id', id).maybeSingle()
+  if (o && o.activa) {
+    return {
+      id: o.id, titulo: o.titulo, cargo: o.titulo, organismo: null,
+      pais: o.pais, lugar: o.lugar || o.ciudad || null,
+      fecha_cierre: o.fecha_cierre, descripcion: o.descripcion, requisitos: o.requisitos,
+      tipo_vinculo: 'privado', tipo_tarea: null, puestos: null, numero_llamado: null,
+      keywords: [], activo: true, beneficios: o.beneficios || null,
+      contacto_email: o.contacto_email || null, contacto_whatsapp: o.contacto_whatsapp || null,
+      _esOferta: true,
+    }
+  }
+  return null
 }
 
 // Cuando el aviso original ya no existe: sugerencias por país sacado del slug
@@ -298,16 +310,29 @@ export default async function ConcursoPage({ params }) {
           padding: '32px 24px', textAlign: 'center',
           margin: '24px 0', color: 'white',
         }}>
-          {(!APP_LANZADA && (c.url_postulacion || c.url_detalle)) ? (
+          {(!APP_LANZADA && c._esOferta && (c.contacto_email || c.contacto_whatsapp)) ? (
             <>
-              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>
-                Postulate a este empleo
-              </h2>
-              <a href={c.url_postulacion || c.url_detalle} target="_blank" rel="noopener noreferrer nofollow" style={{
-                display: 'inline-block', background: 'var(--coral-cta)',
-                color: 'white', borderRadius: 8, padding: '15px 30px',
-                fontSize: 16, fontWeight: 800, textDecoration: 'none',
-              }}>
+              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>Postulate a este empleo</h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 380, margin: '0 auto' }}>
+                {c.contacto_email && (
+                  <a href={`mailto:${c.contacto_email}`} style={{ display: 'block', background: 'var(--coral-cta)', color: 'white', borderRadius: 8, padding: '14px 22px', fontSize: 15, fontWeight: 800, textDecoration: 'none' }}>
+                    ✉️ Enviar CV a {c.contacto_email}
+                  </a>
+                )}
+                {c.contacto_whatsapp && (
+                  <a href={`https://wa.me/${c.contacto_whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" style={{ display: 'block', background: '#25D366', color: 'white', borderRadius: 8, padding: '14px 22px', fontSize: 15, fontWeight: 800, textDecoration: 'none' }}>
+                    💬 WhatsApp {c.contacto_whatsapp}
+                  </a>
+                )}
+              </div>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 18, maxWidth: 400, margin: '18px auto 0' }}>
+                Contactás directo al empleador — sin intermediarios.
+              </p>
+            </>
+          ) : (!APP_LANZADA && (c.url_postulacion || c.url_detalle)) ? (
+            <>
+              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>Postulate a este empleo</h2>
+              <a href={c.url_postulacion || c.url_detalle} target="_blank" rel="noopener noreferrer nofollow" style={{ display: 'inline-block', background: 'var(--coral-cta)', color: 'white', borderRadius: 8, padding: '15px 30px', fontSize: 16, fontWeight: 800, textDecoration: 'none' }}>
                 Ver la oferta y postularme →
               </a>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 18, maxWidth: 400, margin: '18px auto 0' }}>
@@ -318,14 +343,8 @@ export default async function ConcursoPage({ params }) {
           ) : (
             <>
               <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
-              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>
-                Para ver las bases y postularte
-              </h2>
-              <a href="/download" style={{
-                display: 'inline-block', background: 'var(--coral-cta)',
-                color: 'white', borderRadius: 8, padding: '14px 28px',
-                fontSize: 15, fontWeight: 800, textDecoration: 'none',
-              }}>
+              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>Para ver las bases y postularte</h2>
+              <a href="/download" style={{ display: 'inline-block', background: 'var(--coral-cta)', color: 'white', borderRadius: 8, padding: '14px 28px', fontSize: 15, fontWeight: 800, textDecoration: 'none' }}>
                 📱 Registrate gratis en Konexu
               </a>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 16, maxWidth: 380, margin: '16px auto 0' }}>
