@@ -79,7 +79,7 @@ export function paisFromSlug(slug) {
 export function fmtFecha(iso) {
   if (!iso) return null
   return new Date(iso).toLocaleDateString('es-UY', {
-    day: 'numeric', month: 'long', year: 'numeric',
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
   })
 }
 
