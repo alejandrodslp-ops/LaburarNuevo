@@ -7,6 +7,7 @@ import { getLang, t, OG_IMAGE } from '../../../../lib/i18n'
 import AppCta from '../../../AppCta'
 import JobsRealtime from '../../../JobsRealtime'
 import SetHtmlLang from '../../../SetHtmlLang'
+import WaitlistForm from '../../../../components/WaitlistForm'
 
 // ISR on-demand: se genera al primer hit y se sirve de caché 6h (los concursos
 // se actualizan 3x/día). Antes era force-dynamic: cada hit de crawler quemaba
@@ -224,9 +225,11 @@ export default async function PaisPage({ params }) {
               ? t(lang, 'hero_sub_many', total, nombre)
               : t(lang, 'hero_sub_few', total, nombre)}
           </p>
+          <div style={{ maxWidth:480, margin:'0 auto 16px', textAlign:'left' }}>
+            <WaitlistForm lang={lang} />
+          </div>
           <div className="hero-btns" style={{ marginBottom:8 }}>
-            <a href="/download" style={{ background:'var(--coral-cta)', color:'#fff', borderRadius:10, padding:'14px 28px', fontSize:15, fontWeight:800, textDecoration:'none', letterSpacing:-0.3 }}>{t(lang, 'hero_btn_primary', nombre)}</a>
-            <a href="#empleos" style={{ background:'rgba(0,0,0,0.04)', color:'#1A1020', borderRadius:10, padding:'14px 28px', fontSize:15, fontWeight:700, textDecoration:'none', border:'1px solid rgba(0,0,0,0.08)' }}>{t(lang, 'hero_btn_outline')}</a>
+            <a href="#empleos" style={{ color:'#5A4E6A', fontSize:15, fontWeight:700, textDecoration:'underline', textUnderlineOffset:3 }}>{t(lang, 'hero_btn_outline')}</a>
           </div>
         </div>
       </section>
