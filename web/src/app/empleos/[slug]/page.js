@@ -44,6 +44,9 @@ const TXT = {
     whatsapp: (w) => `💬 WhatsApp ${w}`,
     contactoDirecto: 'Contactás directo al empleador — sin intermediarios.',
     verOferta: 'Ver la oferta y postularme →',
+    alertTit: 'Recibí vacantes como esta, gratis',
+    alertBtn: '🔔 Activá alertas gratis',
+    verOfertaMin: 'Ver la oferta original →',
     avisoPre: '¿Querés que te avisemos gratis cuando aparezcan vacantes como esta? ',
     avisoLink: 'Activá alertas en Konexu →',
     verBases: 'Para ver las bases y postularte',
@@ -85,6 +88,9 @@ const TXT = {
     whatsapp: (w) => `💬 WhatsApp ${w}`,
     contactoDirecto: 'Você fala direto com o empregador — sem intermediários.',
     verOferta: 'Ver a vaga e me candidatar →',
+    alertTit: 'Receba vagas como esta, de graça',
+    alertBtn: '🔔 Ative alertas grátis',
+    verOfertaMin: 'Ver a vaga original →',
     avisoPre: 'Quer que a gente te avise de graça quando aparecerem vagas como esta? ',
     avisoLink: 'Ative alertas na Konexu →',
     verBases: 'Para ver os detalhes e se candidatar',
@@ -425,13 +431,18 @@ export default async function ConcursoPage({ params }) {
             </>
           ) : (!APP_LANZADA && (c.url_postulacion || c.url_detalle)) ? (
             <>
-              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 16 }}>{L.postTit}</h2>
-              <a href={c.url_postulacion || c.url_detalle} target="_blank" rel="noopener noreferrer nofollow" style={{ display: 'inline-block', background: 'var(--coral-cta)', color: 'white', borderRadius: 8, padding: '15px 30px', fontSize: 16, fontWeight: 800, textDecoration: 'none' }}>
-                {L.verOferta}
+              <div style={{ fontSize: 32, marginBottom: 12 }}>🔔</div>
+              <h2 style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>{L.alertTit}</h2>
+              <a href="/download" style={{ display: 'inline-block', background: 'var(--coral-cta)', color: 'white', borderRadius: 8, padding: '14px 28px', fontSize: 15, fontWeight: 800, textDecoration: 'none' }}>
+                {L.alertBtn}
               </a>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 18, maxWidth: 400, margin: '18px auto 0' }}>
-                {L.avisoPre}
-                <a href="/download" style={{ color: '#F0A588', fontWeight: 700, textDecoration: 'none' }}>{L.avisoLink}</a>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 16, maxWidth: 380, margin: '16px auto 0' }}>
+                {L.completaPerfil}
+              </p>
+              <p style={{ marginTop: 14, marginBottom: 0 }}>
+                <a href={c.url_postulacion || c.url_detalle} target="_blank" rel="noopener noreferrer nofollow" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13, fontWeight: 600, textDecoration: 'underline' }}>
+                  {L.verOfertaMin}
+                </a>
               </p>
             </>
           ) : (
