@@ -13,7 +13,8 @@
         "applinks:konexu.app"
       ],
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Konexu necesita acceder a tus fotos para que puedas elegir una foto de perfil."
       }
     },
     "android": {
@@ -45,6 +46,7 @@
       "expo-secure-store",
       "expo-localization",
       "expo-sharing",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {
