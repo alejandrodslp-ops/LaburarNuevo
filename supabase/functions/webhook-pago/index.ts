@@ -121,6 +121,13 @@ serve(async (req) => {
             perfil_activo:       true,
             perfil_activo_hasta: hasta.toISOString(),
           }).eq("id", userId);
+        } else if (tipo === "company_suscripcion") {
+          const vence = new Date();
+          vence.setDate(vence.getDate() + 30);
+          await supabase.from("profiles").update({
+            suscripcion_activa:    true,
+            suscripcion_vence_at:  vence.toISOString(),
+          }).eq("id", userId);
         } else {
           await supabase.rpc("sumar_visualizaciones", {
             employer_id: userId,
@@ -140,6 +147,8 @@ serve(async (req) => {
             referencia_externa:  String(paymentId),
             concepto:            tipo === "worker_activacion"
               ? "Activación de perfil trabajador — Konexu (60 días)"
+              : tipo === "company_suscripcion"
+              ? "Suscripción empresa — Konexu (30 días)"
               : `Visualizaciones de perfiles empleador — Konexu (${cantidadPerfiles} créditos)`,
           },
         }).catch(() => {});
