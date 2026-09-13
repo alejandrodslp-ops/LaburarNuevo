@@ -3,6 +3,7 @@ import{View,Text,ScrollView,TouchableOpacity,StyleSheet,Alert,Modal,TextInput,Pr
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{LinearGradient}from 'expo-linear-gradient';
 import{supabase}from '../../services/supabase';
+import{useApp}from '../../services/AppContext';
 
 function Estrellitas({valor,onChange}){
   return(
@@ -215,6 +216,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
   const[calificarVisible,setCalificarVisible]=useState(false);
   const[propuestaAceptada,setPropuestaAceptada]=useState(null);
   const[yaCalificado,setYaCalificado]=useState(false);
+  const{modoActivo}=useApp();
 
   useEffect(()=>{
     registrarVisualizacion();
@@ -251,7 +253,13 @@ export default function PerfilTrabajadorScreen({navigation,route}){
 
       // El servidor verifica saldo, registra la visualización (idempotente: no cobra dos veces
       // el mismo perfil) y descuenta 1. 'vistas' lo incrementa el trigger on_visualizacion_insert.
-      await supabase.rpc('consumir_visualizacion',{p_worker:perfil.id});
+      // company usa su propio cupo (3/dia, 9/semana, o ilimitado con suscripcion) — NO el
+      // sistema de creditos de employer, que para company siempre estaria en 0.
+      if(modoActivo==='company'){
+        await supabase.rpc('consumir_visualizacion_empresa',{p_worker:perfil.id});
+      }else{
+        await supabase.rpc('consumir_visualizacion',{p_worker:perfil.id});
+      }
     }catch(e){}
   }
 
