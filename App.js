@@ -406,7 +406,6 @@ function Navigation({navigationRef,onTabChange}){
         <View style={{backgroundColor:"#0D1117",borderRadius:20,paddingHorizontal:18,paddingVertical:14,flexDirection:"row",alignItems:"center",borderWidth:2.5,borderColor:"#E8785A"}}>
           <View style={{position:"relative"}}>
             <Text style={{fontSize:38,fontWeight:"900",color:"#E8785A",letterSpacing:-1}}>Konexu</Text>
-            <Text style={{fontSize:16,position:"absolute",bottom:2,right:-8}}>🧩</Text>
           </View>
         </View>
         <Text style={{fontSize:22,fontWeight:"700",color:"#FFFFFF",letterSpacing:-0.3}}>Bienvenido</Text>

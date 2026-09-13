@@ -38,6 +38,7 @@ export default function WelcomeScreen({ navigation }) {
   const config = CONTINENTE_CONFIG[continente] || CONTINENTE_CONFIG.latam;
 
   const [total, setTotal] = useState(null);
+  const [displayNum, setDisplayNum] = useState(0);
   const [paises, setPaises] = useState(null);
   const [fontsLoaded] = useFonts({ PlayfairDisplay_700Bold_Italic });
 
@@ -62,11 +63,13 @@ export default function WelcomeScreen({ navigation }) {
 
   useEffect(() => {
     if (!total) return;
+    const _id = numAnim.addListener(({ value }) => setDisplayNum(Math.round(value)));
     Animated.timing(numAnim, {
       toValue: total,
       duration: 1200,
       useNativeDriver: false,
     }).start();
+    return () => numAnim.removeListener(_id);
   }, [total]);
 
   async function comenzar() {
@@ -83,7 +86,6 @@ export default function WelcomeScreen({ navigation }) {
             <View style={ss.logoBox}>
               <View style={{position:'relative'}}>
                 <Text style={ss.logoTxt}>Konexu</Text>
-                <Text style={ss.logoPuzzle}>🧩</Text>
               </View>
             </View>
           </View>
@@ -94,12 +96,7 @@ export default function WelcomeScreen({ navigation }) {
 
           <View style={ss.counterCard}>
             <View style={ss.counterRow}>
-              <Animated.Text style={ss.counterNum}>
-                {numAnim.interpolate({
-                  inputRange: [0, total || 1],
-                  outputRange: ['0', (total || 0).toLocaleString('es')],
-                })}
-              </Animated.Text>
+              <Text style={ss.counterNum}>{displayNum.toLocaleString('es')}</Text>
               <Text style={ss.counterPlus}>+</Text>
             </View>
             <Text style={ss.counterLabel}>llamados activos hoy</Text>
@@ -148,7 +145,6 @@ const ss = StyleSheet.create({
   logoWrap: { flexDirection: 'column', alignItems: 'flex-start', marginBottom: 32 },
   logoBox: { backgroundColor: '#0D1117', borderRadius: 20, paddingHorizontal: 18, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', borderWidth: 2.5, borderColor: '#E8785A' },
   logoTxt: { fontSize: 38, fontWeight: '900', color: '#E8785A', letterSpacing: -1, fontStyle: 'normal' },
-  logoPuzzle: { fontSize: 16, position: 'absolute', bottom: 2, right: -8 },
   logo: { fontSize: 32, fontWeight: '900', color: '#E8785A', letterSpacing: -1 },
 
   tagline: {
