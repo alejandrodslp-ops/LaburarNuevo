@@ -1,7 +1,8 @@
-import React from "react";
-import{View,Text,StyleSheet,TouchableOpacity,ScrollView,Alert}from "react-native";
+import React,{useState,useEffect,useRef}from "react";
+import{View,Text,StyleSheet,TouchableOpacity,ScrollView,Alert,ActivityIndicator,Linking,AppState}from "react-native";
 import{SafeAreaView}from "react-native-safe-area-context";
 import{LinearGradient}from "expo-linear-gradient";
+import{supabase}from "../../services/supabase";
 
 const PLANES=[
   {id:"pago_sa",nombre:"Pago por perfil",zona:"Sudamerica",precio:"U$1.33",periodo:"/perfil",perfiles:"Sin limite mensual",color:"#2DD4BF",bg:"#F0FDFA",items:["Accede a cada perfil por U$1.33","Sin compromisos mensuales","Paga solo cuando lo necesitas","Busqueda por zona y oficio"]},
@@ -22,6 +23,66 @@ import{useApp}from "../../services/AppContext";
 
 export default function BienvenidaEmpresaScreen({navigation}){
   const{setSuscripcionActiva}=useApp();
+  const[pagando,setPagando]=useState(null); // id del plan que está procesando, o null
+  const[esperando,setEsperando]=useState(false);
+  const appStateRef=useRef(AppState.currentState);
+  const intervaloRef=useRef(null);
+  const prevVenceRef=useRef(null);
+
+  useEffect(()=>{
+    if(!esperando)return;
+    intervaloRef.current=setInterval(verificar,3000);
+    const sub=AppState.addEventListener('change',async(next)=>{
+      if(appStateRef.current.match(/inactive|background/)&&next==='active'){
+        await verificar();
+      }
+      appStateRef.current=next;
+    });
+    return()=>{
+      clearInterval(intervaloRef.current);
+      sub.remove();
+    };
+  },[esperando]);
+
+  async function verificar(){
+    try{
+      const{data:{user}}=await supabase.auth.getUser();
+      if(!user)return false;
+      const{data}=await supabase.from('profiles').select('suscripcion_activa,suscripcion_vence_at').eq('id',user.id).single();
+      const prevTs=prevVenceRef.current?new Date(prevVenceRef.current).getTime():0;
+      const newTs=data?.suscripcion_vence_at?new Date(data.suscripcion_vence_at).getTime():0;
+      if(data?.suscripcion_activa && newTs>prevTs){
+        clearInterval(intervaloRef.current);
+        setEsperando(false);
+        setPagando(null);
+        setSuscripcionActiva(true);
+        Alert.alert('¡Suscripción activada!','Ya podés ver perfiles sin límite durante 30 días.',[{text:'Buscar trabajadores',onPress:()=>navigation.goBack()}]);
+        return true;
+      }
+    }catch(e){}
+    return false;
+  }
+
+  async function suscribirse(plan){
+    if(pagando)return;
+    setPagando(plan.id);
+    try{
+      const{data:{user}}=await supabase.auth.getUser();
+      if(!user){Alert.alert('Error','Debés iniciar sesión');return;}
+      const{data:perfil}=await supabase.from('profiles').select('suscripcion_vence_at').eq('id',user.id).single();
+      prevVenceRef.current=perfil?.suscripcion_vence_at||null;
+      const monto=plan.zona==='Sudamerica'?12:24;
+      const{data,error}=await supabase.functions.invoke('crear-pago',{
+        body:{monto,descripcion:'Konexu — Suscripción empresa (30 días)',tipo:'company_suscripcion'},
+      });
+      if(error)throw error;
+      await Linking.openURL(data.init_point);
+      setEsperando(true);
+    }catch(e){
+      Alert.alert('Error',e?.message||'No se pudo iniciar el pago');
+      setPagando(null);
+    }
+  }
 
   return(
     <SafeAreaView style={ss.c} edges={["top"]}>
@@ -65,8 +126,12 @@ export default function BienvenidaEmpresaScreen({navigation}){
                 <Text style={ss.planPrecio}>{p.precio}<Text style={ss.planPeriodo}>{p.periodo}</Text></Text>
                 <Text style={ss.planPerfiles}>{p.perfiles}</Text>
                 {p.items.map((item,i)=>(<View key={i} style={ss.planItem}><Text style={[ss.planDot,{color:p.color}]}>✓</Text><Text style={ss.planItemTxt}>{item}</Text></View>))}
-                <TouchableOpacity style={[ss.planBtn,{backgroundColor:p.color}]} onPress={()=>Alert.alert("Proximamente","El sistema de pagos estara disponible muy pronto.")}>
-                  <Text style={ss.planBtnTxt}>Suscribirme</Text>
+                <TouchableOpacity
+                  style={[ss.planBtn,{backgroundColor:p.color},pagando===p.id&&{opacity:0.6}]}
+                  disabled={pagando===p.id}
+                  onPress={()=>p.id.startsWith('membresia_')?suscribirse(p):Alert.alert("Proximamente","El sistema de pagos estara disponible muy pronto.")}
+                >
+                  <Text style={ss.planBtnTxt}>{pagando===p.id?'Procesando...':'Suscribirme'}</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -84,8 +149,12 @@ export default function BienvenidaEmpresaScreen({navigation}){
                 <Text style={ss.planPrecio}>{p.precio}<Text style={ss.planPeriodo}>{p.periodo}</Text></Text>
                 <Text style={ss.planPerfiles}>{p.perfiles}</Text>
                 {p.items.map((item,i)=>(<View key={i} style={ss.planItem}><Text style={[ss.planDot,{color:p.color}]}>✓</Text><Text style={ss.planItemTxt}>{item}</Text></View>))}
-                <TouchableOpacity style={[ss.planBtn,{backgroundColor:p.color}]} onPress={()=>Alert.alert("Proximamente","El sistema de pagos estara disponible muy pronto.")}>
-                  <Text style={ss.planBtnTxt}>Suscribirme</Text>
+                <TouchableOpacity
+                  style={[ss.planBtn,{backgroundColor:p.color},pagando===p.id&&{opacity:0.6}]}
+                  disabled={pagando===p.id}
+                  onPress={()=>p.id.startsWith('membresia_')?suscribirse(p):Alert.alert("Proximamente","El sistema de pagos estara disponible muy pronto.")}
+                >
+                  <Text style={ss.planBtnTxt}>{pagando===p.id?'Procesando...':'Suscribirme'}</Text>
                 </TouchableOpacity>
               </View>
             ))}
