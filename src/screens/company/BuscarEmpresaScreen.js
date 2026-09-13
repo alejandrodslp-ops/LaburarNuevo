@@ -22,8 +22,6 @@ const CATS = [
   { id: 'Medico/a',           emoji: '🩺' },
 ];
 
-const FREE_LIMIT = 3;
-
 function estrellas(r) {
   const n = Math.round(r || 0);
   return '★'.repeat(n) + '☆'.repeat(5 - n);
@@ -86,8 +84,23 @@ export default function BuscarEmpresaScreen({ navigation }) {
   const [catActiva, setCatActiva] = useState(null);
   const [todos,     setTodos]     = useState([]);
   const [loading,   setLoading]   = useState(false);
+  const [cupo,      setCupo]      = useState({ restante_efectivo: 0, suscripcion_activa: false });
+  const [vistosIds, setVistosIds] = useState([]);
 
   useEffect(() => { buscar('', catActiva); }, [catActiva]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const [{ data: cupoData }, { data: vistos }] = await Promise.all([
+        supabase.rpc('cupo_empresa_restante'),
+        supabase.from('visualizaciones').select('worker_id').eq('employer_id', user.id),
+      ]);
+      if (cupoData && cupoData[0]) setCupo(cupoData[0]);
+      if (vistos) setVistosIds(vistos.map((v) => v.worker_id));
+    })();
+  }, []);
 
   async function buscar(q, cat) {
     setLoading(true);
@@ -141,9 +154,21 @@ export default function BuscarEmpresaScreen({ navigation }) {
     navigation.getParent()?.navigate('BienvenidaEmpresa');
   }
 
-  const visibles  = suscripcionActiva ? todos : todos.slice(0, FREE_LIMIT);
-  const bloqueados = (!suscripcionActiva && todos.length > FREE_LIMIT)
-    ? todos.length - FREE_LIMIT : 0;
+  // Perfiles que la empresa ya vio antes (gratis para siempre, dedupe server-side) +
+  // hasta el cupo que le quede hoy/esta semana. La suscripcion activa desbloquea todo.
+  // Se usa cupo.suscripcion_activa (recien calculado por el RPC, chequea vencimiento) en vez de
+  // suscripcionActiva de useApp() — ese valor de contexto solo se refresca al abrir la app y
+  // puede quedar desactualizado si la suscripcion vence mientras la sesion sigue abierta.
+  const yaVistosIds = new Set(vistosIds);
+  const nuevosDisponibles = cupo.suscripcion_activa ? Infinity : cupo.restante_efectivo;
+  let nuevosUsados = 0;
+  const visibles = todos.filter((item) => {
+    if (cupo.suscripcion_activa) return true;
+    if (yaVistosIds.has(item.id)) return true;
+    if (nuevosUsados < nuevosDisponibles) { nuevosUsados++; return true; }
+    return false;
+  });
+  const bloqueados = todos.length - visibles.length;
 
   return (
     <SafeAreaView style={ss.container} edges={['top']}>
@@ -207,7 +232,11 @@ export default function BuscarEmpresaScreen({ navigation }) {
           <TouchableOpacity style={ss.gateBanner} onPress={verPlanes} activeOpacity={0.9}>
             <View style={{ flex: 1 }}>
               <Text style={ss.gateTitle}>+{bloqueados} perfiles más disponibles</Text>
-              <Text style={ss.gateSub}>Activá tu plan para contactar sin límite</Text>
+              <Text style={ss.gateSub}>
+                {cupo.restante_semana === 0 && !cupo.suscripcion_activa
+                  ? 'Volvé la próxima semana o activá tu suscripción'
+                  : 'Activá tu suscripción para ver sin límite'}
+              </Text>
             </View>
             <View style={ss.gateBtn}><Text style={ss.gateBtnTxt}>Ver planes →</Text></View>
           </TouchableOpacity>
