@@ -52,3 +52,4 @@ PYEOF
 # Archivos de análisis/estrategia (no van en el repo)
 ESCALADO.md
 ESTRATEGIA_POSICIONAMIENTO.md
+.worktrees/
