@@ -5,10 +5,9 @@ import {
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../services/supabase';
 
 export const ADMIN_SESSION_KEY = 'admin_sesion';
-const ADMIN_PIN_KEY = 'admin_pin_local';
-export const PIN_DEFAULT = 'nexu2024';
 
 export async function tieneSessionAdmin() {
   try {
@@ -23,10 +22,6 @@ export async function tieneSessionAdmin() {
 
 export async function cerrarSesionAdmin() {
   await AsyncStorage.removeItem(ADMIN_SESSION_KEY);
-}
-
-export async function cambiarPinAdmin(nuevoPin) {
-  await AsyncStorage.setItem(ADMIN_PIN_KEY, nuevoPin);
 }
 
 export default function PinAdminModal({ visible, onSuccess, onClose }) {
@@ -52,10 +47,12 @@ export default function PinAdminModal({ visible, onSuccess, onClose }) {
     setCargando(true);
     setError('');
     try {
-      const guardado = await AsyncStorage.getItem(ADMIN_PIN_KEY);
-      const pinCorrecto = guardado ?? PIN_DEFAULT;
-      if (pin.trim() !== pinCorrecto) {
-        triggerError('Clave incorrecta');
+      const { data, error } = await supabase.functions.invoke('verificar-pin-admin', {
+        body: { pin: pin.trim() },
+      });
+      if (error) { triggerError('No se pudo verificar. Revisá tu conexión.'); return; }
+      if (!data?.verificado) {
+        triggerError(data?.error || 'Clave incorrecta');
         return;
       }
       const expira = new Date(Date.now() + 30 * 60 * 1000).toISOString();

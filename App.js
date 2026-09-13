@@ -14,6 +14,7 @@ import { TouchableOpacity } from "react-native";
 import { I18nProvider, useI18n } from "./src/services/I18nContext";
 import CoachMarkPerfil from "./src/components/CoachMarkPerfil";
 import CalificacionModal from "./src/components/CalificacionModal";
+import ErrorBoundary from "./src/components/ErrorBoundary";
 
 import HomeScreen from "./src/screens/HomeScreen";
 import BuscarScreen from "./src/screens/BuscarScreen";
@@ -489,10 +490,12 @@ export default function App(){
       <AppProvider>
         <SafeAreaProvider>
           <StatusBar style="auto"/>
-          <Navigation navigationRef={navigationRef} onTabChange={()=>{}}/>
-          <EmailVerifCheck navigationRef={navigationRef}/>
-          <CoachMark navigationRef={navigationRef}/>
-          <CalificacionOverlay/>
+          <ErrorBoundary>
+            <Navigation navigationRef={navigationRef} onTabChange={()=>{}}/>
+            <EmailVerifCheck navigationRef={navigationRef}/>
+            <CoachMark navigationRef={navigationRef}/>
+            <CalificacionOverlay/>
+          </ErrorBoundary>
         </SafeAreaProvider>
       </AppProvider>
     </I18nProvider>
