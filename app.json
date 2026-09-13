@@ -2,16 +2,10 @@
   "expo": {
     "name": "Konexu",
     "slug": "nexu",
-    "owner": "nexuapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#0D1117"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.konexu.app",
@@ -49,7 +43,17 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-localization"
+      "expo-localization",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "cover",
+          "backgroundColor": "#0D1117"
+        }
+      ],
+      "expo-status-bar"
     ],
     "scheme": "konexu",
     "extra": {
@@ -58,6 +62,7 @@
       }
     },
     "runtimeVersion": "1.0.0",
+    "owner": "nexuapp",
     "updates": {
       "url": "https://u.expo.dev/e9ef9ac8-fcd4-4534-b267-3cfd7b420ea3",
       "checkAutomatically": "ON_LOAD"
