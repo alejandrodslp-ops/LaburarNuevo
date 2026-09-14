@@ -64,9 +64,13 @@ function Card({item,onContactar}){
         <Text style={ss.privaTxt}>{t('buscar_privacidad_match')}</Text>
       </View>
       <View style={ss.ratingRow}>
-        <Text style={ss.stars}>{estrellas(item.rating)}</Text>
-        <Text style={ss.ratingNum}>{item.rating||0}</Text>
-        <Text style={ss.ratingCount}>({item.total_valoraciones||0} {t('valoraciones')})</Text>
+        {item.total_valoraciones>0?(<>
+          <Text style={ss.stars}>{estrellas(item.rating)}</Text>
+          <Text style={ss.ratingNum}>{item.rating||0}</Text>
+          <Text style={ss.ratingCount}>({item.total_valoraciones||0} {t('valoraciones')})</Text>
+        </>):(
+          <Text style={ss.nuevoTxt}>✨ Nuevo en Konexu</Text>
+        )}
         <Text style={ss.disponib}>● {dispTr}</Text>
       </View>
       {tags.length>0&&(
@@ -311,6 +315,7 @@ const ss=StyleSheet.create({
   privaIcon:{fontSize:12},privaTxt:{fontSize:11,color:'#2DD4BF',fontWeight:'600',flex:1},
   ratingRow:{flexDirection:'row',alignItems:'center',gap:6,marginBottom:8,flexWrap:'wrap'},
   stars:{fontSize:12,color:'#F59E0B'},ratingNum:{fontSize:13,fontWeight:'800',color:'#1A1020'},
+  nuevoTxt:{fontSize:12,fontWeight:'700',color:'#2DD4BF'},
   ratingCount:{fontSize:11,color:'#A898B8'},disponib:{fontSize:11,color:'#3DA882',fontWeight:'600',marginLeft:'auto'},
   tagsRow:{flexDirection:'row',flexWrap:'wrap',gap:6,marginBottom:12},
   tag:{backgroundColor:'#E6FBF5',paddingHorizontal:8,paddingVertical:3,borderRadius:5},tagTxt:{color:'#2E9472',fontSize:10,fontWeight:'700'},
