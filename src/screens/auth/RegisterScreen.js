@@ -149,7 +149,7 @@ return(
 <Text style={ss.termTxt}>Acepto los <Text style={ss.termLink} onPress={()=>navigation.navigate("Terminos")}>Terminos y Condiciones</Text> y la <Text style={ss.termLink} onPress={()=>navigation.navigate("Privacidad")}>Politica de Privacidad</Text>. Declaro que la informacion que proporciono es veraz y soy responsable de su exactitud.</Text>
 </TouchableOpacity>
 
-<View style={ss.aviso}><Text style={ss.avisoTxt}>Tus datos son privados. Solo los empleadores que paguen por contactarte podran verlos.</Text></View>
+<View style={ss.aviso}><Text style={ss.avisoTxt}>Tus datos personales quedan ocultos hasta que vos decidis aceptar el contacto de una empresa o postularte a un llamado. Nunca vendemos tu informacion.</Text></View>
 
 <TouchableOpacity style={ss.btnW} onPress={()=>{Keyboard.dismiss();handleRegistrar();}} disabled={load}>
 <LinearGradient colors={["#E8785A","#D4614A"]} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
