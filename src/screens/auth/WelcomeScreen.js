@@ -6,6 +6,7 @@ import { useFonts, PlayfairDisplay_700Bold_Italic } from '@expo-google-fonts/pla
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
 import { supabase } from '../../services/supabase';
+import LogoKonexu from '../../components/LogoKonexu';
 
 const REGION_CONTINENTE = {
   UY:'latam',AR:'latam',BR:'latam',CL:'latam',PY:'latam',BO:'latam',
@@ -83,11 +84,7 @@ export default function WelcomeScreen({ navigation }) {
         <Animated.View style={[ss.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
 
           <View style={ss.logoWrap}>
-            <View style={ss.logoBox}>
-              <View style={{position:'relative'}}>
-                <Text style={ss.logoTxt}>Konexu</Text>
-              </View>
-            </View>
+            <LogoKonexu style={ss.logoTxt}/>
           </View>
 
           <Text style={[ss.tagline, fontsLoaded && { fontFamily: 'PlayfairDisplay_700Bold_Italic' }]}>
@@ -143,7 +140,6 @@ const ss = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 28, paddingTop: 20, justifyContent: 'center' },
 
   logoWrap: { flexDirection: 'column', alignItems: 'flex-start', marginBottom: 32 },
-  logoBox: { backgroundColor: '#0D1117', borderRadius: 20, paddingHorizontal: 18, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', borderWidth: 2.5, borderColor: '#E8785A' },
   logoTxt: { fontSize: 38, fontWeight: '900', color: '#E8785A', letterSpacing: -1, fontStyle: 'normal' },
   logo: { fontSize: 32, fontWeight: '900', color: '#E8785A', letterSpacing: -1 },
 
