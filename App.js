@@ -260,6 +260,8 @@ function AuthStack(){
       <Stack.Screen name="Waitlist" component={WaitlistScreen}/>
       <Stack.Screen name="VerificarEmail" component={VerificarEmailScreen}/>
       <Stack.Screen name="VerificacionExitosa" component={VerificacionExitosaScreen}/>
+      <Stack.Screen name="Terminos" component={TerminosScreen}/>
+      <Stack.Screen name="Privacidad" component={PrivacidadScreen}/>
     </Stack.Navigator>
   );
 }

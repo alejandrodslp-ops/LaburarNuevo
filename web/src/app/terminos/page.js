@@ -8,7 +8,7 @@ export const metadata = {
 const EMAIL_LEGAL = 'legal@konexu.app'
 const EMPRESA = 'Konexu S.A.S.'
 const PAIS = 'República Oriental del Uruguay'
-const ULTIMA_ACTUALIZACION = '9 de agosto de 2026'
+const ULTIMA_ACTUALIZACION = '13 de septiembre de 2026'
 
 function Seccion({ titulo, children }) {
   return (
@@ -190,6 +190,13 @@ export default function TerminosPage() {
             evaluará el reclamo y, de corresponder, retirará el contenido en un plazo razonable. Las
             cuentas que infrinjan derechos de terceros de forma reiterada serán suspendidas.
           </p>
+          <p style={s.p}>
+            Para usuarios en Brasil, este mecanismo de notificación y retiro se corresponde con el
+            régimen de responsabilidad de proveedores de aplicaciones de internet previsto en el
+            art. 19 del <b>Marco Civil da Internet</b> (Lei N.º 12.965/2014): Konexu no revisa ni
+            aprueba previamente el contenido que suben los usuarios, y actúa sobre el contenido
+            notificado conforme a los plazos y criterios que esa normativa establece.
+          </p>
         </Seccion>
 
         <Seccion titulo="10. Uso de Inteligencia Artificial y Herramientas Automatizadas">
@@ -262,6 +269,11 @@ export default function TerminosPage() {
             Cualquier controversia que no pueda resolverse de forma amigable será sometida a los
             tribunales competentes de la ciudad de Montevideo, Uruguay, renunciando las partes a
             cualquier otro fuero o jurisdicción.
+          </p>
+          <p style={s.p}>
+            Lo anterior no te priva de las protecciones imperativas que te reconozca la ley de tu
+            país de residencia, en la medida en que esa ley resulte aplicable y no pueda excluirse
+            por acuerdo entre las partes.
           </p>
         </Seccion>
 

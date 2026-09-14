@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useI18n } from '../services/I18nContext';
 
-const ULTIMA_ACTUALIZACION = '9 de agosto de 2026';
+const ULTIMA_ACTUALIZACION = '13 de septiembre de 2026';
 const EMAIL_PRIVACIDAD = 'privacidad@konexu.app';
 const EMPRESA = 'Konexu S.A.S.';
 
@@ -59,7 +59,9 @@ export default function PrivacidadScreen({ navigation }) {
         <Text style={ss.intro}>
           En Konexu tomamos tu privacidad muy en serio. Esta Política explica qué datos recopilamos,
           para qué los usamos y cómo los protegemos, en cumplimiento de la Ley N° 18.331 de la
-          República Oriental del Uruguay, el Reglamento General de Protección de Datos (RGPD/GDPR)
+          República Oriental del Uruguay, la Ley N° 25.326 de Protección de Datos Personales de la
+          República Argentina, la Ley Federal de Protección de Datos Personales en Posesión de los
+          Particulares (LFPDPPP) de México, el Reglamento General de Protección de Datos (RGPD/GDPR)
           de la Unión Europea y la Lei Geral de Proteção de Dados (LGPD) de Brasil.
         </Text>
 
