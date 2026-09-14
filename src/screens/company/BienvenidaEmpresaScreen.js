@@ -5,10 +5,8 @@ import{LinearGradient}from "expo-linear-gradient";
 import{supabase}from "../../services/supabase";
 
 const PLANES=[
-  {id:"pago_sa",nombre:"Pago por perfil",zona:"Sudamerica",precio:"U$1.33",periodo:"/perfil",perfiles:"Sin limite mensual",color:"#2DD4BF",bg:"#F0FDFA",items:["Accede a cada perfil por U$1.33","Sin compromisos mensuales","Paga solo cuando lo necesitas","Busqueda por zona y oficio"]},
-  {id:"membresia_sa",nombre:"Membresia",zona:"Sudamerica",precio:"U$12",periodo:"/mes",perfiles:"10 perfiles incluidos",color:"#E8785A",bg:"#FFF0ED",destacado:true,items:["10 perfiles por mes incluidos","U$1.20 por perfil adicional","Busqueda avanzada","Soporte prioritario"]},
-  {id:"pago_world",nombre:"Pago por perfil",zona:"Mundial",precio:"U$2.66",periodo:"/perfil",perfiles:"Sin limite mensual",color:"#2DD4BF",bg:"#F0FDFA",items:["Accede a cada perfil por U$2.66","Sin compromisos mensuales","Paga solo cuando lo necesitas","Busqueda por zona y oficio"]},
-  {id:"membresia_world",nombre:"Membresia",zona:"Mundial",precio:"U$24",periodo:"/mes",perfiles:"10 perfiles incluidos",color:"#3DA882",bg:"#E6FBF5",destacado:true,items:["10 perfiles por mes incluidos","U$2.40 por perfil adicional","Busqueda avanzada","Soporte prioritario"]},
+  {id:"membresia_sa",nombre:"Suscripcion",zona:"Sudamerica",precio:"U$12",periodo:"/mes",perfiles:"Perfiles ilimitados",color:"#E8785A",bg:"#FFF0ED",items:["Ver perfiles sin limite durante 30 dias","Busqueda avanzada","Soporte prioritario"]},
+  {id:"membresia_world",nombre:"Suscripcion",zona:"Mundial",precio:"U$24",periodo:"/mes",perfiles:"Perfiles ilimitados",color:"#3DA882",bg:"#E6FBF5",items:["Ver perfiles sin limite durante 30 dias","Busqueda avanzada","Soporte prioritario"]},
 ];
 
 const BENEFICIOS=[
@@ -113,8 +111,16 @@ export default function BienvenidaEmpresaScreen({navigation}){
         </View>
 
         <View style={ss.sec}>
-          <Text style={ss.stit}>MODALIDAD DE ACCESO</Text>
-          <Text style={ss.planSub}>Elegi como prefieres acceder a los perfiles de trabajadores.</Text>
+          <Text style={ss.stit}>PLAN GRATUITO</Text>
+          <View style={ss.freeCard}>
+            <Text style={ss.freeTit}>Hasta 3 perfiles por dia, 9 por semana</Text>
+            <Text style={ss.freeDesc}>Sin costo y sin tarjeta. Si necesitas ver mas, suscribite para acceso ilimitado.</Text>
+          </View>
+        </View>
+
+        <View style={ss.sec}>
+          <Text style={ss.stit}>SUSCRIPCION — ACCESO ILIMITADO</Text>
+          <Text style={ss.planSub}>Elegi tu zona para ver perfiles sin limite.</Text>
           <View style={ss.planesRow}>
             <Text style={ss.zonaLabel}>🌎 Sudamerica</Text>
           </View>
@@ -189,6 +195,9 @@ const ss=StyleSheet.create({
   beneficioTit:{fontSize:14,fontWeight:"700",color:"#1A1020",marginBottom:3},
   beneficioDesc:{fontSize:13,color:"#A898B8",lineHeight:18},
   planSub:{fontSize:13,color:"#A898B8",marginBottom:16},
+  freeCard:{backgroundColor:"#E6FBF5",borderRadius:14,padding:16,borderWidth:1,borderColor:"#3DA882"},
+  freeTit:{fontSize:15,fontWeight:"800",color:"#2E9472",marginBottom:4},
+  freeDesc:{fontSize:12,color:"#2E9472",lineHeight:17},
   planesRow:{marginBottom:8},
   zonaLabel:{fontSize:13,fontWeight:"700",color:"#5A4E6A"},
   mundialNota:{backgroundColor:"#FFF0ED",borderRadius:8,padding:10,marginBottom:10,borderLeftWidth:3,borderLeftColor:"#E8785A"},
