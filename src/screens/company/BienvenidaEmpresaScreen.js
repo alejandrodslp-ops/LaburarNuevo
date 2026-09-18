@@ -70,7 +70,7 @@ export default function BienvenidaEmpresaScreen({navigation}){
       if(!user){Alert.alert('Error','Debés iniciar sesión');return;}
       const{data:perfil}=await supabase.from('profiles').select('suscripcion_vence_at').eq('id',user.id).single();
       prevVenceRef.current=perfil?.suscripcion_vence_at||null;
-      const monto=plan.zona==='Sudamerica'?12:24;
+      const monto=plan.zona==='Sudamerica'?12:(plan.zona==='Mundial'?24:50);
       const{data,error}=await supabase.functions.invoke('crear-pago',{
         body:{monto,descripcion:'Konexu — Suscripción empresa (30 días)',tipo:'company_suscripcion'},
       });
@@ -151,6 +151,26 @@ export default function BienvenidaEmpresaScreen({navigation}){
           </View>
           <View style={ss.planesGrid}>
             {PLANES.filter(p=>p.zona==="Mundial").map(p=>(
+              <View key={p.id} style={ss.planCard}>
+                <Text style={[ss.planNombre,{color:p.color}]}>{p.nombre}</Text>
+                <Text style={ss.planPrecio}>{p.precio}<Text style={ss.planPeriodo}>{p.periodo}</Text></Text>
+                <Text style={ss.planPerfiles}>{p.perfiles}</Text>
+                {p.items.map((item,i)=>(<View key={i} style={ss.planItem}><Text style={[ss.planDot,{color:p.color}]}>✓</Text><Text style={ss.planItemTxt}>{item}</Text></View>))}
+                <TouchableOpacity
+                  style={[ss.planBtn,{backgroundColor:p.color},pagando===p.id&&{opacity:0.6}]}
+                  disabled={pagando===p.id}
+                  onPress={()=>p.id.startsWith('membresia_')?suscribirse(p):Alert.alert("Proximamente","El sistema de pagos estara disponible muy pronto.")}
+                >
+                  <Text style={ss.planBtnTxt}>{pagando===p.id?'Procesando...':'Suscribirme'}</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+          <View style={ss.planesRow}>
+            <Text style={ss.zonaLabel}>💎 Premium</Text>
+          </View>
+          <View style={ss.planesGrid}>
+            {PLANES.filter(p=>p.zona==="Premium").map(p=>(
               <View key={p.id} style={ss.planCard}>
                 <Text style={[ss.planNombre,{color:p.color}]}>{p.nombre}</Text>
                 <Text style={ss.planPrecio}>{p.precio}<Text style={ss.planPeriodo}>{p.periodo}</Text></Text>
