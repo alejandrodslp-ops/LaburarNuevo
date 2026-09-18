@@ -34,6 +34,7 @@ import BienvenidaEmpresaScreen from "./src/screens/company/BienvenidaEmpresaScre
 import HomeEmpresaScreen from "./src/screens/company/HomeEmpresaScreen";
 import BuscarEmpresaScreen from "./src/screens/company/BuscarEmpresaScreen";
 import PerfilEmpresaScreen from "./src/screens/company/PerfilEmpresaScreen";
+import MisOfertasEmpresaScreen from "./src/screens/company/MisOfertasEmpresaScreen";
 import EditarPerfilScreen from "./src/screens/worker/EditarPerfilScreen";
 import PropuestaScreen from "./src/screens/worker/PropuestaScreen";
 import EncuestaRechazoScreen from "./src/screens/worker/EncuestaRechazoScreen";
@@ -57,7 +58,7 @@ const Tab=createBottomTabNavigator();
 const Stack=createStackNavigator();
 
 function TabIcon({name,focused}){
-  const icons={Inicio:"🏠",Buscar:"🔍",Concursa:"🏛️",Mensajes:"💬",Perfil:"👤",Cuenta:"👤",Ofertas:"📋"};
+  const icons={Inicio:"🏠",Buscar:"🔍",Concursa:"🏛️",Mensajes:"💬",Perfil:"👤",Cuenta:"👤",Ofertas:"📋",Publicar:"📣"};
   return(
     <View style={{alignItems:"center"}}>
       {focused&&<View style={ss.ind}/>}
@@ -231,6 +232,7 @@ function CompanyTabs(){
     })}>
       <Tab.Screen name="Inicio" component={HomeEmpresaScreen}/>
       <Tab.Screen name="Explorar" component={BuscarEmpresaScreen}/>
+      <Tab.Screen name="Publicar" component={MisOfertasEmpresaScreen}/>
       <Tab.Screen name="Cuenta" component={PerfilEmpresaScreen}/>
     </Tab.Navigator>
   );
@@ -243,6 +245,8 @@ function CompanyStack(){
       <Stack.Screen name="BienvenidaEmpresa" component={BienvenidaEmpresaScreen}/>
       <Stack.Screen name="Pago" component={PagoScreen}/>
       <Stack.Screen name="PerfilTrabajador" component={PerfilTrabajadorScreen}/>
+      <Stack.Screen name="CrearOferta" component={CrearOfertaScreen}/>
+      <Stack.Screen name="MisOfertasEmpresa" component={MisOfertasEmpresaScreen}/>
     </Stack.Navigator>
   );
 }

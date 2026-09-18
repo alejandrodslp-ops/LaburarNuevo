@@ -2,6 +2,7 @@ import React,{useState,useEffect}from 'react';
 import{View,Text,StyleSheet,TouchableOpacity,TextInput,ScrollView,Alert,ActivityIndicator}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{supabase}from '../../services/supabase';
+import{useApp}from '../../services/AppContext';
 import*as Localization from 'expo-localization';
 
 const MONEDA_POR_REGION={UY:'UYU',AR:'ARS',BR:'BRL',ES:'EUR',PT:'EUR',FR:'EUR',DE:'EUR',IT:'EUR',GB:'GBP'};
@@ -58,6 +59,7 @@ const MODALIDAD_LBL={presencial:'🏢 Presencial',remoto:'💻 Remoto',hibrido:'
 const CONTRATO_LBL={full_time:'Tiempo completo',part_time:'Medio tiempo',contrato:'Contrato',freelance:'Freelance'};
 
 export default function CrearOfertaScreen({navigation,route}){
+  const{modoActivo}=useApp();
   const editando=route.params?.oferta||null;
   const[loading,setLoading]=useState(false);
 
@@ -103,7 +105,14 @@ export default function CrearOfertaScreen({navigation,route}){
       }
       if(error)throw error;
 
-      Alert.alert(editando?'Oferta actualizada':'Oferta publicada',editando?'Los cambios fueron guardados.':'Tu oferta ya es visible para los trabajadores.',[{text:'OK',onPress:()=>navigation.goBack()}]);
+      const esCompany=modoActivo==='company';
+      const tituloAlert=editando?'Oferta actualizada':(esCompany?'Búsqueda recibida':'Oferta publicada');
+      const mensajeAlert=editando
+        ?'Los cambios fueron guardados.'
+        :(esCompany
+            ?'Tu búsqueda fue recibida correctamente. La estamos revisando para mantener la calidad de las publicaciones en Konexu — se activa en un plazo de 24 horas.'
+            :'Tu oferta ya es visible para los trabajadores.');
+      Alert.alert(tituloAlert,mensajeAlert,[{text:'OK',onPress:()=>navigation.goBack()}]);
     }catch(e){Alert.alert('Error','No se pudo guardar la oferta. Intentá de nuevo.');}
     finally{setLoading(false);}
   }
