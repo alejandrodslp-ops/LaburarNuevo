@@ -955,78 +955,88 @@ EOF
 
 ---
 
-## Task 7: Crons — moderar-ofertas y re-match diario
+## Task 7: Crons — moderar-ofertas, re-match diario, y aviso a la empresa
+
+**Ejecución (corregido tras Tareas 4-6):** ninguna de las tres SQL de este task puede ejecutarla un subagente ni el controlador vía `supabase db query --linked` — todas necesitan la clave real (`scraper_nexu`, confirmada en esta sesión como la que coincide con `SUPABASE_SERVICE_ROLE_KEY` de este proyecto, NO la clave "legacy" del dashboard) embebida en el `cron.schedule(...)`, y obtener/usar esa clave está bloqueado por el clasificador de modo automático de Claude Code (igual que en las Tareas 4, 5 y 6). El usuario debe correr las 3 SQL él mismo desde el SQL Editor de Supabase, pegando la clave una sola vez por bloque. El controlador prepara los 3 bloques completos y verifica el resultado después por lectura, sin tocar la clave en ningún momento.
 
 **Files:**
-- Ejecutar directo contra la base vía `supabase db query --linked --file`.
+- Ninguno del repo — solo cron jobs creados directo contra la base, vía el SQL Editor de Supabase (el usuario los ejecuta, no `supabase db query --linked --file`).
 
 **Interfaces:**
-- Produce: cron jobs `moderar-ofertas-horario` y `match-ofertas-diario`.
+- Produce: cron jobs `moderar-ofertas-horario`, `match-ofertas-diario`, y `notificar-matches-ofertas-recurrente` (este último es un agregado respecto al diseño original — ver Ruling en el ledger de la Tarea 6: el cascade automático `match-ofertas -> notificar-matches-ofertas` vía invoke sin `await`/`waitUntil` no se completa de forma confiable en producción, así que no alcanza con depender de él; hace falta un cron propio).
 
-- [ ] **Step 1: Obtener el service role key real**
+- [ ] **Step 1: Cron `moderar-ofertas` cada hora**
 
-```bash
-supabase secrets list --project-ref waevdcqdkovqaxkonlvj 2>/dev/null | grep -i service
-```
-Si no lo devuelve por acá, tomarlo de Supabase Dashboard → Settings → API → `service_role` (no pegarlo en ningún archivo del repo, solo en el SQL que se ejecuta directo).
-
-- [ ] **Step 2: Cron `moderar-ofertas` cada hora**
-
-`/tmp/task7_cron_moderar.sql` (reemplazar `<SERVICE_ROLE_KEY>`):
+Ejecutar en el **SQL Editor de Supabase** (no vía CLI), reemplazando `<SCRAPER_NEXU_KEY>` por el valor real de la clave de proyecto `scraper_nexu` (Settings → API Keys → Secret keys):
 ```sql
 select cron.schedule(
   'moderar-ofertas-horario',
   '0 * * * *',
   $$SELECT net.http_post(
     url:='https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/moderar-ofertas',
-    headers:='{"Content-Type":"application/json","Authorization":"Bearer <SERVICE_ROLE_KEY>"}'::jsonb,
+    headers:='{"Content-Type":"application/json","Authorization":"Bearer <SCRAPER_NEXU_KEY>"}'::jsonb,
     timeout_milliseconds:=30000
   );$$
 );
 ```
-```bash
-supabase db query --linked --file /tmp/task7_cron_moderar.sql
-```
 
-- [ ] **Step 3: Cron `match-ofertas` diario (re-match contra workers nuevos)**
+- [ ] **Step 2: Cron `match-ofertas` diario (re-match contra workers nuevos)**
 
-`/tmp/task7_cron_match.sql` (reemplazar `<SERVICE_ROLE_KEY>`):
+Ejecutar en el SQL Editor de Supabase, reemplazando `<SCRAPER_NEXU_KEY>`:
 ```sql
 select cron.schedule(
   'match-ofertas-diario',
   '0 8 * * *',
   $$SELECT net.http_post(
     url:='https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/match-ofertas',
-    headers:='{"Content-Type":"application/json","Authorization":"Bearer <SERVICE_ROLE_KEY>"}'::jsonb,
+    headers:='{"Content-Type":"application/json","Authorization":"Bearer <SCRAPER_NEXU_KEY>"}'::jsonb,
     body:='{"todos":true}'::jsonb,
     timeout_milliseconds:=60000
   );$$
 );
 ```
-```bash
-supabase db query --linked --file /tmp/task7_cron_match.sql
-```
 Nota: se elige `0 8 * * *` (una hora después de `busqueda-diaria-workers`, que corre `0 7 * * *`) para no competir por recursos con el matching de concursos.
 
-- [ ] **Step 4: Verificar ambos activos**
+- [ ] **Step 3: Cron `notificar-matches-ofertas` recurrente (agregado — el cascade automático no es confiable)**
 
+Sin este cron, el aviso a la empresa depende únicamente del invoke fire-and-forget que hace `match-ofertas` al terminar, y la Tarea 6 confirmó en producción que ese invoke puede no completarse (Supabase corta el trabajo async sin `EdgeRuntime.waitUntil` cuando el isolate se congela tras responder). Ejecutar en el SQL Editor de Supabase, reemplazando `<SCRAPER_NEXU_KEY>`:
+```sql
+select cron.schedule(
+  'notificar-matches-ofertas-recurrente',
+  '*/30 * * * *',
+  $$SELECT net.http_post(
+    url:='https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/notificar-matches-ofertas',
+    headers:='{"Content-Type":"application/json","Authorization":"Bearer <SCRAPER_NEXU_KEY>"}'::jsonb,
+    timeout_milliseconds:=30000
+  );$$
+);
+```
+Corre cada 30 minutos — la función ya es idempotente respecto a qué marca como `notificado` (solo toca `cumple=true and notificado=false`), así que superponerse con un cascade eventual que sí llegue a completarse no duplica avisos más allá del riesgo de carrera ya documentado (Tarea 6, hallazgo Important, no bloqueante).
+
+- [ ] **Step 4: Verificar los 3 activos**
+
+Esto sí lo puede correr el controlador vía CLI (es de solo lectura, no toca la clave):
 ```bash
 cat > /tmp/verif7.sql << 'EOF'
-select jobname, schedule, active from cron.job where jobname in ('moderar-ofertas-horario','match-ofertas-diario');
+select jobname, schedule, active from cron.job where jobname in ('moderar-ofertas-horario','match-ofertas-diario','notificar-matches-ofertas-recurrente');
 EOF
 supabase db query --linked --file /tmp/verif7.sql -o json
 ```
-Esperado: 2 filas, ambas `active=true`.
+Esperado: 3 filas, todas `active=true`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add docs/superpowers/plans/2026-09-18-company-publicar-empleo.md
 git commit -m "$(cat <<'EOF'
-chore: cron de revision automatica horaria + re-match diario de ofertas
+chore: cron de revision horaria + re-match diario + aviso recurrente de ofertas
 
-moderar-ofertas-horario (cada hora, aprueba/rechaza pendientes de 24hs)
-y match-ofertas-diario (0 8 * * *, todos:true, toma workers nuevos).
+moderar-ofertas-horario (cada hora), match-ofertas-diario (0 8 * * *,
+todos:true) y notificar-matches-ofertas-recurrente (cada 30min, agregado
+tras confirmar en Tarea 6 que el cascade automatico no es confiable).
+Los 3 creados por el usuario via SQL Editor (requieren la clave
+scraper_nexu, bloqueada para Claude Code); verificacion de solo lectura
+hecha por el controlador.
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 EOF
