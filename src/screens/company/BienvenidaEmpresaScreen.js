@@ -120,8 +120,8 @@ export default function BienvenidaEmpresaScreen({navigation}){
         </View>
 
         <View style={ss.sec}>
-          <Text style={ss.stit}>SUSCRIPCION — ACCESO ILIMITADO</Text>
-          <Text style={ss.planSub}>Elegi tu zona para ver perfiles sin limite.</Text>
+          <Text style={ss.stit}>SUSCRIPCION — MAS PERFILES POR DIA</Text>
+          <Text style={ss.planSub}>Elegi tu zona y el nivel de acceso que necesitas.</Text>
           <View style={ss.planesRow}>
             <Text style={ss.zonaLabel}>🌎 Sudamerica</Text>
           </View>
