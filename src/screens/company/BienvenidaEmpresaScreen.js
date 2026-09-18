@@ -5,8 +5,9 @@ import{LinearGradient}from "expo-linear-gradient";
 import{supabase}from "../../services/supabase";
 
 const PLANES=[
-  {id:"membresia_sa",nombre:"Suscripcion",zona:"Sudamerica",precio:"U$12",periodo:"/mes",perfiles:"Perfiles ilimitados",color:"#E8785A",bg:"#FFF0ED",items:["Ver perfiles sin limite durante 30 dias","Busqueda avanzada","Soporte prioritario"]},
-  {id:"membresia_world",nombre:"Suscripcion",zona:"Mundial",precio:"U$24",periodo:"/mes",perfiles:"Perfiles ilimitados",color:"#3DA882",bg:"#E6FBF5",items:["Ver perfiles sin limite durante 30 dias","Busqueda avanzada","Soporte prioritario"]},
+  {id:"membresia_sa",nombre:"Suscripcion",zona:"Sudamerica",precio:"U$12",periodo:"/mes",perfiles:"Hasta 10 perfiles nuevos por dia",color:"#E8785A",bg:"#FFF0ED",items:["Hasta 10 perfiles nuevos por dia durante 30 dias","Busqueda avanzada","Soporte prioritario"]},
+  {id:"membresia_world",nombre:"Suscripcion",zona:"Mundial",precio:"U$24",periodo:"/mes",perfiles:"Hasta 10 perfiles nuevos por dia",color:"#3DA882",bg:"#E6FBF5",items:["Hasta 10 perfiles nuevos por dia durante 30 dias","Busqueda avanzada","Soporte prioritario"]},
+  {id:"membresia_premium",nombre:"Suscripcion",zona:"Premium",precio:"U$50",periodo:"/mes",perfiles:"Perfiles ilimitados",color:"#7C3AED",bg:"#F3E8FF",items:["Perfiles ilimitados durante 30 dias","Pensado para empresas con alto volumen de busqueda","Soporte prioritario"]},
 ];
 
 const BENEFICIOS=[
