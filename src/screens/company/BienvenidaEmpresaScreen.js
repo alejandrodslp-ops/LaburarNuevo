@@ -115,7 +115,7 @@ export default function BienvenidaEmpresaScreen({navigation}){
           <Text style={ss.stit}>PLAN GRATUITO</Text>
           <View style={ss.freeCard}>
             <Text style={ss.freeTit}>Hasta 3 perfiles por dia, 9 por semana</Text>
-            <Text style={ss.freeDesc}>Sin costo y sin tarjeta. Si necesitas ver mas, suscribite para acceso ilimitado.</Text>
+            <Text style={ss.freeDesc}>Sin costo y sin tarjeta. Si necesitas ver mas, suscribite para acceder a mas perfiles por dia.</Text>
           </View>
         </View>
 

@@ -16,24 +16,33 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // Chequeo determinístico V1 — sin IA. Longitud mínima, sin URLs sueltas,
 // sin términos de spam/discriminatorios. Se puede reforzar después sin
 // cambiar el flujo (queda todo en esta única función).
+// "bitcoin"/"cripto" sueltos se sacaron: pegan en puestos legítimos
+// (cajero de casa de cambio, desarrollador blockchain, etc). Solo quedan
+// frases que en conjunto son casi siempre estafa/pirámide.
 const PALABRAS_PROHIBIDAS = [
-  "gratis dinero", "bitcoin", "cripto invers", "pirámide", "esquema piramidal",
+  "dinero facil", "dinero gratis", "gratis dinero", "cripto invers", "inversion piramidal",
+  "piramide", "esquema piramidal", "gana dinero rapido",
   "solo hombres", "solo mujeres", "no discapacitados", "no mayores de",
 ];
 const URL_REGEX = /https?:\/\/|www\./i;
 
+function quitarAcentos(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
 function revisarContenido(oferta: { titulo: string; descripcion: string | null; empleo: string | null }): { ok: true } | { ok: false; motivo: string } {
-  const texto = `${oferta.titulo} ${oferta.descripcion || ""} ${oferta.empleo || ""}`.toLowerCase();
+  const textoOriginal = `${oferta.titulo} ${oferta.descripcion || ""} ${oferta.empleo || ""}`;
+  const texto = quitarAcentos(textoOriginal.toLowerCase());
 
   if (oferta.titulo.trim().length < 5) {
     return { ok: false, motivo: "El título es demasiado corto para describir la búsqueda." };
   }
-  if (URL_REGEX.test(texto)) {
+  if (URL_REGEX.test(textoOriginal)) {
     return { ok: false, motivo: "No se permiten links externos en la publicación." };
   }
   for (const p of PALABRAS_PROHIBIDAS) {
-    if (texto.includes(p)) {
-      return { ok: false, motivo: "El contenido de la publicación no cumple con las normas de Konexu." };
+    if (texto.includes(quitarAcentos(p))) {
+      return { ok: false, motivo: `El contenido no cumple con las normas de Konexu (frase detectada: "${p}").` };
     }
   }
   return { ok: true };
@@ -93,7 +102,7 @@ serve(async (req: Request) => {
         );
         supabase.functions.invoke("match-ofertas", { body: { oferta_id: o.id } }).catch(() => {});
       } else if ("motivo" in resultado) {
-        await supabase.from("ofertas").update({ estado: "rechazada", motivo_rechazo: resultado.motivo }).eq("id", o.id);
+        await supabase.from("ofertas").update({ estado: "rechazada", motivo_rechazo: resultado.motivo, activa: false }).eq("id", o.id);
         rechazadas++;
         await pushEmpresa(
           o.employer_id,

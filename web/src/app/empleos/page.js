@@ -57,6 +57,7 @@ async function getOfertas(q, pais) {
     .from('ofertas')
     .select('id,titulo,pais,ciudad,lugar,fecha_cierre,created_at,employer_id')
     .eq('activa', true)
+    .eq('estado', 'aprobada')
   if (pais) query = query.eq('pais', pais)
   query = query.order('created_at', { ascending: false }).limit(60)
   if (safe) query = query.ilike('titulo', `%${safe}%`)

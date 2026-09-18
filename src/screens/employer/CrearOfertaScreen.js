@@ -82,6 +82,8 @@ export default function CrearOfertaScreen({navigation,route}){
       const{data:{user}}=await supabase.auth.getUser();
       if(!user){Alert.alert('Error','Debés iniciar sesión');return;}
 
+      const esCompany=modoActivo==='company';
+
       const payload={
         employer_id:user.id,
         titulo:titulo.trim(),
@@ -97,6 +99,18 @@ export default function CrearOfertaScreen({navigation,route}){
         fecha_cierre:fechaCierre||null,
       };
 
+      // employer no pasa por revision automatica (esa es exclusiva de company) —
+      // se aprueba de una para no cambiar su publicacion instantanea existente.
+      if(!editando&&!esCompany){
+        payload.estado='aprobada';
+      }
+      // company: al editar, vuelve a quedar pendiente de revision (evita el bypass
+      // de aprobar contenido limpio y despues editarlo a spam sin re-chequeo).
+      if(editando&&esCompany){
+        payload.estado='pendiente';
+        payload.motivo_rechazo=null;
+      }
+
       let error;
       if(editando){
         ({error}=await supabase.from('ofertas').update(payload).eq('id',editando.id));
@@ -105,10 +119,11 @@ export default function CrearOfertaScreen({navigation,route}){
       }
       if(error)throw error;
 
-      const esCompany=modoActivo==='company';
-      const tituloAlert=editando?'Oferta actualizada':(esCompany?'Búsqueda recibida':'Oferta publicada');
+      const tituloAlert=editando?(esCompany?'Cambios recibidos':'Oferta actualizada'):(esCompany?'Búsqueda recibida':'Oferta publicada');
       const mensajeAlert=editando
-        ?'Los cambios fueron guardados.'
+        ?(esCompany
+            ?'Los cambios fueron guardados. Como modificaste el contenido, vuelve a pasar por la revisión de calidad — normalmente se activa dentro de las 24 horas.'
+            :'Los cambios fueron guardados.')
         :(esCompany
             ?'Tu búsqueda fue recibida correctamente. La estamos revisando para mantener la calidad de las publicaciones en Konexu — normalmente se activa dentro de las 24 horas.'
             :'Tu oferta ya es visible para los trabajadores.');

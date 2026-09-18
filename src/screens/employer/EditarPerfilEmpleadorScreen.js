@@ -170,6 +170,8 @@ export default function EditarPerfilEmpleadorScreen({navigation}){
           idiomas,escolaridad,
           habilidades:habilidades?habilidades.split(",").map(h=>h.trim()):[],
           ciudad,pais,
+          // revision automatica de 24hs es exclusiva de company; employer se aprueba de una
+          estado:"aprobada",
         });
         if(errOferta)throw errOferta;
       }

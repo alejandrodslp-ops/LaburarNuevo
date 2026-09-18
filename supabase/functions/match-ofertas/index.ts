@@ -12,6 +12,8 @@ const CORS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
 async function matchOferta(ofertaId: string): Promise<{ procesados: number; error?: string }> {
   const { data: oferta, error: ofertaErr } = await supabase
     .from("ofertas")
@@ -60,6 +62,12 @@ async function matchOferta(ofertaId: string): Promise<{ procesados: number; erro
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+
+  if (req.headers.get("Authorization") !== `Bearer ${SERVICE_KEY}`) {
+    return new Response(JSON.stringify({ error: "No autorizado" }), {
+      status: 401, headers: { "Content-Type": "application/json", ...CORS },
+    });
+  }
 
   try {
     const body = await req.json().catch(() => ({}));
