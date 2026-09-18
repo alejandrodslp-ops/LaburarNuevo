@@ -62,14 +62,14 @@ export default function CrearOfertaScreen({navigation,route}){
   const[loading,setLoading]=useState(false);
 
   const[titulo,setTitulo]=useState(editando?.titulo||'');
-  const[cargo,setCargo]=useState(editando?.cargo||'');
+  const[cargo,setCargo]=useState(editando?.empleo||'');
   const[descripcion,setDescripcion]=useState(editando?.descripcion||'');
   const[requisitos,setRequisitos]=useState(editando?.requisitos||'');
   const[ciudad,setCiudad]=useState(editando?.ciudad||'');
   const[modalidad,setModalidad]=useState(editando?.modalidad||null);
   const[tipoContrato,setTipoContrato]=useState(editando?.tipo_contrato||null);
-  const[salarioMin,setSalarioMin]=useState(editando?.salario_min?.toString()||'');
-  const[salarioMax,setSalarioMax]=useState(editando?.salario_max?.toString()||'');
+  const[salarioMin,setSalarioMin]=useState(editando?.sueldo_min?.toString()||'');
+  const[salarioMax,setSalarioMax]=useState(editando?.sueldo_max?.toString()||'');
   const[moneda,setMoneda]=useState(editando?.moneda||monedaDefecto());
   const[fechaCierre,setFechaCierre]=useState(editando?.fecha_cierre||'');
 
@@ -83,17 +83,16 @@ export default function CrearOfertaScreen({navigation,route}){
       const payload={
         employer_id:user.id,
         titulo:titulo.trim(),
-        cargo:cargo.trim()||null,
+        empleo:cargo.trim()||null,
         descripcion:descripcion.trim()||null,
         requisitos:requisitos.trim()||null,
         ciudad:ciudad.trim()||null,
         modalidad:modalidad||null,
         tipo_contrato:tipoContrato||null,
-        salario_min:salarioMin?parseFloat(salarioMin):null,
-        salario_max:salarioMax?parseFloat(salarioMax):null,
+        sueldo_min:salarioMin?parseFloat(salarioMin):null,
+        sueldo_max:salarioMax?parseFloat(salarioMax):null,
         moneda,
         fecha_cierre:fechaCierre||null,
-        updated_at:new Date().toISOString(),
       };
 
       let error;

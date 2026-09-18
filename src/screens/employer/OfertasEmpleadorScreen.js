@@ -20,7 +20,7 @@ function OfertaCard({oferta,onPress,onToggle}){
       <View style={ss.cardTop}>
         <View style={ss.cardLeft}>
           <Text style={ss.cardTitulo} numberOfLines={2}>{oferta.titulo}</Text>
-          {oferta.cargo?<Text style={ss.cardCargo}>{oferta.cargo}</Text>:null}
+          {oferta.empleo?<Text style={ss.cardCargo}>{oferta.empleo}</Text>:null}
         </View>
         <Switch
           value={activa}
