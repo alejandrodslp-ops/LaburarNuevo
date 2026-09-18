@@ -110,7 +110,7 @@ export default function CrearOfertaScreen({navigation,route}){
       const mensajeAlert=editando
         ?'Los cambios fueron guardados.'
         :(esCompany
-            ?'Tu búsqueda fue recibida correctamente. La estamos revisando para mantener la calidad de las publicaciones en Konexu — se activa en un plazo de 24 horas.'
+            ?'Tu búsqueda fue recibida correctamente. La estamos revisando para mantener la calidad de las publicaciones en Konexu — normalmente se activa dentro de las 24 horas.'
             :'Tu oferta ya es visible para los trabajadores.');
       Alert.alert(tituloAlert,mensajeAlert,[{text:'OK',onPress:()=>navigation.goBack()}]);
     }catch(e){Alert.alert('Error','No se pudo guardar la oferta. Intentá de nuevo.');}
