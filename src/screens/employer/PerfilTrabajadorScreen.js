@@ -487,6 +487,32 @@ export default function PerfilTrabajadorScreen({navigation,route}){
           </View>
         )}
 
+        {datosAceptado?.experiencia?.length>0&&(
+          <View style={ss.sec}>
+            <Text style={ss.stit}>EXPERIENCIA</Text>
+            {datosAceptado.experiencia.map((e,i)=>(
+              <View key={i} style={ss.card}>
+                {e.cargo?<Text style={ss.eduTitulo}>{e.cargo}</Text>:null}
+                {e.empresa?<Text style={ss.eduInstitucion}>{e.empresa}</Text>:null}
+                {(e.desde||e.hasta)?<Text style={ss.eduFechas}>{e.desde||'—'} – {e.hasta||'Presente'}</Text>:null}
+                {e.descripcion?<Text style={ss.bioTxt}>{e.descripcion}</Text>:null}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {datosAceptado?.certificaciones?.length>0&&(
+          <View style={ss.sec}>
+            <Text style={ss.stit}>CERTIFICACIONES</Text>
+            {datosAceptado.certificaciones.map((c,i)=>(
+              <View key={i} style={ss.card}>
+                {c.nombre?<Text style={ss.eduTitulo}>{c.nombre}</Text>:null}
+                {c.institucion?<Text style={ss.eduInstitucion}>{c.institucion}{c.anio?` · ${c.anio}`:''}</Text>:null}
+              </View>
+            ))}
+          </View>
+        )}
+
         {datosAceptado?.email&&(
           <View style={ss.sec}>
             <Text style={ss.stit}>CONTACTO</Text>

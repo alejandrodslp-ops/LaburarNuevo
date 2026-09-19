@@ -91,7 +91,7 @@ export default function CVScreen({ navigation }) {
         // Si no hay guardado, auto-rellenar desde el perfil
         const { data } = await supabase
           .from("profiles")
-          .select("nombre,apellido1,apellido2,telefono,pais,ciudad,servicios,profesiones,tecnicaturas,especialidades,idiomas,bio,descripcion_libre,nacionalidad,anios_experiencia,avatar_url,educacion")
+          .select("nombre,apellido1,apellido2,telefono,pais,ciudad,servicios,profesiones,tecnicaturas,especialidades,idiomas,bio,descripcion_libre,nacionalidad,anios_experiencia,avatar_url,educacion,experiencia,certificaciones")
           .eq("id", user.id)
           .single();
         if (data) {
@@ -119,10 +119,17 @@ export default function CVScreen({ navigation }) {
             habilidades,
             idiomas: idiomasArr,
             foto: data.avatar_url || "",
-            // Si ya habia educacion guardada en el servidor (por ej. cargada desde
-            // otro dispositivo) se prioriza sobre el placeholder vacio inicial.
+            // Si ya habia educacion/experiencia/certificaciones guardadas en el
+            // servidor (por ej. cargadas desde otro dispositivo) se priorizan
+            // sobre el placeholder vacio inicial.
             ...(Array.isArray(data.educacion) && data.educacion.length > 0
               ? { educacion: data.educacion }
+              : {}),
+            ...(Array.isArray(data.experiencia) && data.experiencia.length > 0
+              ? { experiencia: data.experiencia }
+              : {}),
+            ...(Array.isArray(data.certificaciones) && data.certificaciones.length > 0
+              ? { certificaciones: data.certificaciones }
               : {}),
           }));
         }
@@ -153,12 +160,19 @@ export default function CVScreen({ navigation }) {
     setSaving(true);
     try {
       await AsyncStorage.setItem(`cv_${userId}`, JSON.stringify(cv));
-      // La educacion tambien se sincroniza al servidor (antes solo vivia en este
-      // dispositivo) — es lo que ve el empleador/empresa una vez que el trabajador
-      // acepta su propuesta (obtener_datos_aceptado). Best-effort: si falla la red,
-      // el guardado local ya se hizo y no se interrumpe al usuario por esto.
+      // Educacion/experiencia/certificaciones tambien se sincronizan al servidor
+      // (antes solo vivian en este dispositivo) — es lo que ve el empleador/empresa
+      // una vez que el trabajador acepta su propuesta (obtener_datos_aceptado).
+      // Best-effort: si falla la red, el guardado local ya se hizo y no se
+      // interrumpe al usuario por esto.
       const educacionReal = cv.educacion.filter(e => e.titulo || e.institucion);
-      supabase.from("profiles").update({ educacion: educacionReal }).eq("id", userId).then(() => {});
+      const experienciaReal = cv.experiencia.filter(e => e.empresa || e.cargo);
+      const certificacionesReal = cv.certificaciones.filter(c => c.nombre);
+      supabase.from("profiles").update({
+        educacion: educacionReal,
+        experiencia: experienciaReal,
+        certificaciones: certificacionesReal,
+      }).eq("id", userId).then(() => {});
       Alert.alert("Guardado", "Tu CV fue guardado correctamente.");
     } catch (e) {
       Alert.alert("Error", "No se pudo guardar: " + e.message);
