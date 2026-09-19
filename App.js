@@ -231,8 +231,8 @@ function CompanyTabs(){
       tabBarIcon:({focused})=><TabIcon name={route.name} focused={focused}/>,
     })}>
       <Tab.Screen name="Inicio" component={HomeEmpresaScreen}/>
-      <Tab.Screen name="Explorar" component={BuscarEmpresaScreen}/>
       <Tab.Screen name="Publicar" component={MisOfertasEmpresaScreen}/>
+      <Tab.Screen name="Explorar" component={BuscarEmpresaScreen}/>
       <Tab.Screen name="Cuenta" component={PerfilEmpresaScreen}/>
     </Tab.Navigator>
   );
