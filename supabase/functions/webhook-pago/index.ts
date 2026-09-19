@@ -124,14 +124,22 @@ serve(async (req) => {
         } else if (tipo === "company_suscripcion") {
           const vence = new Date();
           vence.setDate(vence.getDate() + 30);
-          const planId = String(payment.metadata?.plan_id || "");
           const planesValidos = ["membresia_sa", "membresia_world", "membresia_premium"];
+          let planId = String(payment.metadata?.plan_id || "");
+          if (!planesValidos.includes(planId)) {
+            // Fallback por monto — el pago ya salio de nuestra propia preferencia,
+            // asi que el monto es confiable aunque falte/venga mal el plan_id
+            // (build viejo de la app, o un nivel nuevo que se olvido agregar aca).
+            const monto = Number(payment.transaction_amount);
+            planId = monto === 12 ? "membresia_sa" : monto === 24 ? "membresia_world" : monto === 50 ? "membresia_premium" : "";
+            if (!planId) {
+              console.error("company_suscripcion sin plan_id reconocible, monto:", monto, "userId:", userId);
+            }
+          }
           const update: Record<string, unknown> = {
             suscripcion_activa:    true,
             suscripcion_vence_at:  vence.toISOString(),
           };
-          // Si el plan no vino o no es uno conocido, no se pisa suscripcion_plan
-          // (queda como estaba) — mejor un valor viejo/ausente que uno inventado.
           if (planesValidos.includes(planId)) update.suscripcion_plan = planId;
           await supabase.from("profiles").update(update).eq("id", userId);
         } else {

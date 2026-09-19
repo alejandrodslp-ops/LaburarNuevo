@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../services/supabase';
-import { useApp } from '../../services/AppContext';
 
 const CATS = [
   { id: 'Limpieza del hogar', emoji: '🧹' },
@@ -64,14 +63,14 @@ function WorkerCard({ item, onPress }) {
   );
 }
 
-function LockedCard({ onPress }) {
+function LockedCard({ onPress, suscripto }) {
   return (
     <TouchableOpacity style={[ss.card, ss.lockedCard]} onPress={onPress} activeOpacity={0.9}>
       <View style={ss.lockedRow}>
         <View style={ss.lockCircle}><Text style={ss.lockIcon}>🔒</Text></View>
         <View style={{ flex: 1 }}>
           <Text style={ss.lockTitle}>Perfil bloqueado</Text>
-          <Text style={ss.lockSub}>Activá tu suscripción para ver este perfil</Text>
+          <Text style={ss.lockSub}>{suscripto ? 'Volvé mañana o pasate a Premium' : 'Activá tu suscripción para ver este perfil'}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -79,7 +78,6 @@ function LockedCard({ onPress }) {
 }
 
 export default function BuscarEmpresaScreen({ navigation }) {
-  const { suscripcionActiva } = useApp();
   const [query,     setQuery]     = useState('');
   const [catActiva, setCatActiva] = useState(null);
   const [todos,     setTodos]     = useState([]);
@@ -232,9 +230,11 @@ export default function BuscarEmpresaScreen({ navigation }) {
             <View style={{ flex: 1 }}>
               <Text style={ss.gateTitle}>+{bloqueados} perfiles más disponibles</Text>
               <Text style={ss.gateSub}>
-                {cupo.restante_semana === 0 && !cupo.suscripcion_activa
-                  ? 'Volvé la próxima semana o activá tu suscripción'
-                  : 'Activá tu suscripción para ver sin límite'}
+                {cupo.suscripcion_activa
+                  ? 'Alcanzaste tus perfiles de hoy — volvé mañana o pasate a Premium para no tener tope diario'
+                  : (cupo.restante_semana === 0
+                      ? 'Volvé la próxima semana o activá tu suscripción'
+                      : 'Activá tu suscripción para ver más perfiles por día')}
               </Text>
             </View>
             <View style={ss.gateBtn}><Text style={ss.gateBtnTxt}>Ver planes →</Text></View>
@@ -249,7 +249,7 @@ export default function BuscarEmpresaScreen({ navigation }) {
               <WorkerCard key={item.id} item={item} onPress={() => irAPerfil(item)} />
             ))}
             {bloqueados > 0 && Array.from({ length: Math.min(2, bloqueados) }).map((_, i) => (
-              <LockedCard key={'lock-' + i} onPress={verPlanes} />
+              <LockedCard key={'lock-' + i} onPress={verPlanes} suscripto={cupo.suscripcion_activa} />
             ))}
             {todos.length === 0 && !loading && (
               <View style={ss.empty}>
