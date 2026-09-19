@@ -21,8 +21,12 @@ const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // frases que en conjunto son casi siempre estafa/pirámide.
 const PALABRAS_PROHIBIDAS = [
   "dinero facil", "dinero gratis", "gratis dinero", "cripto invers", "inversion piramidal",
-  "piramide", "esquema piramidal", "gana dinero rapido",
+  "piramide", "esquema piramidal", "gana dinero rapido", "ganar dinero rapido",
   "solo hombres", "solo mujeres", "no discapacitados", "no mayores de",
+  // portugues — Brasil es el mercado principal, sitio bilingue ES/PT
+  "dinheiro facil", "dinheiro gratis", "ganhe dinheiro rapido", "ganhar dinheiro rapido",
+  "esquema em piramide", "investimento piramidal",
+  "so homens", "so mulheres", "nao maiores de",
 ];
 const URL_REGEX = /https?:\/\/|www\./i;
 
@@ -92,7 +96,7 @@ serve(async (req: Request) => {
       const resultado = revisarContenido(o);
 
       if (resultado.ok) {
-        await supabase.from("ofertas").update({ estado: "aprobada" }).eq("id", o.id);
+        await supabase.from("ofertas").update({ estado: "aprobada", activa: true }).eq("id", o.id);
         aprobadas++;
         await pushEmpresa(
           o.employer_id,

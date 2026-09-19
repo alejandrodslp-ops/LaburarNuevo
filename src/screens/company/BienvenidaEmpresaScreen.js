@@ -52,10 +52,14 @@ export default function BienvenidaEmpresaScreen({navigation}){
       const newTs=data?.suscripcion_vence_at?new Date(data.suscripcion_vence_at).getTime():0;
       if(data?.suscripcion_activa && newTs>prevTs){
         clearInterval(intervaloRef.current);
+        const planActivado=PLANES.find(p=>p.id===pagando);
+        const mensaje=planActivado?.id==='membresia_premium'
+          ?'Ya podés ver perfiles sin límite durante 30 días.'
+          :'Ya podés ver hasta 10 perfiles nuevos por día durante 30 días.';
         setEsperando(false);
         setPagando(null);
         setSuscripcionActiva(true);
-        Alert.alert('¡Suscripción activada!','Ya podés ver perfiles sin límite durante 30 días.',[{text:'Buscar trabajadores',onPress:()=>navigation.goBack()}]);
+        Alert.alert('¡Suscripción activada!',mensaje,[{text:'Buscar trabajadores',onPress:()=>navigation.goBack()}]);
         return true;
       }
     }catch(e){}
