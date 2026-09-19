@@ -239,6 +239,13 @@ function EmployerTabs(){
 }
 
 function CompanyTabs(){
+  const{session,tieneOfertaAprobada}=useApp();
+  const esAdmin=session?.user?.email==='alejandrodslp@gmail.com';
+  // Mismo motivo que en EmployerTabs: sin esto, una empresa se registra y
+  // busca/ve trabajadores sin haber publicado nunca una vacante real. El gate
+  // real (no se puede esquivar por API directa) esta en consumir_visualizacion_empresa().
+  const sinOferta=!esAdmin&&tieneOfertaAprobada===false;
+
   return(
     <Tab.Navigator screenOptions={({route})=>({
       headerShown:false,
@@ -250,7 +257,23 @@ function CompanyTabs(){
     })}>
       <Tab.Screen name="Inicio" component={HomeEmpresaScreen}/>
       <Tab.Screen name="Publicar" component={MisOfertasEmpresaScreen}/>
-      <Tab.Screen name="Explorar" component={BuscarEmpresaScreen}/>
+      <Tab.Screen name="Explorar" component={BuscarEmpresaScreen}
+        listeners={({navigation})=>({
+          tabPress:(e)=>{
+            if(sinOferta){
+              e.preventDefault();
+              Alert.alert(
+                'Publicá una vacante primero',
+                'Para buscar trabajadores necesitás tener al menos una búsqueda publicada y aprobada. Publicala desde la pestaña Publicar.',
+                [
+                  {text:'Ahora no',style:'cancel'},
+                  {text:'Ir a Publicar',onPress:()=>navigation.navigate('Publicar')},
+                ]
+              );
+            }
+          }
+        })}
+      />
       <Tab.Screen name="Cuenta" component={PerfilEmpresaScreen}/>
     </Tab.Navigator>
   );

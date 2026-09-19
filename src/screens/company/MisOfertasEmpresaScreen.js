@@ -4,6 +4,7 @@ import NexuWatermark from '../../components/NexuWatermark';
 import{View,Text,StyleSheet,TouchableOpacity,FlatList,ActivityIndicator,Alert,Switch}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{supabase}from '../../services/supabase';
+import{useApp}from '../../services/AppContext';
 
 const C={coral:'#E8785A',teal:'#2DD4BF',blanco:'#FFFFFF',crema:'#FBF8F4',borde:'#EDE8E2',texto1:'#1A1020',texto2:'#5A4E6A',texto3:'#A898B8'};
 
@@ -62,6 +63,7 @@ function OfertaCard({oferta,onPress,onToggle,onVerCandidatos}){
 export default function MisOfertasEmpresaScreen({navigation}){
   const[ofertas,setOfertas]=useState([]);
   const[loading,setLoading]=useState(true);
+  const{refrescarOfertaAprobada}=useApp();
 
   const cargar=useCallback(async()=>{
     try{
@@ -78,7 +80,15 @@ export default function MisOfertasEmpresaScreen({navigation}){
   },[]);
 
   useEffect(()=>{cargar();},[cargar]);
-  useEffect(()=>{const u=navigation.addListener('focus',cargar);return u;},[navigation,cargar]);
+  useEffect(()=>{
+    const u=navigation.addListener('focus',()=>{
+      cargar();
+      // Recien aprobada la primera busqueda se desbloquea "Explorar" — sin esto
+      // la empresa tendria que cerrar sesion y volver a entrar para verlo reflejado.
+      refrescarOfertaAprobada();
+    });
+    return u;
+  },[navigation,cargar,refrescarOfertaAprobada]);
 
   async function toggleActiva(oferta){
     const nueva=!oferta.activa;
