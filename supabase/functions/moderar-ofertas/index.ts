@@ -34,8 +34,8 @@ function quitarAcentos(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
-function revisarContenido(oferta: { titulo: string; descripcion: string | null; empleo: string | null }): { ok: true } | { ok: false; motivo: string } {
-  const textoOriginal = `${oferta.titulo} ${oferta.descripcion || ""} ${oferta.empleo || ""}`;
+function revisarContenido(oferta: { titulo: string; descripcion: string | null; empleo: string | null; requisitos: string | null; beneficios: string | null }): { ok: true } | { ok: false; motivo: string } {
+  const textoOriginal = `${oferta.titulo} ${oferta.descripcion || ""} ${oferta.empleo || ""} ${oferta.requisitos || ""} ${oferta.beneficios || ""}`;
   const texto = quitarAcentos(textoOriginal.toLowerCase());
 
   if (oferta.titulo.trim().length < 5) {
@@ -79,7 +79,7 @@ serve(async (req: Request) => {
   try {
     const { data: pendientes, error } = await supabase
       .from("ofertas")
-      .select("id, employer_id, titulo, descripcion, empleo, created_at")
+      .select("id, employer_id, titulo, descripcion, empleo, requisitos, beneficios, created_at")
       .eq("estado", "pendiente")
       .lte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
 
