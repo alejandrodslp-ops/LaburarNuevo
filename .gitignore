@@ -34,6 +34,10 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Deno (lockfile generado localmente al correr `deno check`, no forma parte
+# del deploy real de las edge functions — eso lo hace `supabase functions deploy`)
+deno.lock
+
 # GitHub Actions runner
 actions-runner/
 

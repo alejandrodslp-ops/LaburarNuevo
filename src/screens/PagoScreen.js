@@ -5,7 +5,13 @@ import{LinearGradient}from "expo-linear-gradient";
 import{supabase}from "../services/supabase";
 import * as SMS from "expo-sms";
 
-const PAISES_SA=["AR","BO","BR","CL","CO","EC","PY","PE","UY","VE","MX","GT","HN","SV","NI","CR","PA","CU","HT","DO","PR","BZ","GY","SR","TT","JM","BB","LC","VC","GD","AG","DM","KN"];
+// Los unicos codigos que "pais" puede tomar hoy son los que devuelve NOMBRE_A_ISO
+// (mapeo de los 32 paises reales del selector de onboarding, ver mas abajo) — esta
+// lista tenia antes 14 codigos de Caribe/Centroamerica extra (HT,PR,BZ,GY,SR,TT,JM,
+// BB,LC,VC,GD,AG,DM,KN) que nunca podian alcanzarse via ese selector; se sacaron
+// porque quedaban como codigo muerto. Misma lista que es_pais_sudamerica() (SQL) y
+// crear-pago/index.ts.
+const PAISES_SA=["AR","BO","BR","CL","CO","EC","PY","PE","UY","VE","MX","GT","HN","SV","NI","CR","PA","CU","DO"];
 const PAISES_DEVALUADOS=["IN"];
 const MONEDAS={"AR":{simbolo:"ARS",tasa:1200},"BO":{simbolo:"BOB",tasa:6.9},"BR":{simbolo:"BRL",tasa:5.1},"CL":{simbolo:"CLP",tasa:950},"CO":{simbolo:"COP",tasa:4100},"EC":{simbolo:"USD",tasa:1},"PY":{simbolo:"PYG",tasa:7400},"PE":{simbolo:"PEN",tasa:3.8},"UY":{simbolo:"UYU",tasa:41},"VE":{simbolo:"USD",tasa:1},"MX":{simbolo:"MXN",tasa:17},"GT":{simbolo:"GTQ",tasa:7.8},"HN":{simbolo:"HNL",tasa:24.8},"SV":{simbolo:"USD",tasa:1},"NI":{simbolo:"NIO",tasa:36.6},"CR":{simbolo:"CRC",tasa:520},"PA":{simbolo:"USD",tasa:1}};
 // Pagos: MercadoPago para todos los países (acepta tarjetas internacionales). Stripe descartado.
