@@ -34,16 +34,32 @@ serve(async (req) => {
     // user_id siempre del token verificado — nunca del body
     const userId = user.id;
 
-    // Precio de las suscripciones company: SIEMPRE lo decide el servidor, nunca
-    // el monto que mande el cliente — sino cualquiera compra Premium por lo que
-    // quiera con solo cambiar el body del request.
+    // El precio (y, para creditos, la cantidad que se acredita) SIEMPRE los
+    // decide el servidor a partir de una tabla fija — nunca lo que mande el
+    // cliente en el body, sino cualquiera edita el request y paga lo que
+    // quiera por lo que quiera (plan Premium por U$1, 10000 creditos por un
+    // centavo, etc).
     const PRECIOS_SUSCRIPCION: Record<string, number> = {
       membresia_sa: 12,
       membresia_world: 24,
       membresia_premium: 50,
     };
-    let montoFinal = monto || 1;
-    if (tipo === "company_suscripcion") {
+    const PRECIO_ACTIVACION_WORKER = 1;
+    // Paquetes reales de PagoScreen.js — 2 cantidades x 3 tramos de precio por pais.
+    const PAQUETES_VISUALIZACIONES = [
+      { monto: 3.99,  cantidad: 3 },
+      { monto: 7.98,  cantidad: 3 },
+      { monto: 1.50,  cantidad: 3 },
+      { monto: 9.99,  cantidad: 10 },
+      { monto: 19.99, cantidad: 10 },
+      { monto: 4.99,  cantidad: 10 },
+    ];
+
+    let montoFinal: number;
+    let cantidadFinal: number;
+    const tipoFinal = tipo || "employer_visualizaciones";
+
+    if (tipoFinal === "company_suscripcion") {
       const precio = PRECIOS_SUSCRIPCION[plan_id as string];
       if (!precio) {
         return new Response(JSON.stringify({ error: "plan_id inválido o ausente" }), {
@@ -51,6 +67,21 @@ serve(async (req) => {
         });
       }
       montoFinal = precio;
+      cantidadFinal = 0;
+    } else if (tipoFinal === "worker_activacion") {
+      montoFinal = PRECIO_ACTIVACION_WORKER;
+      cantidadFinal = 0;
+    } else {
+      const paquete = PAQUETES_VISUALIZACIONES.find(
+        (p) => p.monto === Number(monto) && p.cantidad === Number(cantidad_perfiles)
+      );
+      if (!paquete) {
+        return new Response(JSON.stringify({ error: "Paquete de visualizaciones inválido" }), {
+          status: 400, headers: CORS,
+        });
+      }
+      montoFinal = paquete.monto;
+      cantidadFinal = paquete.cantidad;
     }
 
     const preference = {
@@ -63,8 +94,8 @@ serve(async (req) => {
       external_reference: userId,
       metadata: {
         worker_id:          worker_id          || null,
-        cantidad_perfiles:  cantidad_perfiles  || 3,
-        tipo:               tipo               || "employer_visualizaciones",
+        cantidad_perfiles:  cantidadFinal,
+        tipo:               tipoFinal,
         plan_id:            plan_id            || null,
       },
       notification_url: "https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/webhook-pago",

@@ -87,29 +87,42 @@ export default function BuscarEmpresaScreen({ navigation }) {
 
   useEffect(() => { buscar('', catActiva); }, [catActiva]);
 
+  async function cargarCupo() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const [{ data: cupoData }, { data: vistos }] = await Promise.all([
+      supabase.rpc('cupo_empresa_restante'),
+      supabase.from('visualizaciones').select('worker_id').eq('employer_id', user.id),
+    ]);
+    if (cupoData && cupoData[0]) setCupo(cupoData[0]);
+    if (vistos) setVistosIds(vistos.map((v) => v.worker_id));
+  }
+
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const [{ data: cupoData }, { data: vistos }] = await Promise.all([
-        supabase.rpc('cupo_empresa_restante'),
-        supabase.from('visualizaciones').select('worker_id').eq('employer_id', user.id),
-      ]);
-      if (cupoData && cupoData[0]) setCupo(cupoData[0]);
-      if (vistos) setVistosIds(vistos.map((v) => v.worker_id));
-    })();
+    // Se refresca al volver a esta pantalla (ej. despues de ver un perfil) —
+    // sino el cupo/lista de vistos queda congelado desde el primer montaje,
+    // porque esta pantalla vive en un tab que no se remonta.
+    const unsub = navigation.addListener('focus', cargarCupo);
+    cargarCupo();
+    return unsub;
   }, []);
 
   async function buscar(q, cat) {
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // perfiles_publicos, no profiles directo: profiles solo deja ver la fila
+      // propia por RLS (auth.uid()=id) — con profiles esta busqueda siempre
+      // devolvia 0 resultados reales. Mismo patron que BuscarScreen.js (employer).
       let req = supabase
-        .from('profiles')
-        .select('id,nombre,servicios,profesiones,especialidades,ciudad,barrio,pais,disponibilidad,rating,total_valoraciones,referencias')
+        .from('perfiles_publicos')
+        .select('id,nombre,apellido1,servicios,profesiones,especialidades,rating,estrellas,total_valoraciones,total_calificaciones,ciudad,barrio,pais,disponibilidad,referencias,fecha_nac,idiomas,tipos_empleo,bio,anios_experiencia,sueldo_pretension_min,sueldo_pretension_max,sueldo_moneda,updated_at,perfil_visible')
         .eq('perfil_activo', true)
         .order('rating', { ascending: false })
         .limit(40);
 
+      if (user) req = req.neq('id', user.id);
       if (cat) req = req.contains('servicios', [cat]);
 
       const { data } = await req;
