@@ -91,7 +91,7 @@ export default function CVScreen({ navigation }) {
         // Si no hay guardado, auto-rellenar desde el perfil
         const { data } = await supabase
           .from("profiles")
-          .select("nombre,apellido1,apellido2,telefono,pais,ciudad,servicios,profesiones,tecnicaturas,especialidades,idiomas,bio,descripcion_libre,nacionalidad,anios_experiencia,avatar_url")
+          .select("nombre,apellido1,apellido2,telefono,pais,ciudad,servicios,profesiones,tecnicaturas,especialidades,idiomas,bio,descripcion_libre,nacionalidad,anios_experiencia,avatar_url,educacion")
           .eq("id", user.id)
           .single();
         if (data) {
@@ -119,6 +119,11 @@ export default function CVScreen({ navigation }) {
             habilidades,
             idiomas: idiomasArr,
             foto: data.avatar_url || "",
+            // Si ya habia educacion guardada en el servidor (por ej. cargada desde
+            // otro dispositivo) se prioriza sobre el placeholder vacio inicial.
+            ...(Array.isArray(data.educacion) && data.educacion.length > 0
+              ? { educacion: data.educacion }
+              : {}),
           }));
         }
       } catch { /* sigue con campos vacíos */ }
@@ -148,6 +153,12 @@ export default function CVScreen({ navigation }) {
     setSaving(true);
     try {
       await AsyncStorage.setItem(`cv_${userId}`, JSON.stringify(cv));
+      // La educacion tambien se sincroniza al servidor (antes solo vivia en este
+      // dispositivo) — es lo que ve el empleador/empresa una vez que el trabajador
+      // acepta su propuesta (obtener_datos_aceptado). Best-effort: si falla la red,
+      // el guardado local ya se hizo y no se interrumpe al usuario por esto.
+      const educacionReal = cv.educacion.filter(e => e.titulo || e.institucion);
+      supabase.from("profiles").update({ educacion: educacionReal }).eq("id", userId).then(() => {});
       Alert.alert("Guardado", "Tu CV fue guardado correctamente.");
     } catch (e) {
       Alert.alert("Error", "No se pudo guardar: " + e.message);

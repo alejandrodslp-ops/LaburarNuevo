@@ -215,6 +215,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
   const[reporteVisible,setReporteVisible]=useState(false);
   const[calificarVisible,setCalificarVisible]=useState(false);
   const[propuestaAceptada,setPropuestaAceptada]=useState(null);
+  const[datosAceptado,setDatosAceptado]=useState(null);
   const[yaCalificado,setYaCalificado]=useState(false);
   const[cupoAgotado,setCupoAgotado]=useState(false);
   const{modoActivo}=useApp();
@@ -243,6 +244,11 @@ export default function PerfilTrabajadorScreen({navigation,route}){
         setPropuestaAceptada(prop);
         const{data:cal}=await supabase.from('calificaciones').select('id').eq('calificador_id',user.id).eq('calificado_id',perfil.id).maybeSingle();
         setYaCalificado(!!cal);
+        // Educacion + correo solo se muestran con propuesta aceptada — el gate real
+        // esta del lado del servidor (obtener_datos_aceptado verifica de nuevo que
+        // exista la propuesta aceptada), esto no es solo un chequeo de UI.
+        const{data:datos}=await supabase.rpc('obtener_datos_aceptado',{p_worker:perfil.id});
+        if(datos&&datos[0])setDatosAceptado(datos[0]);
       }
     }catch(e){}
   }
@@ -468,6 +474,28 @@ export default function PerfilTrabajadorScreen({navigation,route}){
           </View>
         )}
 
+        {datosAceptado?.educacion?.length>0&&(
+          <View style={ss.sec}>
+            <Text style={ss.stit}>EDUCACION</Text>
+            {datosAceptado.educacion.map((e,i)=>(
+              <View key={i} style={ss.card}>
+                {e.titulo?<Text style={ss.eduTitulo}>{e.titulo}</Text>:null}
+                {e.institucion?<Text style={ss.eduInstitucion}>{e.institucion}</Text>:null}
+                {(e.desde||e.hasta)?<Text style={ss.eduFechas}>{e.desde||'—'} – {e.hasta||'Presente'}</Text>:null}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {datosAceptado?.email&&(
+          <View style={ss.sec}>
+            <Text style={ss.stit}>CONTACTO</Text>
+            <View style={ss.card}>
+              <Text style={ss.bioTxt}>📧 {datosAceptado.email}</Text>
+            </View>
+          </View>
+        )}
+
         {perfil?.perfil_visible?(
           <View style={ss.publicaNota}>
             <Text style={ss.publicaNotaTxt}>🌐 Este trabajador tiene su perfil público. Sus datos de contacto son visibles directamente.</Text>
@@ -569,6 +597,9 @@ const ss=StyleSheet.create({
   tag:{paddingHorizontal:12,paddingVertical:6,backgroundColor:'#F0FDFA',borderRadius:20,borderWidth:1,borderColor:'#2DD4BF'},
   tagTxt:{fontSize:12,fontWeight:'600',color:'#2DD4BF'},
   bioTxt:{fontSize:14,color:'#5A4E6A',lineHeight:20},
+  eduTitulo:{fontSize:14,fontWeight:'700',color:'#1A1020'},
+  eduInstitucion:{fontSize:13,color:'#5A4E6A',marginTop:2},
+  eduFechas:{fontSize:12,color:'#A898B8',marginTop:2},
   privaNota:{marginHorizontal:16,marginTop:16,backgroundColor:'#F0FDFA',borderRadius:10,padding:12,borderLeftWidth:3,borderLeftColor:'#2DD4BF'},
   privaNotaTxt:{fontSize:12,color:'#2DD4BF',lineHeight:18},
   publicaNota:{marginHorizontal:16,marginTop:16,backgroundColor:'#F0FDF4',borderRadius:10,padding:12,borderLeftWidth:3,borderLeftColor:'#22C55E'},
