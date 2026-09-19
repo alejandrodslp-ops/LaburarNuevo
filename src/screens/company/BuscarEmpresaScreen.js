@@ -155,15 +155,14 @@ export default function BuscarEmpresaScreen({ navigation }) {
   }
 
   // Perfiles que la empresa ya vio antes (gratis para siempre, dedupe server-side) +
-  // hasta el cupo que le quede hoy/esta semana. La suscripcion activa desbloquea todo.
-  // Se usa cupo.suscripcion_activa (recien calculado por el RPC, chequea vencimiento) en vez de
-  // suscripcionActiva de useApp() — ese valor de contexto solo se refresca al abrir la app y
-  // puede quedar desactualizado si la suscripcion vence mientras la sesion sigue abierta.
+  // hasta el cupo que le quede hoy/esta semana. restante_efectivo ya viene calculado
+  // por el RPC segun el plan real (gratis 3/9, SA/World 10/dia, premium 999999 =
+  // efectivamente ilimitado) — no hay que volver a ramificar por suscripcion_activa
+  // aca, porque los 3 niveles pagos NO son todos ilimitados.
   const yaVistosIds = new Set(vistosIds);
-  const nuevosDisponibles = cupo.suscripcion_activa ? Infinity : cupo.restante_efectivo;
+  const nuevosDisponibles = cupo.restante_efectivo;
   let nuevosUsados = 0;
   const visibles = todos.filter((item) => {
-    if (cupo.suscripcion_activa) return true;
     if (yaVistosIds.has(item.id)) return true;
     if (nuevosUsados < nuevosDisponibles) { nuevosUsados++; return true; }
     return false;

@@ -29,7 +29,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { monto, descripcion, worker_id, cantidad_perfiles, tipo } = body;
+    const { monto, descripcion, worker_id, cantidad_perfiles, tipo, plan_id } = body;
 
     // user_id siempre del token verificado — nunca del body
     const userId = user.id;
@@ -46,6 +46,7 @@ serve(async (req) => {
         worker_id:          worker_id          || null,
         cantidad_perfiles:  cantidad_perfiles  || 3,
         tipo:               tipo               || "employer_visualizaciones",
+        plan_id:            plan_id            || null,
       },
       notification_url: "https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/webhook-pago",
       back_urls: {

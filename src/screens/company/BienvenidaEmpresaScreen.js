@@ -76,7 +76,7 @@ export default function BienvenidaEmpresaScreen({navigation}){
       prevVenceRef.current=perfil?.suscripcion_vence_at||null;
       const monto=plan.zona==='Sudamerica'?12:(plan.zona==='Mundial'?24:50);
       const{data,error}=await supabase.functions.invoke('crear-pago',{
-        body:{monto,descripcion:'Konexu — Suscripción empresa (30 días)',tipo:'company_suscripcion'},
+        body:{monto,descripcion:'Konexu — Suscripción empresa (30 días)',tipo:'company_suscripcion',plan_id:plan.id},
       });
       if(error)throw error;
       await Linking.openURL(data.init_point);

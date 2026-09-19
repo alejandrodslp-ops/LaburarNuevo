@@ -124,10 +124,16 @@ serve(async (req) => {
         } else if (tipo === "company_suscripcion") {
           const vence = new Date();
           vence.setDate(vence.getDate() + 30);
-          await supabase.from("profiles").update({
+          const planId = String(payment.metadata?.plan_id || "");
+          const planesValidos = ["membresia_sa", "membresia_world", "membresia_premium"];
+          const update: Record<string, unknown> = {
             suscripcion_activa:    true,
             suscripcion_vence_at:  vence.toISOString(),
-          }).eq("id", userId);
+          };
+          // Si el plan no vino o no es uno conocido, no se pisa suscripcion_plan
+          // (queda como estaba) — mejor un valor viejo/ausente que uno inventado.
+          if (planesValidos.includes(planId)) update.suscripcion_plan = planId;
+          await supabase.from("profiles").update(update).eq("id", userId);
         } else {
           await supabase.rpc("sumar_visualizaciones", {
             employer_id: userId,
