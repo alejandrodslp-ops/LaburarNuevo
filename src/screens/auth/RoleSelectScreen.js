@@ -2,6 +2,7 @@ import React,{useState} from "react";
 import{View,Text,StyleSheet,TouchableOpacity,ScrollView,StatusBar}from "react-native";
 import{SafeAreaView}from "react-native-safe-area-context";
 import{LinearGradient}from "expo-linear-gradient";
+import LogoKonexu from "../../components/LogoKonexu";
 
 const ROLES=[
   {
@@ -52,7 +53,7 @@ export default function RoleSelectScreen({navigation}){
       <LinearGradient colors={["#0D1117","#1C2333"]} style={ss.header}>
         <SafeAreaView edges={["top"]}>
           <View style={ss.headerInner}>
-            <Text style={ss.logo}>Konexu</Text>
+            <LogoKonexu style={ss.logo}/>
             <Text style={ss.slogan}>Deja de buscar,{"\n"}comienza a encontrar.</Text>
             <Text style={ss.pregunta}>¿Cómo te podemos ayudar?</Text>
           </View>

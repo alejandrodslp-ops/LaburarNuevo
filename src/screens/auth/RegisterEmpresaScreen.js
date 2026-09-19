@@ -144,7 +144,7 @@ export default function RegisterEmpresaScreen({navigation}){
 
         <TouchableOpacity style={ss.termRow} onPress={()=>setTerminos(!terminos)}>
           <View style={[ss.check,terminos&&ss.checkA]}>{terminos&&<Text style={{color:"#FFF",fontSize:12,fontWeight:"800"}}>✓</Text>}</View>
-          <Text style={ss.termTxt}>Acepto los <Text style={ss.termLink}>Terminos y Condiciones</Text> y la <Text style={ss.termLink}>Politica de Privacidad</Text></Text>
+          <Text style={ss.termTxt}>Acepto los <Text style={ss.termLink} onPress={()=>navigation.navigate("Terminos")}>Terminos y Condiciones</Text> y la <Text style={ss.termLink} onPress={()=>navigation.navigate("Privacidad")}>Politica de Privacidad</Text></Text>
         </TouchableOpacity>
 
         <View style={ss.aviso}><Text style={ss.avisoTxt}>Tu empresa aparecera verificada en Konexu. Los trabajadores podran ver el nombre de tu empresa al postularse.</Text></View>

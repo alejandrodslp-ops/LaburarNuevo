@@ -64,9 +64,13 @@ function WorkerCard({ item, onPress }) {
         )}
       </View>
       <View style={ss.ratingRow}>
-        <Text style={ss.stars}>{estrellas(item.rating)}</Text>
-        <Text style={ss.ratingNum}>{(item.rating || 0).toFixed(1)}</Text>
-        <Text style={ss.ratingCount}>({item.total_valoraciones || 0})</Text>
+        {item.total_valoraciones>0?(<>
+          <Text style={ss.stars}>{estrellas(item.rating)}</Text>
+          <Text style={ss.ratingNum}>{(item.rating || 0).toFixed(1)}</Text>
+          <Text style={ss.ratingCount}>({item.total_valoraciones || 0})</Text>
+        </>):(
+          <Text style={ss.nuevoTxt}>✨ Nuevo en Konexu</Text>
+        )}
         {item.disponibilidad && (
           <Text style={ss.disponib}>● {item.disponibilidad}</Text>
         )}
@@ -368,6 +372,7 @@ const ss = StyleSheet.create({
   refTxt:     { fontSize: 11, color: '#3DA882', fontWeight: '700' },
   ratingRow:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
   stars:      { fontSize: 12, color: '#F59E0B' },
+  nuevoTxt:   { fontSize: 12, fontWeight: '700', color: '#2DD4BF' },
   ratingNum:  { fontSize: 13, fontWeight: '700', color: '#1A1020' },
   ratingCount:{ fontSize: 12, color: '#A898B8' },
   disponib:   { fontSize: 12, color: '#3DA882', marginLeft: 'auto' },

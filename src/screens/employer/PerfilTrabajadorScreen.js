@@ -381,12 +381,14 @@ export default function PerfilTrabajadorScreen({navigation,route}){
           <View style={ss.avatar}><Text style={{fontSize:40}}>👤</Text></View>
           <Text style={ss.nombre}>{perfil?.nombre||'Trabajador'}</Text>
           {edad&&<Text style={ss.sub}>{edad} años · {perfil?.ciudad||''}</Text>}
-          {(perfil?.total_calificaciones>0)&&(
+          {perfil?.total_calificaciones>0?(
             <View style={ss.ratingRow}>
               <Text style={ss.stars}>{estrellas(perfil?.estrellas)}</Text>
               <Text style={ss.ratingNum}>{Number(perfil?.estrellas||0).toFixed(1)}</Text>
               <Text style={ss.ratingCount}>({perfil?.total_calificaciones} calificaciones)</Text>
             </View>
+          ):(
+            <Text style={ss.nuevoTxt}>✨ Nuevo en Konexu</Text>
           )}
           {perfil?.referencias&&(
             <View style={ss.refBadge}><Text style={ss.refTxt}>✓ Tiene referencias laborales</Text></View>
@@ -608,6 +610,7 @@ const ss=StyleSheet.create({
   nombre:{fontSize:24,fontWeight:'900',color:'#1A3A5C',marginBottom:4},
   sub:{fontSize:14,color:'rgba(26,58,92,0.65)',marginBottom:8},
   ratingRow:{flexDirection:'row',alignItems:'center',gap:6,marginBottom:8},
+  nuevoTxt:{fontSize:13,fontWeight:'700',color:'#0F766E',marginBottom:8},
   stars:{fontSize:14,color:'#F59E0B'},
   ratingNum:{fontSize:14,fontWeight:'800',color:'#1A3A5C'},
   ratingCount:{fontSize:12,color:'rgba(26,58,92,0.6)'},

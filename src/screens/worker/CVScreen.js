@@ -690,7 +690,7 @@ function PreviewCV({ cv }) {
             </View>
           )}
 
-          <Text style={pv.footer}>Generado con Konexu🧩 · konexu.app</Text>
+          <Text style={pv.footer}>Generado con Konexu · konexu.app</Text>
         </View>
       </View>
     </ScrollView>

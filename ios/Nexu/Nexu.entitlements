@@ -6,7 +6,7 @@
     <string>development</string>
     <key>com.apple.developer.associated-domains</key>
     <array>
-      <string>applinks:nexu.app</string>
+      <string>applinks:konexu.app</string>
     </array>
   </dict>
 </plist>
