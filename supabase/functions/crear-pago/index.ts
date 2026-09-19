@@ -34,11 +34,30 @@ serve(async (req) => {
     // user_id siempre del token verificado — nunca del body
     const userId = user.id;
 
+    // Precio de las suscripciones company: SIEMPRE lo decide el servidor, nunca
+    // el monto que mande el cliente — sino cualquiera compra Premium por lo que
+    // quiera con solo cambiar el body del request.
+    const PRECIOS_SUSCRIPCION: Record<string, number> = {
+      membresia_sa: 12,
+      membresia_world: 24,
+      membresia_premium: 50,
+    };
+    let montoFinal = monto || 1;
+    if (tipo === "company_suscripcion") {
+      const precio = PRECIOS_SUSCRIPCION[plan_id as string];
+      if (!precio) {
+        return new Response(JSON.stringify({ error: "plan_id inválido o ausente" }), {
+          status: 400, headers: CORS,
+        });
+      }
+      montoFinal = precio;
+    }
+
     const preference = {
       items: [{
         title:      descripcion || "Konexu - Ver perfiles completos",
         quantity:   1,
-        unit_price: monto || 1,
+        unit_price: montoFinal,
         currency_id: "USD",
       }],
       external_reference: userId,

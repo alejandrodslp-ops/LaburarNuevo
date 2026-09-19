@@ -231,7 +231,9 @@ export default function BuscarEmpresaScreen({ navigation }) {
               <Text style={ss.gateTitle}>+{bloqueados} perfiles más disponibles</Text>
               <Text style={ss.gateSub}>
                 {cupo.suscripcion_activa
-                  ? 'Alcanzaste tus perfiles de hoy — volvé mañana o pasate a Premium para no tener tope diario'
+                  ? (cupo.restante_efectivo === 0
+                      ? 'Alcanzaste tus perfiles de hoy — volvé mañana o pasate a Premium para no tener tope diario'
+                      : `Te quedan ${cupo.restante_efectivo} perfiles nuevos hoy, o pasate a Premium para no tener tope`)
                   : (cupo.restante_semana === 0
                       ? 'Volvé la próxima semana o activá tu suscripción'
                       : 'Activá tu suscripción para ver más perfiles por día')}

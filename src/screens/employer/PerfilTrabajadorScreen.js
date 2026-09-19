@@ -216,6 +216,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
   const[calificarVisible,setCalificarVisible]=useState(false);
   const[propuestaAceptada,setPropuestaAceptada]=useState(null);
   const[yaCalificado,setYaCalificado]=useState(false);
+  const[cupoAgotado,setCupoAgotado]=useState(false);
   const{modoActivo}=useApp();
 
   useEffect(()=>{
@@ -255,10 +256,29 @@ export default function PerfilTrabajadorScreen({navigation,route}){
       // el mismo perfil) y descuenta 1. 'vistas' lo incrementa el trigger on_visualizacion_insert.
       // company usa su propio cupo (3/dia, 9/semana, o ilimitado con suscripcion) — NO el
       // sistema de creditos de employer, que para company siempre estaria en 0.
+      // El resultado SI se chequea: si el servidor dice que no hay cupo, no alcanza con
+      // que la fila de visualizaciones no se cree — hay que bloquear el contacto en la
+      // pantalla tambien, sino el tope solo existe en el papel.
+      let resultado;
       if(modoActivo==='company'){
-        await supabase.rpc('consumir_visualizacion_empresa',{p_worker:perfil.id});
+        const{data}=await supabase.rpc('consumir_visualizacion_empresa',{p_worker:perfil.id});
+        resultado=data;
       }else{
-        await supabase.rpc('consumir_visualizacion',{p_worker:perfil.id});
+        const{data}=await supabase.rpc('consumir_visualizacion',{p_worker:perfil.id});
+        resultado=data;
+      }
+      const bloqueado=['sin_cupo_diario','sin_cupo_semanal','sin_saldo'].includes(resultado);
+      if(bloqueado){
+        setCupoAgotado(true);
+        Alert.alert(
+          'Alcanzaste tu límite de hoy',
+          resultado==='sin_cupo_semanal'
+            ?'Ya viste el máximo de perfiles nuevos de esta semana. Volvé la próxima semana o activá tu suscripción.'
+            :(modoActivo==='company'
+                ?'Ya viste el máximo de perfiles nuevos de hoy para tu plan. Volvé mañana o mejorá tu suscripción para ver más.'
+                :'No tenés saldo para ver perfiles nuevos. Comprá más visualizaciones para continuar.'),
+          [{text:'Entendido',onPress:()=>navigation.goBack()}]
+        );
       }
     }catch(e){}
   }
@@ -277,6 +297,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
 
   async function enviarInteres(){
     if(enviandoRef.current||enviado)return;
+    if(cupoAgotado){Alert.alert('Sin cupo','Alcanzaste tu límite de perfiles nuevos. Activá o mejorá tu suscripción para contactar más.');return;}
     enviandoRef.current=true;
     setEnviando(true);
     try{
