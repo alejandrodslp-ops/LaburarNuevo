@@ -267,16 +267,18 @@ export default function PerfilTrabajadorScreen({navigation,route}){
         const{data}=await supabase.rpc('consumir_visualizacion',{p_worker:perfil.id});
         resultado=data;
       }
-      const bloqueado=['sin_cupo_diario','sin_cupo_semanal','sin_saldo'].includes(resultado);
+      const bloqueado=['sin_cupo_diario','sin_cupo_semanal','sin_saldo','fuera_de_region'].includes(resultado);
       if(bloqueado){
         setCupoAgotado(true);
         Alert.alert(
-          'Alcanzaste tu límite de hoy',
-          resultado==='sin_cupo_semanal'
-            ?'Ya viste el máximo de perfiles nuevos de esta semana. Volvé la próxima semana o activá tu suscripción.'
-            :(modoActivo==='company'
-                ?'Ya viste el máximo de perfiles nuevos de hoy para tu plan. Volvé mañana o mejorá tu suscripción para ver más.'
-                :'No tenés saldo para ver perfiles nuevos. Comprá más visualizaciones para continuar.'),
+          resultado==='fuera_de_region'?'Fuera de tu región':'Alcanzaste tu límite de hoy',
+          resultado==='fuera_de_region'
+            ?'Tu plan Sudamérica no incluye trabajadores de esta región. Pasate a Mundial o Premium para contactarlo.'
+            :resultado==='sin_cupo_semanal'
+              ?'Ya viste el máximo de perfiles nuevos de esta semana. Volvé la próxima semana o activá tu suscripción.'
+              :(modoActivo==='company'
+                  ?'Ya viste el máximo de perfiles nuevos de hoy para tu plan. Volvé mañana o mejorá tu suscripción para ver más.'
+                  :'No tenés saldo para ver perfiles nuevos. Comprá más visualizaciones para continuar.'),
           [{text:'Entendido',onPress:()=>navigation.goBack()}]
         );
       }
