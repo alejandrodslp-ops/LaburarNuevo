@@ -49,9 +49,6 @@ app.use('/generar-comprobante',  require('./routes/generar-comprobante')); // �
 app.use('/crear-pago',           require('./routes/crear-pago'));           // ✅ lógica migrada
 app.use('/webhook-pago',         require('./routes/webhook-pago'));         // ✅ lógica migrada (HMAC MP)
 
-// ── Pagos Stripe ─────────────────────────────────────────────────────────────
-app.use('/crear-pago-stripe',    require('./routes/crear-pago-stripe'));    // ✅ lógica migrada
-
 // ── Pagos PIX (Banco Rendimento — pendiente activación) ──────────────────────
 app.use('/gerar-pix',            require('./routes/gerar-pix'));            // ✅ lógica migrada
 app.use('/criar-pago-pix',       require('./routes/criar-pago-pix'));       // ✅ lógica migrada
