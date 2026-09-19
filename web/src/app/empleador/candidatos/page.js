@@ -31,6 +31,7 @@ const TXT = {
     enviando: 'Enviando...',
     iniciarContacto: 'Iniciar contacto',
     empleadorFallback: 'Empleador',
+    sinCreditoError: 'No pudimos enviar tu interés: no tenés créditos disponibles. Comprá más desde la app de Konexu.',
   },
   pt: {
     titulo: 'Buscar candidatos',
@@ -57,6 +58,7 @@ const TXT = {
     enviando: 'Enviando...',
     iniciarContacto: 'Iniciar contato',
     empleadorFallback: 'Empregador',
+    sinCreditoError: 'Não foi possível enviar seu interesse: você não tem créditos disponíveis. Compre mais pelo app da Konexu.',
   },
 }
 
@@ -119,13 +121,22 @@ export default function CandidatosEmpleador() {
 
     const { data: ofertas } = await supabaseBrowser.from('ofertas').select('titulo, empleo, lugar, descripcion').eq('employer_id', user.id).order('created_at', { ascending: false }).limit(1)
 
-    await supabaseBrowser.from('propuestas').insert({
+    const { error } = await supabaseBrowser.from('propuestas').insert({
       employer_id: user.id,
       worker_id: perfil.id,
       employer_nombre: empleadorNombre,
       oferta: ofertas?.[0] || null,
       estado: 'pendiente',
     })
+
+    if (error) {
+      // El servidor rechaza sin credito/cupo disponible (mismo control que la
+      // app movil) — antes esto se ignoraba y la pantalla mostraba "enviado"
+      // sin que la propuesta se hubiera creado de verdad.
+      window.alert(L.sinCreditoError)
+      setEnviando(false)
+      return
+    }
 
     // 'contactos' se incrementa en el servidor (trigger on_propuesta_insert).
     supabaseBrowser.functions.invoke('notificar-propuesta', { body: { worker_id: perfil.id, employer_nombre: empleadorNombre } }).catch(() => {})
