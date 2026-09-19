@@ -5,6 +5,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, Text, StyleSheet, ActivityIndicator, Linking, Alert } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { LinearGradient } from "expo-linear-gradient";
@@ -60,11 +61,21 @@ const Tab=createBottomTabNavigator();
 const Stack=createStackNavigator();
 
 function TabIcon({name,focused}){
-  const icons={Inicio:"🏠",Buscar:"🔍",Concursa:"🏛️",Mensajes:"💬",Perfil:"👤",Cuenta:"👤",Ofertas:"📋",Publicar:"📣",Explorar:"🔍"};
+  const iconNames={
+    Inicio:focused?"home":"home-outline",
+    Buscar:focused?"search":"search-outline",
+    Explorar:focused?"search":"search-outline",
+    Concursa:focused?"business":"business-outline",
+    Mensajes:focused?"chatbubble-ellipses":"chatbubble-ellipses-outline",
+    Perfil:focused?"person":"person-outline",
+    Cuenta:focused?"person":"person-outline",
+    Ofertas:focused?"clipboard":"clipboard-outline",
+    Publicar:focused?"megaphone":"megaphone-outline",
+  };
   return(
     <View style={{alignItems:"center"}}>
       {focused&&<View style={ss.ind}/>}
-      <Text style={{fontSize:18,color:focused?"#4DC8C4":"#A898B8"}}>{icons[name]}</Text>
+      <Ionicons name={iconNames[name]} size={20} color={focused?"#4DC8C4":"#A898B8"}/>
     </View>
   );
 }

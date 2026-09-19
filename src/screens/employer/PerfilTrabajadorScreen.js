@@ -2,6 +2,7 @@ import React,{useState,useEffect,useRef} from 'react';
 import{View,Text,ScrollView,TouchableOpacity,StyleSheet,Alert,Modal,TextInput,Pressable}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{LinearGradient}from 'expo-linear-gradient';
+import{Ionicons}from '@expo/vector-icons';
 import{supabase}from '../../services/supabase';
 import{useApp}from '../../services/AppContext';
 
@@ -378,7 +379,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
       <ScrollView contentContainerStyle={{paddingBottom:48}} showsVerticalScrollIndicator={false}>
 
         <LinearGradient colors={['#D6E4F0','#B8D4E8']} style={ss.hero}>
-          <View style={ss.avatar}><Text style={{fontSize:40}}>👤</Text></View>
+          <View style={ss.avatar}><Ionicons name="person" size={34} color="#1A3A5C"/></View>
           <Text style={ss.nombre}>{perfil?.nombre||'Trabajador'}</Text>
           {edad&&<Text style={ss.sub}>{edad} años · {perfil?.ciudad||''}</Text>}
           {perfil?.total_calificaciones>0?(
@@ -388,20 +389,25 @@ export default function PerfilTrabajadorScreen({navigation,route}){
               <Text style={ss.ratingCount}>({perfil?.total_calificaciones} calificaciones)</Text>
             </View>
           ):(
-            <Text style={ss.nuevoTxt}>✨ Nuevo en Konexu</Text>
+            <Text style={ss.nuevoTxt}>Nuevo en Konexu</Text>
           )}
           {perfil?.referencias&&(
             <View style={ss.refBadge}><Text style={ss.refTxt}>✓ Tiene referencias laborales</Text></View>
           )}
 
-          {actividad&&<Text style={ss.actividad}>🟢 {actividad}</Text>}
+          {actividad&&(
+            <View style={{flexDirection:'row',alignItems:'center',gap:5,marginTop:6}}>
+              <View style={{width:7,height:7,borderRadius:3.5,backgroundColor:'#3DA882'}}/>
+              <Text style={[ss.actividad,{marginTop:0}]}>{actividad}</Text>
+            </View>
+          )}
         </LinearGradient>
 
         <View style={ss.sec}>
           <Text style={ss.stit}>DISPONIBILIDAD</Text>
           <View style={ss.card}>
             <View style={ss.row}>
-              <Text style={ss.rowIcon}>📅</Text>
+              <Ionicons name="calendar-outline" size={17} color="#5A4E6A" style={ss.rowIcon}/>
               <View>
                 <Text style={ss.rowTit}>Disponibilidad</Text>
                 <Text style={ss.rowVal}>{disponibilidad}</Text>
@@ -409,7 +415,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
             </View>
             {tipos.length>0&&(
               <View style={[ss.row,{marginTop:10}]}>
-                <Text style={ss.rowIcon}>💼</Text>
+                <Ionicons name="briefcase-outline" size={17} color="#5A4E6A" style={ss.rowIcon}/>
                 <View style={{flex:1}}>
                   <Text style={ss.rowTit}>Tipo de empleo</Text>
                   <Text style={ss.rowVal}>{tipos.join(', ')}</Text>
@@ -425,7 +431,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
             <View style={ss.card}>
               {aniosExp&&(
                 <View style={ss.row}>
-                  <Text style={ss.rowIcon}>📊</Text>
+                  <Ionicons name="bar-chart-outline" size={17} color="#5A4E6A" style={ss.rowIcon}/>
                   <View>
                     <Text style={ss.rowTit}>Anos de experiencia</Text>
                     <Text style={ss.rowVal}>{aniosExp} {aniosExp===1?'ano':'anos'}</Text>
@@ -434,7 +440,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
               )}
               {(sueldoMin||sueldoMax)&&(
                 <View style={[ss.row,{marginTop:aniosExp?10:0}]}>
-                  <Text style={ss.rowIcon}>💰</Text>
+                  <Ionicons name="cash-outline" size={17} color="#5A4E6A" style={ss.rowIcon}/>
                   <View>
                     <Text style={ss.rowTit}>{tipos.includes('Por tarea')||tipos.includes('Temporal')?'Presupuesto':'Pretension salarial'}</Text>
                     <Text style={ss.rowVal}>
@@ -521,25 +527,28 @@ export default function PerfilTrabajadorScreen({navigation,route}){
           <View style={ss.sec}>
             <Text style={ss.stit}>CONTACTO</Text>
             <View style={ss.card}>
-              <Text style={ss.bioTxt}>📧 {datosAceptado.email}</Text>
+              <Text style={ss.bioTxt}>{datosAceptado.email}</Text>
             </View>
           </View>
         )}
 
         {perfil?.perfil_visible?(
           <View style={ss.publicaNota}>
-            <Text style={ss.publicaNotaTxt}>🌐 Este trabajador tiene su perfil público. Sus datos de contacto son visibles directamente.</Text>
+            <Text style={ss.publicaNotaTxt}>Este trabajador tiene su perfil público. Sus datos de contacto son visibles directamente.</Text>
           </View>
         ):(
           <View style={ss.privaNota}>
-            <Text style={ss.privaNotaTxt}>🔒 Los datos de contacto del trabajador se revelan solo si acepta tu mensaje de interes.</Text>
+            <Text style={ss.privaNotaTxt}>Los datos de contacto del trabajador se revelan solo si acepta tu mensaje de interes.</Text>
           </View>
         )}
 
         <View style={{paddingHorizontal:16,marginTop:8}}>
           {enviado?(
             <View style={ss.enviadoCard}>
-              <Text style={ss.enviadoTxt}>✅ Mensaje de interes enviado</Text>
+              <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                <Ionicons name="checkmark-circle" size={16} color="#2E9472"/>
+                <Text style={ss.enviadoTxt}>Mensaje de interes enviado</Text>
+              </View>
               <Text style={ss.enviadoSub}>Te notificaremos cuando el trabajador responda.</Text>
             </View>
           ):(

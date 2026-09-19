@@ -4,6 +4,7 @@ import {
   StyleSheet, ActivityIndicator, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
 
 // El plan "Sudamerica" ($12) solo debe mostrar candidatos de la region (Latam+Caribe,
@@ -57,7 +58,7 @@ function WorkerCard({ item, onPress }) {
         <View style={ss.cardInfo}>
           <Text style={ss.cardNombre}>{item.nombre || 'Trabajador'}</Text>
           <Text style={ss.cardOficio}>{oficio}</Text>
-          <Text style={ss.cardZona}>📍 {zona}</Text>
+          <Text style={ss.cardZona}>{zona}</Text>
         </View>
         {item.referencias && (
           <View style={ss.refBadge}><Text style={ss.refTxt}>✓ Ref</Text></View>
@@ -69,7 +70,7 @@ function WorkerCard({ item, onPress }) {
           <Text style={ss.ratingNum}>{(item.rating || 0).toFixed(1)}</Text>
           <Text style={ss.ratingCount}>({item.total_valoraciones || 0})</Text>
         </>):(
-          <Text style={ss.nuevoTxt}>✨ Nuevo en Konexu</Text>
+          <Text style={ss.nuevoTxt}>Nuevo en Konexu</Text>
         )}
         {item.disponibilidad && (
           <Text style={ss.disponib}>● {item.disponibilidad}</Text>
@@ -90,7 +91,7 @@ function LockedCard({ onPress, suscripto }) {
   return (
     <TouchableOpacity style={[ss.card, ss.lockedCard]} onPress={onPress} activeOpacity={0.9}>
       <View style={ss.lockedRow}>
-        <View style={ss.lockCircle}><Text style={ss.lockIcon}>🔒</Text></View>
+        <View style={ss.lockCircle}><Ionicons name="lock-closed" size={18} color="#A898B8"/></View>
         <View style={{ flex: 1 }}>
           <Text style={ss.lockTitle}>Perfil bloqueado</Text>
           <Text style={ss.lockSub}>{suscripto ? 'Volvé mañana o pasate a Premium' : 'Activá tu suscripción para ver este perfil'}</Text>
