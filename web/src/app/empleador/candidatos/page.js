@@ -119,7 +119,7 @@ export default function CandidatosEmpleador() {
     const { data: emp } = await supabaseBrowser.from('profiles').select('nombre, apellido1').eq('id', user.id).single()
     const empleadorNombre = emp ? (emp.apellido1 ? `${emp.nombre} ${emp.apellido1[0]}.` : emp.nombre) : L.empleadorFallback
 
-    const { data: ofertas } = await supabaseBrowser.from('ofertas').select('titulo, empleo, lugar, descripcion').eq('employer_id', user.id).order('created_at', { ascending: false }).limit(1)
+    const { data: ofertas } = await supabaseBrowser.from('ofertas').select('titulo, empleo, lugar, descripcion').eq('employer_id', user.id).eq('estado', 'aprobada').order('created_at', { ascending: false }).limit(1)
 
     const { error } = await supabaseBrowser.from('propuestas').insert({
       employer_id: user.id,

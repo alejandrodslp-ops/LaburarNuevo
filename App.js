@@ -35,6 +35,7 @@ import HomeEmpresaScreen from "./src/screens/company/HomeEmpresaScreen";
 import BuscarEmpresaScreen from "./src/screens/company/BuscarEmpresaScreen";
 import PerfilEmpresaScreen from "./src/screens/company/PerfilEmpresaScreen";
 import MisOfertasEmpresaScreen from "./src/screens/company/MisOfertasEmpresaScreen";
+import CandidatosOfertaScreen from "./src/screens/company/CandidatosOfertaScreen";
 import EditarPerfilScreen from "./src/screens/worker/EditarPerfilScreen";
 import PropuestaScreen from "./src/screens/worker/PropuestaScreen";
 import EncuestaRechazoScreen from "./src/screens/worker/EncuestaRechazoScreen";
@@ -247,6 +248,7 @@ function CompanyStack(){
       <Stack.Screen name="PerfilTrabajador" component={PerfilTrabajadorScreen}/>
       <Stack.Screen name="CrearOferta" component={CrearOfertaScreen}/>
       <Stack.Screen name="MisOfertasEmpresa" component={MisOfertasEmpresaScreen}/>
+      <Stack.Screen name="CandidatosOferta" component={CandidatosOfertaScreen}/>
     </Stack.Navigator>
   );
 }

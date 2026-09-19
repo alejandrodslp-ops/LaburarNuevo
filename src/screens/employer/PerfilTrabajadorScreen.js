@@ -313,10 +313,14 @@ export default function PerfilTrabajadorScreen({navigation,route}){
         ?(empProfile.apellido1?`${empProfile.nombre} ${empProfile.apellido1[0]}.`:empProfile.nombre)
         :'Empleador';
 
-      // Cargar oferta más reciente del empleador
+      // Cargar oferta más reciente del empleador — solo aprobada: sino se
+      // filtra al trabajador contenido pendiente/rechazado sin pasar por
+      // la revision (el gate de RLS no alcanza porque esto lo lee el propio
+      // dueño, que si puede ver sus ofertas pendientes; el filtro va aca).
       const{data:ofertas}=await supabase.from('ofertas')
         .select('titulo,empleo,lugar,carga_horaria,sueldo_tipo,sueldo_min,sueldo_max,descripcion')
         .eq('employer_id',user.id)
+        .eq('estado','aprobada')
         .order('created_at',{ascending:false})
         .limit(1);
       const ofertaSnapshot=ofertas?.[0]||null;

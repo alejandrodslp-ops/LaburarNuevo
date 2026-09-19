@@ -84,6 +84,17 @@ export default function CrearOfertaScreen({navigation,route}){
 
       const esCompany=modoActivo==='company';
 
+      // Sin esto el matching por pais no tiene ninguna señal de zona: no suma
+      // el bonus de +15 puntos (baja mucho el recall) y ademas no filtra por
+      // pais, asi que una busqueda en Montevideo puede matchear a alguien en
+      // otro continente y gastar cupo real en un candidato inviable.
+      // profiles.pais guarda cosas como "🇦🇷 Argentina" (emoji + nombre) o a
+      // veces solo "Uruguay" — se saca cualquier prefijo que no sea letra
+      // (el emoji + el espacio) para dejar el nombre limpio, que es lo que
+      // _shared/matching.ts espera para mapear a codigo ISO.
+      const{data:miPerfil}=await supabase.from('profiles').select('pais').eq('id',user.id).single();
+      const paisLimpio=(miPerfil?.pais||'').replace(/^[^\p{L}]+/u,'').trim()||null;
+
       const payload={
         employer_id:user.id,
         titulo:titulo.trim(),
@@ -91,6 +102,7 @@ export default function CrearOfertaScreen({navigation,route}){
         descripcion:descripcion.trim()||null,
         requisitos:requisitos.trim()||null,
         ciudad:ciudad.trim()||null,
+        pais:paisLimpio,
         modalidad:modalidad||null,
         tipo_contrato:tipoContrato||null,
         sueldo_min:salarioMin?parseFloat(salarioMin):null,

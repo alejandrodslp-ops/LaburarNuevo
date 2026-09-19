@@ -13,7 +13,7 @@ function formatFecha(iso){
   return d.toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'2-digit'});
 }
 
-function OfertaCard({oferta,onPress,onToggle}){
+function OfertaCard({oferta,onPress,onToggle,onVerCandidatos}){
   const activa=oferta.activa;
   return(
     <TouchableOpacity style={ss.card} onPress={onPress} activeOpacity={0.8}>
@@ -50,6 +50,11 @@ function OfertaCard({oferta,onPress,onToggle}){
           <Text style={[ss.badgeTxt,activa?ss.badgeTxtOn:ss.badgeTxtOff]}>{activa?'Activa':'Inactiva'}</Text>
         </View>
       </View>
+      {oferta.estado==='aprobada'&&(
+        <TouchableOpacity style={ss.candidatosBtn} onPress={onVerCandidatos} activeOpacity={0.85}>
+          <Text style={ss.candidatosBtnTxt}>👥 Ver candidatos</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 }
@@ -87,6 +92,7 @@ export default function MisOfertasEmpresaScreen({navigation}){
 
   function irACrear(){navigation.navigate('CrearOferta',{oferta:null});}
   function irAEditar(oferta){navigation.navigate('CrearOferta',{oferta});}
+  function irACandidatos(oferta){navigation.navigate('CandidatosOferta',{ofertaId:oferta.id,titulo:oferta.titulo});}
 
   return(
     <SafeAreaView style={ss.c} edges={['top']}>
@@ -116,7 +122,7 @@ export default function MisOfertasEmpresaScreen({navigation}){
         <FlatList
           data={ofertas}
           keyExtractor={o=>o.id}
-          renderItem={({item})=><OfertaCard oferta={item} onPress={()=>irAEditar(item)} onToggle={toggleActiva}/>}
+          renderItem={({item})=><OfertaCard oferta={item} onPress={()=>irAEditar(item)} onToggle={toggleActiva} onVerCandidatos={()=>irACandidatos(item)}/>}
           contentContainerStyle={{padding:16,paddingBottom:32}}
           showsVerticalScrollIndicator={false}
         />
@@ -149,6 +155,8 @@ const ss=StyleSheet.create({
   badgeAprobada:{backgroundColor:'#D1FAE5',borderRadius:8,paddingHorizontal:8,paddingVertical:4,alignSelf:'flex-start',marginTop:6},
   badgeRechazada:{backgroundColor:'#FEE2E2',borderRadius:8,paddingHorizontal:8,paddingVertical:4,alignSelf:'flex-start',marginTop:6},
   motivoTxt:{fontSize:11,color:'#5A4E6A',marginTop:2},
+  candidatosBtn:{marginTop:12,backgroundColor:'#F2EDE6',borderRadius:10,paddingVertical:10,alignItems:'center'},
+  candidatosBtnTxt:{fontSize:13,fontWeight:'700',color:C.texto1},
   empty:{flex:1,alignItems:'center',justifyContent:'center',padding:40},
   emptyTit:{fontSize:18,fontWeight:'800',color:C.texto1,marginBottom:8,textAlign:'center'},
   emptySub:{fontSize:14,color:C.texto3,textAlign:'center',lineHeight:20,marginBottom:24},
