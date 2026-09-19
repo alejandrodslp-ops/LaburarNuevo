@@ -181,10 +181,15 @@ function WorkerTabs(){
 }
 
 function EmployerTabs(){
-  const{mensajesSinLeer,session,empleadorDatosCompletos}=useApp();
+  const{mensajesSinLeer,session,empleadorDatosCompletos,tieneOfertaAprobada}=useApp();
   const{t}=useI18n();
   const esAdmin=session?.user?.email==='alejandrodslp@gmail.com';
   const datosFaltantes=!esAdmin&&empleadorDatosCompletos===false;
+  // Sin esto, cualquiera se registra como empleador y busca/ve trabajadores sin
+  // ninguna intencion real de contratar — se exige publicar (y que se apruebe,
+  // misma revision que las empresas) al menos una oferta antes de poder buscar.
+  // El gate real (no se puede esquivar por API directa) esta en consumir_visualizacion().
+  const sinOferta=!esAdmin&&tieneOfertaAprobada===false;
 
   return(
     <Tab.Navigator screenOptions={({route})=>({
@@ -207,6 +212,18 @@ function EmployerTabs(){
                 [
                   {text:'Ahora no',style:'cancel'},
                   {text:'Completar datos',onPress:()=>navigation.navigate('Cuenta',{screen:'EditarPerfilEmpleadorDatos'})},
+                ]
+              );
+              return;
+            }
+            if(sinOferta){
+              e.preventDefault();
+              Alert.alert(
+                'Publicá una oferta primero',
+                'Para buscar trabajadores necesitás tener al menos una oferta de trabajo publicada y aprobada. Publicala desde la pestaña Ofertas.',
+                [
+                  {text:'Ahora no',style:'cancel'},
+                  {text:'Ir a Ofertas',onPress:()=>navigation.navigate('Ofertas')},
                 ]
               );
             }

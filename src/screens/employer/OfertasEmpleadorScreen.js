@@ -4,6 +4,7 @@ import NexuWatermark from '../../components/NexuWatermark';
 import{View,Text,StyleSheet,TouchableOpacity,FlatList,ActivityIndicator,Alert,Switch}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{supabase}from '../../services/supabase';
+import{useApp}from '../../services/AppContext';
 
 const C={coral:'#E8785A',teal:'#2DD4BF',blanco:'#FFFFFF',crema:'#FBF8F4',borde:'#EDE8E2',texto1:'#1A1020',texto2:'#5A4E6A',texto3:'#A898B8'};
 
@@ -21,6 +22,14 @@ function OfertaCard({oferta,onPress,onToggle}){
         <View style={ss.cardLeft}>
           <Text style={ss.cardTitulo} numberOfLines={2}>{oferta.titulo}</Text>
           {oferta.empleo?<Text style={ss.cardCargo}>{oferta.empleo}</Text>:null}
+          {oferta.estado==='pendiente'&&<View style={ss.badgePendiente}><Text style={ss.badgeTxt}>Pendiente de revisión</Text></View>}
+          {oferta.estado==='aprobada'&&<View style={ss.badgeAprobada}><Text style={ss.badgeTxt}>Activa</Text></View>}
+          {oferta.estado==='rechazada'&&(
+            <View style={ss.badgeRechazada}>
+              <Text style={ss.badgeTxt}>No aprobada</Text>
+              {oferta.motivo_rechazo?<Text style={ss.motivoTxt}>{oferta.motivo_rechazo}</Text>:null}
+            </View>
+          )}
         </View>
         <Switch
           value={activa}
@@ -49,6 +58,7 @@ function OfertaCard({oferta,onPress,onToggle}){
 export default function OfertasEmpleadorScreen({navigation}){
   const[ofertas,setOfertas]=useState([]);
   const[loading,setLoading]=useState(true);
+  const{refrescarOfertaAprobada}=useApp();
 
   const cargar=useCallback(async()=>{
     try{
@@ -65,7 +75,15 @@ export default function OfertasEmpleadorScreen({navigation}){
   },[]);
 
   useEffect(()=>{cargar();},[cargar]);
-  useEffect(()=>{const u=navigation.addListener('focus',cargar);return u;},[navigation,cargar]);
+  useEffect(()=>{
+    const u=navigation.addListener('focus',()=>{
+      cargar();
+      // Recien aprobada la primera oferta se desbloquea "Buscar" — sin esto el
+      // empleador tendria que cerrar sesion y volver a entrar para verlo reflejado.
+      refrescarOfertaAprobada();
+    });
+    return u;
+  },[navigation,cargar,refrescarOfertaAprobada]);
 
   async function toggleActiva(oferta){
     const nueva=!oferta.activa;
@@ -129,6 +147,10 @@ const ss=StyleSheet.create({
   cardLeft:{flex:1,marginRight:12},
   cardTitulo:{fontSize:16,fontWeight:'800',color:C.texto1,lineHeight:22},
   cardCargo:{fontSize:12,color:C.texto3,marginTop:2,fontWeight:'600'},
+  badgePendiente:{backgroundColor:'#FEF3C7',borderRadius:8,paddingHorizontal:8,paddingVertical:4,alignSelf:'flex-start',marginTop:6},
+  badgeAprobada:{backgroundColor:'#D1FAE5',borderRadius:8,paddingHorizontal:8,paddingVertical:4,alignSelf:'flex-start',marginTop:6},
+  badgeRechazada:{backgroundColor:'#FEE2E2',borderRadius:8,paddingHorizontal:8,paddingVertical:4,alignSelf:'flex-start',marginTop:6},
+  motivoTxt:{fontSize:11,color:'#5A4E6A',marginTop:2},
   cardMeta:{flexDirection:'row',flexWrap:'wrap',gap:6,marginBottom:10},
   metaTag:{fontSize:11,color:C.texto2,backgroundColor:'#F2EDE6',borderRadius:8,paddingHorizontal:8,paddingVertical:3,fontWeight:'600'},
   cardFooter:{flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:10},
