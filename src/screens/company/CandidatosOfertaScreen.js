@@ -8,6 +8,24 @@ function estrellas(r){
   return '★'.repeat(n)+'☆'.repeat(5-n);
 }
 
+// El plan "Sudamerica" ($12) solo debe mostrar candidatos de la region (Latam+Caribe,
+// misma lista que crear-pago usa para el tramo de precio de creditos, y que
+// BuscarEmpresaScreen.js reusa igual) — "Mundial" y "Premium" no tienen esta
+// restriccion. Filtro de UI; el enforcement real vive en consumir_visualizacion_empresa().
+const PAISES_SA_NOMBRES=new Set([
+  'uruguay','argentina','brasil','brazil','chile','paraguay','bolivia',
+  'peru','colombia','mexico','ecuador','venezuela','cuba','costa rica',
+  'panama','guatemala','el salvador','honduras','nicaragua',
+  'republica dominicana',
+]);
+function esPaisSudamerica(raw){
+  const n=(raw||'')
+    .replace(/^[^\p{L}]+/u,'').trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .toLowerCase();
+  return PAISES_SA_NOMBRES.has(n);
+}
+
 function CandidatoCard({item,onPress}){
   const oficio=item.servicios?.[0]||item.profesiones?.[0]||'Profesional';
   const zona=[item.barrio,item.ciudad,item.pais].filter(Boolean)[0]||'—';
@@ -67,13 +85,15 @@ export default function CandidatosOfertaScreen({navigation,route}){
       const{data:{user}}=await supabase.auth.getUser();
       if(!user)return;
 
-      const[{data:matches},{data:cupoData},{data:vistos}]=await Promise.all([
+      const[{data:matches},{data:cupoData},{data:vistos},{data:miPerfil}]=await Promise.all([
         supabase.from('oferta_matches').select('worker_id,score').eq('oferta_id',ofertaId).order('score',{ascending:false}),
         supabase.rpc('cupo_empresa_restante'),
         supabase.from('visualizaciones').select('worker_id').eq('employer_id',user.id),
+        supabase.from('profiles').select('suscripcion_plan').eq('id',user.id).single(),
       ]);
       if(cupoData&&cupoData[0])setCupo(cupoData[0]);
       if(vistos)setVistosIds(vistos.map(v=>v.worker_id));
+      const planSA=miPerfil?.suscripcion_plan==='membresia_sa';
 
       const workerIds=(matches||[]).map(m=>m.worker_id);
       if(workerIds.length===0){setCandidatos([]);return;}
@@ -85,12 +105,14 @@ export default function CandidatosOfertaScreen({navigation,route}){
         .from('perfiles_publicos')
         .select('id,nombre,apellido1,servicios,profesiones,especialidades,rating,estrellas,total_valoraciones,total_calificaciones,ciudad,barrio,pais,disponibilidad,referencias,fecha_nac,idiomas,tipos_empleo,bio,anios_experiencia,sueldo_pretension_min,sueldo_pretension_max,sueldo_moneda,updated_at,perfil_visible')
         .in('id',workerIds)
+        .eq('rol','worker')
         .eq('perfil_activo',true);
 
       const scoreById=Object.fromEntries((matches||[]).map(m=>[m.worker_id,m.score]));
-      const items=(perfiles||[])
+      let items=(perfiles||[])
         .map(p=>({...p,_match_score:scoreById[p.id]||0}))
         .sort((a,b)=>b._match_score-a._match_score);
+      if(planSA)items=items.filter(p=>esPaisSudamerica(p.pais));
       setCandidatos(items);
     }catch(e){
       setCandidatos([]);

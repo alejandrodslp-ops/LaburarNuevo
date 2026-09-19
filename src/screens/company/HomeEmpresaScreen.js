@@ -12,11 +12,6 @@ export default function HomeEmpresaScreen({navigation}){
         <LinearGradient colors={["#1A1F3A","#2D3561"]} style={ss.header}>
           <Text style={ss.saludo}>Panel de empresa</Text>
           <Text style={ss.titulo}>🏢 Konexu Empresas</Text>
-          {!suscripcionActiva&&(
-            <TouchableOpacity style={ss.activarBtn} onPress={()=>navigation.navigate("BienvenidaEmpresa")}>
-              <Text style={ss.activarTxt}>⚡ Activar suscripcion</Text>
-            </TouchableOpacity>
-          )}
         </LinearGradient>
         <View style={ss.principalWrap}>
           <TouchableOpacity style={ss.principalBtn} onPress={()=>navigation.navigate("CrearOferta")} activeOpacity={0.9}>
@@ -50,8 +45,6 @@ const ss=StyleSheet.create({
   header:{paddingHorizontal:20,paddingTop:24,paddingBottom:32},
   saludo:{fontSize:13,color:"rgba(255,255,255,0.6)",marginBottom:4},
   titulo:{fontSize:24,fontWeight:"900",color:"#FFFFFF"},
-  activarBtn:{marginTop:16,backgroundColor:"#E8785A",borderRadius:10,paddingVertical:10,paddingHorizontal:16,alignSelf:"flex-start"},
-  activarTxt:{color:"#FFFFFF",fontSize:13,fontWeight:"700"},
   principalWrap:{padding:16,gap:10},
   principalBtn:{backgroundColor:"#3DA882",borderRadius:16,padding:22,alignItems:"center"},
   principalEmoji:{fontSize:32,marginBottom:8},

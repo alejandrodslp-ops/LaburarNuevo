@@ -59,7 +59,7 @@ const Tab=createBottomTabNavigator();
 const Stack=createStackNavigator();
 
 function TabIcon({name,focused}){
-  const icons={Inicio:"🏠",Buscar:"🔍",Concursa:"🏛️",Mensajes:"💬",Perfil:"👤",Cuenta:"👤",Ofertas:"📋",Publicar:"📣"};
+  const icons={Inicio:"🏠",Buscar:"🔍",Concursa:"🏛️",Mensajes:"💬",Perfil:"👤",Cuenta:"👤",Ofertas:"📋",Publicar:"📣",Explorar:"🔍"};
   return(
     <View style={{alignItems:"center"}}>
       {focused&&<View style={ss.ind}/>}

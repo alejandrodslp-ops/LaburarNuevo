@@ -121,6 +121,31 @@ Se va actualizando a medida que avanza el desarrollo.
 - [x] **Cron jobs de scraper — activos y verificados** ✅ (2026-06-17)
   Los 4 jobs están corriendo: manana(06:00 UTC), resumen(06:30), mediodia(15:00), noche(23:00)
 
+- [x] **Cron jobs de "empresa publica vacante" — activos y verificados** ✅ (2026-09-19)
+  3 jobs en `cron.job`, todos con `active=true` y usando la secret key `scraper_nexu` embebida
+  en el header `Authorization`:
+  - `jobid 56` **moderar-ofertas-horario** — `0 * * * *` (cada hora, en punto). Invoca
+    `moderar-ofertas`: revisa ofertas de `company` con `created_at <= now()-24h` y las
+    aprueba/rechaza. Por diseño la revisión NO es instantánea (ventana de 24hs).
+  - `jobid 57` **match-ofertas-diario** — `20 * * * *` (cada hora, minuto :20 — el nombre
+    quedó desactualizado, ya no es diario; se cambió de "una vez al día" a "cada hora" para
+    bajar la demora de aviso, sin renombrar el job porque `cron.alter_job` no permite cambiar
+    el `jobname`). Invoca `match-ofertas` con `{"todos":true}` (re-matchea todas las ofertas
+    aprobadas+activas contra todos los workers).
+  - `jobid 58` **notificar-matches-ofertas-recurrente** — `10,40 * * * *` (minutos :10 y :40).
+    Invoca `notificar-matches-ofertas`: push a la empresa + marca `oferta_matches.notificado=true`.
+    Backstop independiente porque el invoke-cascade `match-ofertas -> notificar-matches-ofertas`
+    no es confiable (Supabase mata trabajo async no-awaited cuando el isolate se congela).
+  - Demora peor caso hoy: ~25h (moderación) + hasta 1h (match) + hasta 30min (notificación) ≈ 26.5h,
+    bajado desde ~49h (antes `match-ofertas-diario` corría 1×/día a las 8:15 UTC).
+  - **Para dar de baja o pausar** (ej. si hay que revertir esta feature): `select cron.unschedule(56);`
+    `select cron.unschedule(57);` `select cron.unschedule(58);` (o `cron.alter_job(job_id:=N, active:=false)`
+    para pausar sin borrar). Ninguno de los 3 borra datos — solo dejan de correr; `ofertas`/`oferta_matches`
+    quedan intactas y se puede volver a activar en cualquier momento con `cron.alter_job(job_id:=N, active:=true)`.
+  - Detalle completo de la feature (moderación, matching, cupo por 3 niveles de suscripción) en
+    `docs/superpowers/specs/2026-09-18-company-publicar-empleo-design.md` y el ledger de implementación
+    en `.superpowers/sdd/2026-09-18-company-publicar-empleo/progress.md`.
+
 - [ ] **Google Vision API — configurar límite de gasto mensual**
   Agregar un budget alert en Google Cloud para no recibir sorpresas.
   → console.cloud.google.com → Billing → Budgets & Alerts

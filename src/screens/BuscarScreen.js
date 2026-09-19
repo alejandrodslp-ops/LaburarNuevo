@@ -157,6 +157,7 @@ export default function BuscarScreen({navigation}){
       }
       let q=supabase.from('perfiles_publicos')
         .select('id,nombre,apellido1,servicios,profesiones,especialidades,rating,total_valoraciones,ciudad,barrio,pais,disponibilidad,referencias,fecha_nac,idiomas,tipos_empleo,bio,anios_experiencia,sueldo_pretension_min,sueldo_pretension_max,sueldo_moneda,updated_at,perfil_visible')
+        .eq('rol','worker')
         .eq('perfil_activo',true)
         .neq('id',user.id)
         .order('rating',{ascending:false});

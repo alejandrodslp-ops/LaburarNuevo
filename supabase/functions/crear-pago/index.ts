@@ -45,15 +45,41 @@ serve(async (req) => {
       membresia_premium: 50,
     };
     const PRECIO_ACTIVACION_WORKER = 1;
-    // Paquetes reales de PagoScreen.js — 2 cantidades x 3 tramos de precio por pais.
-    const PAQUETES_VISUALIZACIONES = [
-      { monto: 3.99,  cantidad: 3 },
-      { monto: 7.98,  cantidad: 3 },
-      { monto: 1.50,  cantidad: 3 },
-      { monto: 9.99,  cantidad: 10 },
-      { monto: 19.99, cantidad: 10 },
-      { monto: 4.99,  cantidad: 10 },
-    ];
+    // Precios reales de PagoScreen.js (mismo mapa duplicado ahi, mantener en
+    // sync) — 2 cantidades x 3 tramos segun el pais del perfil. El monto NUNCA
+    // se toma del body: se deriva 100% server-side a partir de profiles.pais,
+    // que es la unica señal de pais que ya usa el resto de la app (bonus de
+    // matching, etc.) — sin esto, cualquiera podia pedir el tramo mas barato
+    // (pensado para paises con moneda muy devaluada) mandando el monto exacto
+    // en el body, sin importar su pais real.
+    const PRECIOS_VISUALIZACIONES: Record<number, Record<"sa" | "devaluado" | "world", number>> = {
+      3:  { sa: 3.99,  world: 7.98,  devaluado: 1.50 },
+      10: { sa: 9.99,  world: 19.99, devaluado: 4.99 },
+    };
+    // Mismos 32 paises que ofrece el selector de onboarding (EditarPerfilScreen.js /
+    // EditarPerfilEmpleadorDatosScreen.js) — "Otro" y cualquier valor no reconocido
+    // caen en "world" (el tramo mas caro), nunca en el mas barato, por seguridad.
+    const PAISES_SA = new Set([
+      "uruguay", "argentina", "brasil", "brazil", "chile", "paraguay", "bolivia",
+      "peru", "colombia", "mexico", "ecuador", "venezuela", "cuba", "costa rica",
+      "panama", "guatemala", "el salvador", "honduras", "nicaragua",
+      "republica dominicana",
+    ]);
+    const PAISES_DEVALUADOS = new Set(["india"]);
+
+    function normalizarPais(raw: string): string {
+      return raw
+        .replace(/^[^\p{L}]+/u, "").trim() // saca emoji/prefijo no-letra
+        .normalize("NFD").replace(/[̀-ͯ]/g, "") // saca acentos
+        .toLowerCase();
+    }
+    function tierDePais(raw: string | null | undefined): "sa" | "devaluado" | "world" {
+      if (!raw) return "world";
+      const n = normalizarPais(raw);
+      if (PAISES_DEVALUADOS.has(n)) return "devaluado";
+      if (PAISES_SA.has(n)) return "sa";
+      return "world";
+    }
 
     let montoFinal: number;
     let cantidadFinal: number;
@@ -72,16 +98,16 @@ serve(async (req) => {
       montoFinal = PRECIO_ACTIVACION_WORKER;
       cantidadFinal = 0;
     } else {
-      const paquete = PAQUETES_VISUALIZACIONES.find(
-        (p) => p.monto === Number(monto) && p.cantidad === Number(cantidad_perfiles)
-      );
-      if (!paquete) {
-        return new Response(JSON.stringify({ error: "Paquete de visualizaciones inválido" }), {
+      const cantidad = Number(cantidad_perfiles);
+      if (cantidad !== 3 && cantidad !== 10) {
+        return new Response(JSON.stringify({ error: "Cantidad de perfiles inválida" }), {
           status: 400, headers: CORS,
         });
       }
-      montoFinal = paquete.monto;
-      cantidadFinal = paquete.cantidad;
+      const { data: perfilPago } = await supabase.from("profiles").select("pais").eq("id", userId).single();
+      const tier = tierDePais(perfilPago?.pais);
+      montoFinal = PRECIOS_VISUALIZACIONES[cantidad][tier];
+      cantidadFinal = cantidad;
     }
 
     const preference = {

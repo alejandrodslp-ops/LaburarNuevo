@@ -6,6 +6,25 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../services/supabase';
 
+// El plan "Sudamerica" ($12) solo debe mostrar candidatos de la region (Latam+Caribe,
+// misma lista que crear-pago usa para el tramo de precio de creditos) — "Mundial" y
+// "Premium" no tienen esta restriccion. Este filtro es solo de UI (no mostrar lo que
+// no corresponde); el enforcement real que no se puede esquivar por API directa vive
+// en consumir_visualizacion_empresa() (SQL, server-side).
+const PAISES_SA_NOMBRES = new Set([
+  'uruguay', 'argentina', 'brasil', 'brazil', 'chile', 'paraguay', 'bolivia',
+  'peru', 'colombia', 'mexico', 'ecuador', 'venezuela', 'cuba', 'costa rica',
+  'panama', 'guatemala', 'el salvador', 'honduras', 'nicaragua',
+  'republica dominicana',
+]);
+function esPaisSudamerica(raw) {
+  const n = (raw || '')
+    .replace(/^[^\p{L}]+/u, '').trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+  return PAISES_SA_NOMBRES.has(n);
+}
+
 const CATS = [
   { id: 'Limpieza del hogar', emoji: '🧹' },
   { id: 'Albañil',            emoji: '🏗️' },
@@ -84,18 +103,21 @@ export default function BuscarEmpresaScreen({ navigation }) {
   const [loading,   setLoading]   = useState(false);
   const [cupo,      setCupo]      = useState({ restante_efectivo: 0, suscripcion_activa: false });
   const [vistosIds, setVistosIds] = useState([]);
+  const [planSA,    setPlanSA]    = useState(false);
 
-  useEffect(() => { buscar('', catActiva); }, [catActiva]);
+  useEffect(() => { buscar('', catActiva); }, [catActiva, planSA]);
 
   async function cargarCupo() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const [{ data: cupoData }, { data: vistos }] = await Promise.all([
+    const [{ data: cupoData }, { data: vistos }, { data: miPerfil }] = await Promise.all([
       supabase.rpc('cupo_empresa_restante'),
       supabase.from('visualizaciones').select('worker_id').eq('employer_id', user.id),
+      supabase.from('profiles').select('suscripcion_plan').eq('id', user.id).single(),
     ]);
     if (cupoData && cupoData[0]) setCupo(cupoData[0]);
     if (vistos) setVistosIds(vistos.map((v) => v.worker_id));
+    setPlanSA(miPerfil?.suscripcion_plan === 'membresia_sa');
   }
 
   useEffect(() => {
@@ -118,6 +140,7 @@ export default function BuscarEmpresaScreen({ navigation }) {
       let req = supabase
         .from('perfiles_publicos')
         .select('id,nombre,apellido1,servicios,profesiones,especialidades,rating,estrellas,total_valoraciones,total_calificaciones,ciudad,barrio,pais,disponibilidad,referencias,fecha_nac,idiomas,tipos_empleo,bio,anios_experiencia,sueldo_pretension_min,sueldo_pretension_max,sueldo_moneda,updated_at,perfil_visible')
+        .eq('rol', 'worker')
         .eq('perfil_activo', true)
         .order('rating', { ascending: false })
         .limit(40);
@@ -127,6 +150,8 @@ export default function BuscarEmpresaScreen({ navigation }) {
 
       const { data } = await req;
       let items = data || [];
+
+      if (planSA) items = items.filter(p => esPaisSudamerica(p.pais));
 
       const lower = (q || '').toLowerCase().trim();
       if (lower) {

@@ -161,8 +161,8 @@ function ConcursoCard({ c, onPress }) {
 function OfertaCard({ o }) {
   const dias = o.fecha_cierre ? Math.ceil((new Date(o.fecha_cierre) - new Date()) / 86400000) : null;
   const employer = o.profiles ?? {};
-  const salario = o.salario_min
-    ? `${o.moneda ?? 'USD'} ${fmt(o.salario_min)}${o.salario_max ? `–${fmt(o.salario_max)}` : '+'}`
+  const salario = o.sueldo_min
+    ? `${o.moneda ?? 'USD'} ${fmt(o.sueldo_min)}${o.sueldo_max ? `–${fmt(o.sueldo_max)}` : '+'}`
     : null;
   return (
     <View style={ss.concursoCard}>
@@ -174,7 +174,7 @@ function OfertaCard({ o }) {
           {o.pais ? <Text style={{ fontSize: 10, color: '#A898B8', fontWeight: '600' }}>{BANDERAS[o.pais] ?? '🌍'} {o.pais}</Text> : null}
           {o.modalidad ? <Text style={{ fontSize: 10, color: '#A898B8' }}>{o.modalidad}</Text> : null}
         </View>
-        <Text style={ss.concursoTitle} numberOfLines={2}>{o.cargo || o.titulo || '—'}</Text>
+        <Text style={ss.concursoTitle} numberOfLines={2}>{o.titulo || o.empleo || '—'}</Text>
         <Text style={ss.concursoOrg} numberOfLines={1}>
           {employer.nombre ? `${employer.nombre} ${employer.apellido1 ?? ''}`.trim() : '—'}
         </Text>
