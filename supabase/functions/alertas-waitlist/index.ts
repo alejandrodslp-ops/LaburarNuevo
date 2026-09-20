@@ -173,15 +173,21 @@ function plantilla(nombre: string | null, busqueda: string, matches: any[], lang
 // alertas-waitlist cae al filtro global sin ubicación (ver mas abajo), asi
 // que en vez de mandar avisos de cualquier pais, se pide completar el dato.
 // Solo espanol: sin pais no hay forma de elegir el idioma del email.
-function plantillaIncompleto(nombre: string | null): string {
+function plantillaIncompleto(nombre: string | null, faltantes: string[]): string {
   const saludo = nombre ? `Hola ${esc(nombre)},` : "Hola,";
+  // Lista humana: "país" / "país y ciudad" / "país, ciudad y qué buscás"
+  const lista = faltantes.length <= 1
+    ? (faltantes[0] ?? "")
+    : faltantes.length === 2
+      ? `${faltantes[0]} y ${faltantes[1]}`
+      : `${faltantes.slice(0, -1).join(", ")} y ${faltantes[faltantes.length - 1]}`;
   return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#FBF8F4">
     <div style="background:#0D1117;padding:24px 32px"><img src="https://www.konexu.app/logo-email.png" alt="Konexu" width="98" height="40" style="display:block;border:0"></div>
     <div style="padding:28px 32px">
       <p style="font-size:15px;color:#1A1020">${saludo}</p>
       <h2 style="color:#1A1020;font-size:20px;margin:8px 0 4px">Nos falta un dato para poder avisarte</h2>
-      <p style="font-size:14px;color:#5A4E6A;line-height:1.6;margin:0 0 16px">Te anotaste en Konexu, pero no llegamos a recibir tu país y ciudad — sin eso no podemos avisarte de oportunidades cerca tuyo.</p>
-      <p style="font-size:14px;color:#5A4E6A;line-height:1.6;margin:0 0 20px">Entrá y completá esos dos campos con el mismo correo con el que te anotaste, para que empecemos a mandarte avisos de verdad.</p>
+      <p style="font-size:14px;color:#5A4E6A;line-height:1.6;margin:0 0 16px">Te anotaste en Konexu, pero no llegamos a recibir tu ${esc(lista)} — sin eso no podemos avisarte de oportunidades cerca tuyo.</p>
+      <p style="font-size:14px;color:#5A4E6A;line-height:1.6;margin:0 0 20px">Entrá y completalo con el mismo correo con el que te anotaste, para que empecemos a mandarte avisos de verdad.</p>
       <a href="${SITE}" style="display:inline-block;background:#C2502F;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:800;font-size:15px">Completar mis datos →</a>
       <p style="font-size:12px;color:#a99fb5;margin-top:22px">Te llega esto porque te anotaste en Konexu. Si no querés recibir más, respondé este correo.</p>
     </div>
@@ -201,10 +207,14 @@ const LOTE = 12; // usuarios por invocación: con el doble RPC del fallback,
 serve(async (req: Request) => {
   const { offset = 0 } = await req.json().catch(() => ({ offset: 0 }));
   const db = createClient(URL, KEY);
+  // Sin filtro por busqueda acá: alguien sin busqueda tampoco puede recibir
+  // avisos de empleo, pero SI tiene que entrar al chequeo de "perfil
+  // incompleto" de mas abajo (que ahora tambien exige busqueda, no solo
+  // pais/ciudad) para recibir el recordatorio. Antes este filtro los
+  // dejaba afuera del todo — nunca llegaban ni al recordatorio.
   const { data: leads } = await db
     .from("waitlist")
     .select("id,email,nombre,pais,ciudad,busqueda,ultima_alerta_at,created_at,recordatorio_incompleto_at")
-    .not("busqueda", "is", null)
     .limit(1000);
 
   let enviados = 0, conMatch = 0;
@@ -220,14 +230,20 @@ serve(async (req: Request) => {
       const email = String(l.email ?? "");
       if (!email.includes("@") || email.includes("example.com")) continue;
 
-      // Sin pais o sin ciudad: no se puede avisar cerca de la persona (el
-      // matching sin pais cae a un filtro global sin ubicacion, mandando
-      // avisos de cualquier lado). En vez de eso, un solo recordatorio
-      // (nunca mas de una vez, mismo criterio que nudge_deseo_at) pidiendo
-      // que complete esos datos. Mientras falten, no entra al flujo normal.
-      const tieneUbicacion = !!l.pais && String(l.ciudad ?? "").trim().length > 0;
-      if (!tieneUbicacion) {
-        if (!l.recordatorio_incompleto_at) {
+      // Sin pais, sin ciudad, o sin busqueda: no se puede avisar de nada
+      // (sin busqueda no hay que matchear; sin pais/ciudad el matching cae
+      // a un filtro global sin ubicacion, mandando avisos de cualquier
+      // lado). En vez de eso, un recordatorio pidiendo que complete esos
+      // datos — se repite cada 7 dias (pedido explicito del usuario)
+      // mientras sigan faltando, no una sola vez como nudge_deseo_at.
+      const SEMANA_MS = 7 * 24 * 60 * 60 * 1000;
+      const faltantes: string[] = [];
+      if (!l.pais) faltantes.push("país");
+      if (!String(l.ciudad ?? "").trim()) faltantes.push("ciudad");
+      if (!String(l.busqueda ?? "").trim()) faltantes.push("qué buscás");
+      if (faltantes.length > 0) {
+        const ultimoRecordatorio = l.recordatorio_incompleto_at ? new Date(l.recordatorio_incompleto_at).getTime() : 0;
+        if (Date.now() - ultimoRecordatorio >= SEMANA_MS) {
           const res = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: { "Authorization": `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
@@ -236,7 +252,7 @@ serve(async (req: Request) => {
               to: [email],
               headers: { "List-Unsubscribe": "<mailto:hola@konexu.app?subject=Baja%20de%20alertas>" },
               subject: "Nos falta un dato para poder avisarte",
-              html: plantillaIncompleto(l.nombre),
+              html: plantillaIncompleto(l.nombre, faltantes),
             }),
           });
           if (res.ok) {
