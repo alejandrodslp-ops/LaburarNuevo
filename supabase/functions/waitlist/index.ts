@@ -57,12 +57,16 @@ Deno.serve(async (req) => {
 
     // ── Unirse a la waitlist ──────────────────────────────────────────────────
     if (accion === "unirse") {
-      // El formulario web manda origen:"web" — para él, país/ciudad/búsqueda son obligatorios.
-      // La app (WaitlistScreen) no manda origen y queda exenta: no pide esos campos.
-      if (origen === "web" && (!nombre?.trim() || !pais || !busqueda?.trim() || !ciudad?.trim())) {
+      // País/ciudad/búsqueda son obligatorios por DEFAULT — server-side, no solo
+      // el `required` del form web (eso se puede saltear con una llamada directa
+      // a la API). La única excepción real es la app móvil (WaitlistScreen.js),
+      // que hoy no pide esos campos en su UI: manda origen:"app" a propósito para
+      // marcar que está en el camino exento. Cualquier otro origen (o ninguno,
+      // como una llamada directa) queda obligado.
+      if (origen !== "app" && (!nombre?.trim() || !pais || !busqueda?.trim() || !ciudad?.trim())) {
         return err("Nombre, país, ciudad y búsqueda son obligatorios");
       }
-      const { data: existente } = await db.from("waitlist").select("posicion,habilitado").eq("email", emailLower).maybeSingle();
+      const { data: existente } = await db.from("waitlist").select("posicion,habilitado,pais,ciudad,busqueda").eq("email", emailLower).maybeSingle();
 
       let posicionFinal: number;
       let habilitadoFinal: boolean;
@@ -74,6 +78,17 @@ Deno.serve(async (req) => {
         // abajo — no hay que forzarlo a anotarse de nuevo para ampliar su perfil.
         posicionFinal = existente.posicion;
         habilitadoFinal = existente.habilitado;
+
+        // Backfill: si la fila vieja no tenia pais/ciudad/busqueda (anotado antes
+        // de que fueran obligatorios) y esta vuelta SI los manda, completarlos.
+        // Nunca pisa un dato que la persona ya tenia cargado.
+        const patch: Record<string, unknown> = {};
+        if (!existente.pais && pais) patch.pais = pais;
+        if (!existente.ciudad && ciudad?.trim()) patch.ciudad = ciudad.trim().slice(0, 80);
+        if (!existente.busqueda && busqueda?.trim()) patch.busqueda = busqueda.trim().slice(0, 120);
+        if (Object.keys(patch).length > 0) {
+          await db.from("waitlist").update(patch).eq("email", emailLower);
+        }
       } else {
         const { data: nuevo, error: insErr } = await db.from("waitlist")
           .insert({ email: emailLower, nombre: nombre?.trim() ?? null, push_token: push_token ?? null, pais: pais ?? null, busqueda: busqueda?.trim()?.slice(0, 120) || null, ciudad: ciudad?.trim()?.slice(0, 80) || null })

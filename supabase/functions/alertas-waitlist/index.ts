@@ -167,6 +167,27 @@ function plantilla(nombre: string | null, busqueda: string, matches: any[], lang
     </div>
   </div>`;
 }
+// Recordatorio para quien se anotó sin país/ciudad (mayormente altas viejas,
+// de antes de que el form web los pidiera como obligatorios). Sin esos dos
+// datos no se puede avisar de nada cerca de la persona — el matching de
+// alertas-waitlist cae al filtro global sin ubicación (ver mas abajo), asi
+// que en vez de mandar avisos de cualquier pais, se pide completar el dato.
+// Solo espanol: sin pais no hay forma de elegir el idioma del email.
+function plantillaIncompleto(nombre: string | null): string {
+  const saludo = nombre ? `Hola ${esc(nombre)},` : "Hola,";
+  return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#FBF8F4">
+    <div style="background:#0D1117;padding:24px 32px"><img src="https://www.konexu.app/logo-email.png" alt="Konexu" width="98" height="40" style="display:block;border:0"></div>
+    <div style="padding:28px 32px">
+      <p style="font-size:15px;color:#1A1020">${saludo}</p>
+      <h2 style="color:#1A1020;font-size:20px;margin:8px 0 4px">Nos falta un dato para poder avisarte</h2>
+      <p style="font-size:14px;color:#5A4E6A;line-height:1.6;margin:0 0 16px">Te anotaste en Konexu, pero no llegamos a recibir tu país y ciudad — sin eso no podemos avisarte de oportunidades cerca tuyo.</p>
+      <p style="font-size:14px;color:#5A4E6A;line-height:1.6;margin:0 0 20px">Entrá y completá esos dos campos con el mismo correo con el que te anotaste, para que empecemos a mandarte avisos de verdad.</p>
+      <a href="${SITE}" style="display:inline-block;background:#C2502F;color:#fff;text-decoration:none;padding:14px 28px;border-radius:10px;font-weight:800;font-size:15px">Completar mis datos →</a>
+      <p style="font-size:12px;color:#a99fb5;margin-top:22px">Te llega esto porque te anotaste en Konexu. Si no querés recibir más, respondé este correo.</p>
+    </div>
+  </div>`;
+}
+
 function asuntoDe(lang: string, n: number, busqueda: string): string {
   const t = T[lang] ?? T.es;
   const plural = n > 1 ? t.s : "";
@@ -182,7 +203,7 @@ serve(async (req: Request) => {
   const db = createClient(URL, KEY);
   const { data: leads } = await db
     .from("waitlist")
-    .select("id,email,nombre,pais,ciudad,busqueda,ultima_alerta_at,created_at")
+    .select("id,email,nombre,pais,ciudad,busqueda,ultima_alerta_at,created_at,recordatorio_incompleto_at")
     .not("busqueda", "is", null)
     .limit(1000);
 
@@ -198,6 +219,34 @@ serve(async (req: Request) => {
     try {
       const email = String(l.email ?? "");
       if (!email.includes("@") || email.includes("example.com")) continue;
+
+      // Sin pais o sin ciudad: no se puede avisar cerca de la persona (el
+      // matching sin pais cae a un filtro global sin ubicacion, mandando
+      // avisos de cualquier lado). En vez de eso, un solo recordatorio
+      // (nunca mas de una vez, mismo criterio que nudge_deseo_at) pidiendo
+      // que complete esos datos. Mientras falten, no entra al flujo normal.
+      const tieneUbicacion = !!l.pais && String(l.ciudad ?? "").trim().length > 0;
+      if (!tieneUbicacion) {
+        if (!l.recordatorio_incompleto_at) {
+          const res = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              from: "Konexu <noreply@konexu.app>",
+              to: [email],
+              headers: { "List-Unsubscribe": "<mailto:hola@konexu.app?subject=Baja%20de%20alertas>" },
+              subject: "Nos falta un dato para poder avisarte",
+              html: plantillaIncompleto(l.nombre),
+            }),
+          });
+          if (res.ok) {
+            await db.from("waitlist").update({ recordatorio_incompleto_at: new Date().toISOString() }).eq("id", l.id);
+          } else {
+            errores.push(`${email}: recordatorio Resend ${res.status}`);
+          }
+        }
+        continue;
+      }
 
       // Primera alerta: mirar 30 días hacia atrás para que el usuario nuevo
       // arranque con los avisos que YA existen (caso real: 30 gerentes en NI
