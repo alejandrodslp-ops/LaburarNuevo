@@ -242,8 +242,25 @@ serve(async (req: Request) => {
       if (!String(l.ciudad ?? "").trim()) faltantes.push("ciudad");
       if (!String(l.busqueda ?? "").trim()) faltantes.push("qué buscás");
       if (faltantes.length > 0) {
-        const ultimoRecordatorio = l.recordatorio_incompleto_at ? new Date(l.recordatorio_incompleto_at).getTime() : 0;
-        if (Date.now() - ultimoRecordatorio >= SEMANA_MS) {
+        // CLAIM ATOMICO antes de mandar nada — este UPDATE solo afecta la fila
+        // si nadie mas la reclamo todavia (recordatorio_incompleto_at nula o
+        // mas vieja que el corte de 7 dias). Si dos invocaciones del cron se
+        // solapan (corre cada 60s), la segunda encuentra la fila YA marcada
+        // por la primera y no manda nada — 0 filas afectadas = no enviar.
+        // Antes esto se chequeaba en JS (leer -> mandar -> recien despues
+        // grabar) y esa ventana no atomica hizo que un usuario real recibiera
+        // 20 copias del mismo correo (incidente 2026-09-20, ver memoria
+        // feedback_nunca_molestar_usuarios_alertas_falsas — NO repetir).
+        const cutoff = new Date(Date.now() - SEMANA_MS).toISOString();
+        const ahora = new Date().toISOString();
+        const { data: reclamado, error: claimErr } = await db.from("waitlist")
+          .update({ recordatorio_incompleto_at: ahora })
+          .eq("id", l.id)
+          .or(`recordatorio_incompleto_at.is.null,recordatorio_incompleto_at.lt.${cutoff}`)
+          .select("id");
+        if (claimErr) {
+          errores.push(`${email}: claim recordatorio ${claimErr.message.slice(0, 60)}`);
+        } else if (reclamado && reclamado.length > 0) {
           const res = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: { "Authorization": `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
@@ -255,12 +272,16 @@ serve(async (req: Request) => {
               html: plantillaIncompleto(l.nombre, faltantes),
             }),
           });
-          if (res.ok) {
-            await db.from("waitlist").update({ recordatorio_incompleto_at: new Date().toISOString() }).eq("id", l.id);
-          } else {
+          if (!res.ok) {
             errores.push(`${email}: recordatorio Resend ${res.status}`);
+            // El claim ya se hizo pero el envio real fallo — revertir para no
+            // perder el recordatorio de esta semana (no reintroduce la race:
+            // esto corre despues del claim exitoso, no antes).
+            await db.from("waitlist").update({ recordatorio_incompleto_at: null }).eq("id", l.id);
           }
         }
+        // reclamado vacio (0 filas) = otra invocacion solapada ya lo mando
+        // recien, o todavia no toca (falta menos de 7 dias) — no hacer nada.
         continue;
       }
 
@@ -354,6 +375,38 @@ serve(async (req: Request) => {
       if (nuevos.length === 0) continue;
       conMatch++;
 
+      // Tope diario: una sola alerta de empleo por dia por persona, aunque
+      // sigan apareciendo matches nuevos durante el dia (el scraper agrega
+      // avisos todo el tiempo, y el cron puede correr mas de una vez en 24hs).
+      // CLAIM ATOMICO antes de mandar nada — mismo patron que el recordatorio
+      // de perfil incompleto de arriba: se marca "ya se mando hoy" con un
+      // UPDATE condicional y se chequean las filas afectadas ANTES de llamar
+      // a Resend. Si dos invocaciones se solapan, la segunda encuentra la fila
+      // ya reclamada por la primera y no manda nada (0 filas = no enviar).
+      // Este es el mismo patron que evita que se repita el incidente de
+      // 2026-09-20 (20 correos duplicados a un usuario real — ver memoria
+      // feedback_nunca_molestar_usuarios_alertas_falsas, NO repetir).
+      const unDiaMs = 24 * 60 * 60 * 1000;
+      const cutoffDia = new Date(Date.now() - unDiaMs).toISOString();
+      const ahoraAlerta = new Date().toISOString();
+      const { data: reclamadoAlerta, error: claimAlertaErr } = await db.from("waitlist")
+        .update({ ultima_alerta_at: ahoraAlerta })
+        .eq("id", l.id)
+        .or(`ultima_alerta_at.is.null,ultima_alerta_at.lt.${cutoffDia}`)
+        .select("id");
+      if (claimAlertaErr) {
+        errores.push(`${email}: claim alerta ${claimAlertaErr.message.slice(0, 60)}`);
+        continue;
+      }
+      if (!reclamadoAlerta || reclamadoAlerta.length === 0) {
+        // Ya se le mando una alerta en las ultimas 24hs, o una invocacion
+        // solapada del cron la reclamo recien — los matches de hoy no se
+        // pierden: como todavia no se llego a mandar el email, no se
+        // registraron en alertas_enviadas, asi que la proxima vez que se
+        // abra la ventana diaria van a volver a aparecer como "nuevos".
+        continue;
+      }
+
       // Zona: si el usuario dio ciudad, priorizar avisos de su zona. Si no hay
       // ninguno de su zona, avisarlo con honestidad y mostrar los de otras
       // ciudades (pedido explícito: "en tu zona aún no encontramos nada, pero
@@ -399,13 +452,16 @@ serve(async (req: Request) => {
           pais: String(l.pais ?? "—"),
           avisos: nuevos.map((c: any) => String(c.cargo || c.titulo || "")),
         });
-        await db.from("waitlist").update({ ultima_alerta_at: new Date().toISOString() }).eq("id", l.id);
         await db.from("alertas_enviadas").upsert(
           nuevos.map((c: any) => ({ waitlist_id: l.id, clave: claveDe(c) })),
           { onConflict: "waitlist_id,clave", ignoreDuplicates: true },
         );
       } else {
         errores.push(`${email}: Resend ${res.status}`);
+        // El claim diario ya se hizo pero el envio real fallo — revertir al
+        // valor anterior para no perder el dia de gracia (no reabre la
+        // carrera: esto corre despues del claim exitoso, no antes).
+        await db.from("waitlist").update({ ultima_alerta_at: l.ultima_alerta_at ?? null }).eq("id", l.id);
       }
     } catch (e) {
       errores.push(`${l.email}: ${(e as Error).message.slice(0, 60)}`);
