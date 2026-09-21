@@ -205,7 +205,25 @@ const LOTE = 12; // usuarios por invocación: con el doble RPC del fallback,
 // procesar todos en una pasada superaba los 150s del runtime (IDLE_TIMEOUT)
 // y los últimos de la lista quedaban sin procesar.
 serve(async (req: Request) => {
-  const { offset = 0 } = await req.json().catch(() => ({ offset: 0 }));
+  // resumenAcum/erroresAcum/etc. viajan de tanda en tanda en el propio body
+  // del fetch encadenado (cada tanda es una invocacion nueva y sin estado
+  // compartido) para poder mandar UN solo email de auditoria al final de
+  // todo el ciclo, no uno por cada tanda de 12. Antes cada tanda mandaba su
+  // propio "Resumen alertas" apenas terminaba — con el cron corriendo cada
+  // minuto eso ya se notaba poco, pero ahora que corre 1 vez al dia (ver
+  // memoria feedback_nunca_molestar_usuarios_alertas_falsas) las ~10-13
+  // tandas de un ciclo completo llegan casi juntas: 5-6 correos de
+  // "Resumen alertas" distintos en menos de un minuto, que a simple vista
+  // parecen el mismo bug de correos repetidos aunque no lo son (cada
+  // destinatario real recibe su alerta una sola vez, esto es solo el
+  // resumen interno para el admin).
+  const {
+    offset = 0,
+    resumenAcum = [] as { email: string; busqueda: string; pais: string; avisos: string[] }[],
+    erroresAcum = [] as string[],
+    enviadosAcum = 0,
+    conMatchAcum = 0,
+  } = await req.json().catch(() => ({ offset: 0 }));
   const db = createClient(URL, KEY);
   // Sin filtro por busqueda acá: alguien sin busqueda tampoco puede recibir
   // avisos de empleo, pero SI tiene que entrar al chequeo de "perfil
@@ -468,11 +486,33 @@ serve(async (req: Request) => {
     }
   }
 
-  // Un solo email al admin con todo lo del ciclo (auditoría: los avisos fuente
-  // rotan a diario y el contenido no es reconstruible después).
-  if (resumen.length > 0) {
-    const totalAvisos = resumen.reduce((n, r) => n + r.avisos.length, 0);
-    const bloques = resumen.map((r) => `
+  // Acumular esta tanda con lo que ya traiamos de las tandas anteriores.
+  const resumenTotal = [...resumenAcum, ...resumen];
+  const erroresTotal = [...erroresAcum, ...errores];
+  const enviadosTotal = enviadosAcum + enviados;
+  const conMatchTotal = conMatchAcum + conMatch;
+
+  const hayMasTandas = offset + LOTE < todos.length;
+  if (hayMasTandas) {
+    // Encadenar la siguiente tanda sin bloquear la respuesta, pasando el
+    // acumulado — todavia no se manda el email de auditoria.
+    const siguiente = fetch(`${URL}/functions/v1/alertas-waitlist`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        offset: offset + LOTE,
+        resumenAcum: resumenTotal, erroresAcum: erroresTotal,
+        enviadosAcum: enviadosTotal, conMatchAcum: conMatchTotal,
+      }),
+    }).catch(() => {});
+    // @ts-ignore — disponible en el runtime de Supabase
+    (globalThis as any).EdgeRuntime?.waitUntil?.(siguiente);
+  } else if (resumenTotal.length > 0) {
+    // Ultima tanda del ciclo: UN solo email al admin con todo lo acumulado
+    // (auditoría: los avisos fuente rotan a diario y el contenido no es
+    // reconstruible después).
+    const totalAvisos = resumenTotal.reduce((n, r) => n + r.avisos.length, 0);
+    const bloques = resumenTotal.map((r) => `
       <tr><td style="padding:10px 0;border-bottom:1px solid #EDE8E2">
         <div style="font-size:14px;font-weight:700;color:#1A1020">${esc(r.email)} · ${esc(r.pais)}</div>
         <div style="font-size:12px;color:#8c8492">buscaba: "${esc(r.busqueda)}"</div>
@@ -486,25 +526,14 @@ serve(async (req: Request) => {
       body: JSON.stringify({
         from: "Konexu <noreply@konexu.app>",
         to: ["alejandrodslp@gmail.com"],
-        subject: `Resumen alertas: ${enviados} email${enviados > 1 ? "s" : ""}, ${totalAvisos} aviso${totalAvisos > 1 ? "s" : ""}${errores.length ? `, ${errores.length} errores` : ""}`,
+        subject: `Resumen alertas: ${enviadosTotal} email${enviadosTotal > 1 ? "s" : ""}, ${totalAvisos} aviso${totalAvisos > 1 ? "s" : ""}${erroresTotal.length ? `, ${erroresTotal.length} errores` : ""}`,
         html: `<div style="font-family:Arial,sans-serif;max-width:600px">
           <h3>Ciclo de alertas — ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC</h3>
           <table style="width:100%;border-collapse:collapse">${bloques}</table>
-          ${errores.length ? `<p style="color:#C2502F;font-size:12px">Errores: ${esc(errores.join(" | "))}</p>` : ""}
+          ${erroresTotal.length ? `<p style="color:#C2502F;font-size:12px">Errores: ${esc(erroresTotal.join(" | "))}</p>` : ""}
         </div>`,
       }),
     }).catch(() => {});
-  }
-
-  // Encadenar la siguiente tanda sin bloquear la respuesta
-  if (offset + LOTE < todos.length) {
-    const siguiente = fetch(`${URL}/functions/v1/alertas-waitlist`, {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ offset: offset + LOTE }),
-    }).catch(() => {});
-    // @ts-ignore — disponible en el runtime de Supabase
-    (globalThis as any).EdgeRuntime?.waitUntil?.(siguiente);
   }
 
   return new Response(
