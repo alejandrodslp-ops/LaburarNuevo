@@ -335,22 +335,38 @@ serve(async (req: Request) => {
           p_pais: cod, p_desde: desde, p_terminos: terminosNorm,
         });
         matches = data;
-        // Fallback SOLO cuando hay CERO resultados: reintentar con la palabra
-        // más distintiva (la más larga, ≥5 letras) de cada término. Caso real:
-        // "técnico superior en hemoterapia" recibía 0 por la palabra "superior"
-        // mientras "técnico en hemoterapia" recibía 2. Quien ya recibe, no cambia.
+        // Fallback SOLO cuando la búsqueda exacta (AND de todas las palabras)
+        // dio CERO resultados. Antes acá se degradaba a una sola palabra
+        // "distintiva" por término (heurística: la más larga, ≥5 letras) —
+        // fallaba porque longitud no es lo mismo que especificidad. Caso real
+        // 2026-09-22: "psicóloga institucional o psicóloga laboral" elegía
+        // "institucional" (13 letras) en vez de "psicóloga" (9) y mandó avisos
+        // de comunicación/comercial sin relación; "Ingeniero civil" elegía
+        // "ingeniero" en vez de "civil" y mandó "electromecánico". Peor: en el
+        // caso de Florencia SÍ había "Psicólogo Laboral" activo y ni lo tocó.
+        //
+        // Ahora se usa similitud por trigramas (pg_trgm, función
+        // buscar_concursos_alerta_similitud) contra la FRASE completa de cada
+        // término. Es dinámico de verdad — no depende de listas de palabras a
+        // mano: la especificidad la mide el propio texto (una palabra
+        // genérica como "institucional" aporta poco al puntaje de similitud
+        // frente a una frase larga donde "psicóloga" aparece repetida) y de
+        // paso tolera typos ("Piscólogo" por "Psicólogo"). Umbral 0.3 = el
+        // default de pg_trgm; verificado con los dos casos reales de arriba
+        // antes de desplegar (ver EXPLAIN ANALYZE — usa los índices trigram
+        // existentes, ~30ms con cache tibia).
         if (!matches || matches.length === 0) {
-          const distintivas = [...new Set(
-            terminosNorm
-              .map((t) => t.split(" ").sort((a, b) => b.length - a.length)[0])
-              .filter((w) => w && w.length >= 5),
-          )];
-          if (distintivas.length > 0) {
-            const { data: data2 } = await db.rpc("buscar_concursos_alerta", {
-              p_pais: cod, p_desde: desde, p_terminos: distintivas,
+          const vistos = new Set<string>();
+          const porSimilitud: any[] = [];
+          for (const term of terminosNorm) {
+            const { data: dataSim } = await db.rpc("buscar_concursos_alerta_similitud", {
+              p_pais: cod, p_desde: desde, p_frase: term,
             });
-            matches = data2;
+            for (const c of (dataSim ?? [])) {
+              if (!vistos.has(c.id)) { vistos.add(c.id); porSimilitud.push(c); }
+            }
           }
+          matches = porSimilitud;
         }
       } else {
         // Sin país: filtro ilike clásico. El RPC recorta el barrido global a las
