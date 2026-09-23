@@ -70,7 +70,7 @@ export default async function HomePT() {
 
       {/* NAV */}
       <nav className="nav">
-        <Link href="/pt" className="nav-logo"><span>Konexu</span><span style={{fontSize:'0.42em',marginLeft:'-9px',lineHeight:1,marginBottom:'3px'}}>🧩</span></Link>
+        <Link href="/pt" className="nav-logo"><span>konexu</span></Link>
         <div style={{ display:'flex', gap:12, alignItems:'center' }}>
           <Link href="/empleos/pais/brasil" style={{ color:'#94A3B8', fontSize:13, fontWeight:600 }}>Ver vagas</Link>
           <a href="#alertas" className="nav-btn">Alertas grátis</a>
@@ -151,7 +151,7 @@ export default async function HomePT() {
       {/* FOOTER */}
       <footer style={{ background:'#0D1117', borderTop:'1px solid rgba(255,255,255,0.06)', padding:'32px 24px', textAlign:'center' }}>
         <Link href="/pt" style={{ color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-1, textDecoration:'none' }}>
-          <span>Konexu</span><span style={{fontSize:'0.42em', marginLeft:'-9px', lineHeight:1, marginBottom:'3px'}}>🧩</span>
+          <span>konexu</span>
         </Link>
         <p style={{ color:'#475569', fontSize:12, marginTop:8 }}>
           © {new Date().getFullYear()} Konexu ·{' '}

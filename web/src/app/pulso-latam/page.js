@@ -246,7 +246,7 @@ export default async function PulsoLatam() {
 
     {/* NAV */}
     <nav className="nav">
-      <Link href="/" className="nav-logo">Konexu<span style={{fontSize:9,marginLeft:'-7px',verticalAlign:'bottom'}}>🧩</span></Link>
+      <Link href="/" className="nav-logo">konexu</Link>
       <div style={{display:'flex',gap:10,alignItems:'center'}}>
         <Link href="/empleos" style={{fontSize:13,fontWeight:600,color:'#4A5568'}}>Ver empleos</Link>
         <a href="/download" className="nav-btn">Alertas gratis</a>
@@ -514,7 +514,7 @@ export default async function PulsoLatam() {
     {/* FOOTER */}
     <footer style={{borderTop:'1px solid #111827',padding:'22px 40px',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:10}}>
       <Link href="/" style={{fontSize:18,fontWeight:900,color:'#E8785A',letterSpacing:'-.5px'}}>
-        Konexu<span style={{fontSize:8,marginLeft:'-7px',verticalAlign:'bottom'}}>🧩</span>
+        konexu
       </Link>
       <p style={{fontSize:12,color:'#1E293B'}}>
         <Link href="/pulso-latam" style={{color:'#2D3748'}}>Pulso Laboral</Link>
