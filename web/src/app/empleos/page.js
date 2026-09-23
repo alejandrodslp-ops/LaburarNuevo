@@ -102,7 +102,7 @@ export default async function EmpleosPage({ searchParams }) {
   return (
     <>
       <nav className="nav">
-        <Link href="/" className="nav-logo"><span>Konexu</span><span style={{fontSize:"0.42em",marginLeft:"-9px",lineHeight:1,marginBottom:"3px"}}>🧩</span></Link>
+        <Link href="/" className="nav-logo"><span>konexu</span></Link>
         <a href="/download" className="nav-btn">Alertas gratis</a>
       </nav>
 

@@ -21,7 +21,7 @@ export default function LandingIntl({ lang, t, total, jobs }) {
       `}</style>
 
       <nav className="nav">
-        <Link href={`/${lang}`} className="nav-logo"><span>Konexu</span><span style={{fontSize:'0.42em',marginLeft:'-9px',lineHeight:1,marginBottom:'3px'}}>🧩</span></Link>
+        <Link href={`/${lang}`} className="nav-logo"><span>konexu</span></Link>
         <div style={{ display:'flex', gap:12, alignItems:'center' }}>
           <Link href="/empleos" style={{ color:'#94A3B8', fontSize:13, fontWeight:600 }}>{t.nav_jobs}</Link>
           <a href="#alertas" className="nav-btn">{t.nav_alerts}</a>
@@ -93,7 +93,7 @@ export default function LandingIntl({ lang, t, total, jobs }) {
 
       <footer style={{ background:'#0D1117', borderTop:'1px solid rgba(255,255,255,0.06)', padding:'32px 24px', textAlign:'center' }}>
         <Link href={`/${lang}`} style={{ color:'#E8785A', fontSize:22, fontWeight:900, letterSpacing:-1, textDecoration:'none' }}>
-          <span>Konexu</span><span style={{fontSize:'0.42em', marginLeft:'-9px', lineHeight:1, marginBottom:'3px'}}>🧩</span>
+          <span>konexu</span>
         </Link>
         <p style={{ color:'#475569', fontSize:12, marginTop:8 }}>
           © {new Date().getFullYear()} Konexu ·{' '}
