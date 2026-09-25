@@ -1,0 +1,9 @@
+{
+  // Copilot DESACTIVADO en este workspace (Konexu) por confidencialidad — 2026-08-13.
+  // Apaga el autocompletado de Copilot solo cuando abrís esta carpeta; en otros
+  // proyectos sigue funcionando normal.
+  // Para reactivarlo: borrá este archivo, o poné "*": true.
+  "github.copilot.enable": {
+    "*": false
+  }
+}

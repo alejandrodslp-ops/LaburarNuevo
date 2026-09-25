@@ -35,7 +35,7 @@ serve(async (req: Request) => {
         keywords_match,
         worker_id,
         concursos (cargo, organismo, pais, fecha_cierre, url_detalle),
-        profiles!concurso_matches_worker_id_fkey (push_token, nombre)
+        profiles!concurso_matches_worker_id_fkey (push_token, nombre, notificaciones_activas)
       `)
       .eq("cumple", true)
       .eq("notificado", false)
@@ -54,16 +54,18 @@ serve(async (req: Request) => {
     const porWorker = new Map<string, {
       push_token: string;
       nombre: string;
+      conSonido: boolean;
       matches: typeof matches;
     }>();
 
     for (const m of matches) {
-      const profile = m.profiles as { push_token: string; nombre: string } | null;
+      const profile = m.profiles as { push_token: string; nombre: string; notificaciones_activas: boolean | null } | null;
       if (!profile?.push_token) continue;
       if (!porWorker.has(m.worker_id)) {
         porWorker.set(m.worker_id, {
           push_token: profile.push_token,
           nombre: profile.nombre || "Hola",
+          conSonido: profile.notificaciones_activas !== false,
           matches: [],
         });
       }
@@ -99,8 +101,7 @@ serve(async (req: Request) => {
           to: data.push_token,
           title: titulo,
           body: cuerpo,
-          sound: "default",
-          badge: cantidad,
+          sound: data.conSonido ? "default" : null,
           data: { pantalla: "Concursa" },
         }),
       });

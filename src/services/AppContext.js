@@ -92,6 +92,13 @@ export function AppProvider({children}){
     return()=>{ supabase.removeChannel(canal); };
   },[session?.user?.id]);
 
+  // Globito del ícono de la app = mensajes no leídos reales. Se actualiza solo
+  // cada vez que mensajesSinLeer cambia (mismo valor que ya usa el badge del
+  // tab de Mensajes), así que se limpia automáticamente al leer los mensajes.
+  useEffect(()=>{
+    Notifications.setBadgeCountAsync(mensajesSinLeer).catch(()=>{});
+  },[mensajesSinLeer]);
+
   // Al iniciar sesion, leer el modo guardado y verificar coach mark
   useEffect(()=>{
     if(session?.user?.id){

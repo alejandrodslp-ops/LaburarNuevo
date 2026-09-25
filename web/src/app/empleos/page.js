@@ -78,7 +78,10 @@ export default async function EmpleosPage({ searchParams }) {
   const ciudad = (searchParams?.ciudad || '').slice(0, 60)
   const override = (searchParams?.pais || '').toUpperCase()
   const h = await headers()
-  const geo = (h.get('x-vercel-ip-country') || '').toUpperCase()
+  // x-vercel-ip-country: mientras corrió en Vercel. cf-ipcountry: detrás de
+  // Cloudflare (self-host) — se deja el primero también por si alguna vez
+  // vuelve a pasar por Vercel delante.
+  const geo = (h.get('x-vercel-ip-country') || h.get('cf-ipcountry') || '').toUpperCase()
   const detected = override || geo
   const pais = PAISES_VALIDOS.includes(detected) ? detected : null
   const [todos, ofertas] = await Promise.all([getConcursos(q, pais), getOfertas(q, pais)])

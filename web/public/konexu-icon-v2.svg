@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+
+  <!-- Fondo oscuro, igual al ícono anterior -->
+  <rect width="1024" height="1024" fill="#0D1117"/>
+
+  <!-- Konexu - coral, bold, centrado. Tamaño calibrado por medición real
+       (getBBox) para que el ancho total sea 760px con margen simétrico
+       ~132px de cada lado, en vez de un valor adivinado. -->
+  <text
+    x="512"
+    y="600"
+    text-anchor="middle"
+    font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif"
+    font-weight="900"
+    font-size="226"
+    letter-spacing="-10"
+    fill="#E8785A"
+  >Konexu</text>
+
+  <!-- Pieza de rompecabezas vectorial (reemplaza al emoji 🧩 del nav web),
+       teal, superpuesta esquina inferior derecha del wordmark, mismo
+       criterio visual que usa el logo del nav (chico, solapado). -->
+  <g>
+    <rect x="832" y="550" width="120" height="120" rx="16" ry="16" fill="#2DD4BF"/>
+    <circle cx="892" cy="550" r="22" fill="#2DD4BF"/>
+    <circle cx="832" cy="610" r="18" fill="#0D1117"/>
+  </g>
+
+</svg>

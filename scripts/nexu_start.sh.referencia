@@ -1,0 +1,135 @@
+#!/bin/bash
+# Nexu — arranque del servidor de desarrollo
+# Método: túnel cloudflared DIRECTO a Metro (:8081) + EXPO_PACKAGER_PROXY_URL
+# (mecanismo nativo de Expo para túneles propios — sin proxy intermedio).
+# Reemplaza al esquema viejo Metro→proxy:8083→tunnel que reescribía el manifiesto
+# y se rompió cuando Metro cambió sus URLs internas (2026-07-13).
+clear
+echo "🔄 Iniciando Nexu..."
+
+# Matar todo lo anterior
+pkill -9 -f "node_modules/.bin/expo|npx expo start|nexu_proxy|cloudflared tunnel|AppEntry" 2>/dev/null
+sleep 3
+lsof -ti:8081 | xargs kill -9 2>/dev/null
+sleep 2
+
+# 1) Túnel primero (necesitamos la URL antes de arrancar Metro)
+echo "▶ Conectando tunnel..."
+/usr/local/bin/cloudflared tunnel --url http://localhost:8081 > /tmp/cf_start.log 2>&1 &
+
+CF_URL=""
+for i in $(seq 1 30); do
+  CF_URL=$(grep -o 'https://[^[:space:]]*trycloudflare[^[:space:]]*' /tmp/cf_start.log | head -1)
+  [ -n "$CF_URL" ] && break
+  sleep 1
+done
+if [ -z "$CF_URL" ]; then
+  echo "❌ No se pudo crear el tunnel de Cloudflare. Revisá la conexión a internet."
+  exit 1
+fi
+CF_HOST=$(echo $CF_URL | sed 's|https://||')
+echo "✅ Tunnel: $CF_URL"
+
+# 2) Metro con la URL del túnel — Expo genera el manifiesto correcto solo
+# stdin en /dev/null: necesario al correr sin terminal (launchd).
+# --max-workers 1 y heap 1GB: esta Mac tiene 4GB de RAM; sin esto el kernel
+# mata a Metro durante la compilación.
+cd /Users/usuario/Desktop/Nexu/LaburarNuevo
+echo "▶ Arrancando Metro..."
+NODE_OPTIONS="--max-old-space-size=1024" EXPO_PACKAGER_PROXY_URL="$CF_URL" npx expo start --lan --max-workers 1 < /dev/null > /tmp/metro_start.log 2>&1 &
+
+echo "⏳ Esperando Metro..."
+for i in $(seq 1 40); do
+  STATUS=$(curl -s --max-time 1 http://localhost:8081/status 2>/dev/null)
+  [ "$STATUS" = "packager-status:running" ] && break
+  sleep 1
+done
+echo "✅ Metro listo"
+
+# 3) Verificar que el manifiesto por el túnel apunta al túnel (no a localhost/127.0.0.1)
+BUNDLE=$(curl -s --max-time 10 -H "Expo-API-Version: 1" -H "Accept: application/expo+json,application/json" "https://${CF_HOST}/" | python3 -c "import sys,json; print(json.load(sys.stdin)['launchAsset']['url'])" 2>/dev/null)
+case "$BUNDLE" in
+  https://${CF_HOST}*) VERIF="✅ Manifiesto verificado" ;;
+  *)                   VERIF="⚠️  ATENCIÓN: el manifiesto NO apunta al túnel: ${BUNDLE:-sin respuesta}" ;;
+esac
+
+clear
+echo ""
+echo "  ███╗   ██╗███████╗██╗  ██╗██╗   ██╗"
+echo "  ████╗  ██║██╔════╝╚██╗██╔╝██║   ██║"
+echo "  ██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║"
+echo "  ██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║"
+echo "  ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝"
+echo "  ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ "
+echo ""
+echo "  $VERIF"
+echo ""
+echo "  📱 URL para Expo Go:"
+echo "     exp://${CF_HOST}"
+echo ""
+echo "  🌐 O abrí en el navegador:"
+echo "     file:///Users/usuario/Desktop/nexu_connect.html"
+echo ""
+
+# 4) Regenerar la página del QR y abrirla
+# Se escribe en el HOME (no en Desktop): launchd no tiene permiso TCC para
+# escribir en Desktop. En Desktop hay un symlink que apunta acá.
+cat > /Users/usuario/nexu_connect.html << HTMLEOF
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Konexu</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>body{font-family:sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#0D1117;margin:0}
+h2{color:#E8785A;font-size:28px;margin-bottom:4px}
+.badge{background:#2DD4BF;color:#0D1117;border-radius:20px;padding:4px 14px;font-size:13px;font-weight:700;margin-bottom:20px}
+#qrcode{padding:20px;background:white;border-radius:20px}
+p{color:#aaa;font-size:14px;margin:12px 0 4px;text-align:center}
+code{background:#1A2640;color:#2DD4BF;padding:8px 16px;border-radius:8px;font-size:12px;word-break:break-all;max-width:340px;display:inline-block;text-align:center}
+.hora{color:#E8785A;font-weight:700;font-size:14px;margin-top:14px}</style></head>
+<body><h2>Konexu</h2><span class="badge">✓ Servidor activo — $(date +%H:%M)</span>
+<div id="qrcode"></div>
+<p><strong>iOS:</strong> Cámara → apuntá al QR &nbsp;|&nbsp; <strong>Android:</strong> Expo Go → Scan QR</p>
+<p>O ingresá en Expo Go:</p>
+<p><code>exp://${CF_HOST}</code></p>
+<p class="hora">Cerrá Expo Go del todo antes de escanear. Si esta página muestra otra hora que la actual, es una pestaña vieja — recargala.</p>
+<script>new QRCode(document.getElementById("qrcode"),{text:"exp://${CF_HOST}",width:300,height:300});</script>
+</body></html>
+HTMLEOF
+
+# Solo abrir el navegador en el arranque real, NUNCA en una auto-reparación
+# del vigía (causó spam de pestañas la noche del 2026-07-19 cuando la red
+# fallaba cada 30-50s). El archivo igual queda actualizado si lo mirás vos.
+[ -z "$NEXU_AUTO_RESTART" ] && open /Users/usuario/nexu_connect.html
+
+echo "  Presioná Ctrl+C para detener el servidor"
+echo ""
+
+# 5) Vigía: si Metro muere lo relevanta con el MISMO túnel (la URL no cambia);
+#    si el túnel muere, reinicia todo desde cero (URL nueva + QR nuevo).
+while true; do
+  sleep 30
+  # Probar el túnel DESDE AFUERA (caso real 2026-07-14: el hostname murió en
+  # Cloudflare con el proceso local vivo — chequear el proceso no alcanza)
+  TS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 8 "https://${CF_HOST}/status" 2>/dev/null)
+  if [ "$TS" != "200" ]; then TFALLOS=$((TFALLOS+1)); else TFALLOS=0; fi
+  # 6 fallos seguidos (~3 min) antes de reiniciar con URL nueva — un corte
+  # breve de red no debe invalidar el QR. Bajado de 2 (60s) el 2026-07-20
+  # tras generar URLs nuevas de más tolerando apenas un blip de conexión.
+  if [ "${TFALLOS:-0}" -ge 6 ]; then
+    echo "$(date '+%F %T') Túnel muerto por fuera (HTTP $TS) — reinicio completo" >> /tmp/nexu_watchdog.log
+    NEXU_AUTO_RESTART=1 exec /Users/usuario/nexu_start.sh
+  fi
+  S=$(curl -s --max-time 5 http://localhost:8081/status 2>/dev/null)
+  if [ "$S" != "packager-status:running" ]; then
+    FALLOS=$((FALLOS+1))
+  else
+    FALLOS=0
+  fi
+  if [ "${FALLOS:-0}" -ge 2 ]; then
+    FALLOS=0
+    echo "$(date '+%F %T') Metro caído (2 chequeos) — relanzando" >> /tmp/nexu_watchdog.log
+    lsof -ti:8081 | xargs kill -9 2>/dev/null
+    sleep 2
+    cd /Users/usuario/Desktop/Nexu/LaburarNuevo
+    NODE_OPTIONS="--max-old-space-size=1024" EXPO_PACKAGER_PROXY_URL="$CF_URL" npx expo start --lan --max-workers 1 < /dev/null >> /tmp/metro_start.log 2>&1 &
+    sleep 15
+  fi
+done

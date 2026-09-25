@@ -225,6 +225,7 @@ export default function PerfilScreen({navigation}){
       AsyncStorage.setItem(CACHE_KEY,JSON.stringify(data)).catch(()=>{});
       setNomada(data.nomada_digital||false);
       setIdiomas(data.idiomas_trabajo||[]);
+      setNotif(data.notificaciones_activas!==false);
       const esAdmin=user.email==='alejandrodslp@gmail.com';
       if(!esAdmin&&data.perfil_activo&&data.perfil_activo_hasta&&new Date()>new Date(data.perfil_activo_hasta)){
         supabase.from('profiles').update({perfil_activo:false}).eq('id',user.id).then(()=>{});
@@ -325,6 +326,14 @@ export default function PerfilScreen({navigation}){
   async function toggleNotif(val){
     setNotif(val);
     await AsyncStorage.setItem('notif_enabled',val?'true':'false');
+    const{data:{user}}=await supabase.auth.getUser();
+    if(!user)return;
+    const{error}=await supabase.from('profiles').update({notificaciones_activas:val}).eq('id',user.id);
+    if(error){
+      setNotif(!val);
+      await AsyncStorage.setItem('notif_enabled',!val?'true':'false');
+      Alert.alert('No se pudo guardar','Intentá de nuevo en un momento.');
+    }
   }
 
   async function abrirAdmin(){

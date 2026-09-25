@@ -201,7 +201,7 @@ export default function BuscarScreen({navigation}){
         navigation.navigate('PerfilTrabajador',{perfil:item});
       }else{
         setResultados(prev=>[item,...prev]);
-        navigation.navigate('Pago',{perfil:item,gratis:enPrueba});
+        navigation.navigate('Pago',{perfil:item});
       }
     }catch(e){
       navigation.navigate('PerfilTrabajador',{perfil:item});

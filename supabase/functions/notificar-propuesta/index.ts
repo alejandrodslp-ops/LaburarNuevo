@@ -23,7 +23,7 @@ serve(async (req) => {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("push_token")
+      .select("push_token, notificaciones_activas")
       .eq("id", destinatario)
       .single();
 
@@ -33,6 +33,9 @@ serve(async (req) => {
       });
     }
 
+    // Silenciado = igual se manda (se ve, actualiza badge), pero sin sonido.
+    const conSonido = profile.notificaciones_activas !== false;
+
     const res = await fetch("https://exp.host/--/api/v2/push/send", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
@@ -40,7 +43,7 @@ serve(async (req) => {
         to: profile.push_token,
         title: titulo || "Nueva notificación de Konexu 🔔",
         body: cuerpo || "",
-        sound: "default",
+        sound: conSonido ? "default" : null,
         data: { pantalla: pantalla || "Mensajes" },
       }),
     });

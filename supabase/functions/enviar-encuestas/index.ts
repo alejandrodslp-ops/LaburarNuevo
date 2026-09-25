@@ -32,10 +32,10 @@ serve(async () => {
   const allIds = [...new Set(pendientes.flatMap(p => [p.worker_id, p.employer_id]))];
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, push_token, nombre")
+    .select("id, push_token, nombre, notificaciones_activas")
     .in("id", allIds);
 
-  const profileMap: Record<string, { push_token: string | null; nombre: string }> =
+  const profileMap: Record<string, { push_token: string | null; nombre: string; notificaciones_activas: boolean | null }> =
     Object.fromEntries((profiles ?? []).map(p => [p.id, p]));
 
   let enviados = 0;
@@ -54,6 +54,7 @@ serve(async () => {
             to:    worker.push_token,
             title: "¿Cómo fue tu experiencia? ⭐",
             body:  `Contanos cómo fue trabajar con ${p.employer_nombre || employer?.nombre || "el empleador"}.`,
+            sound: worker.notificaciones_activas !== false ? "default" : null,
             data:  { tipo: "encuesta", pantalla: "Mensajes" },
           }),
         })
@@ -69,6 +70,7 @@ serve(async () => {
             to:    employer.push_token,
             title: "¿Cómo fue el trabajador? ⭐",
             body:  `Calificá tu experiencia con ${worker?.nombre || "el trabajador"}.`,
+            sound: employer.notificaciones_activas !== false ? "default" : null,
             data:  { tipo: "encuesta", pantalla: "Mensajes" },
           }),
         })

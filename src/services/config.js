@@ -40,7 +40,7 @@ export async function usuarioEnPeriodoPrueba(userId) {
 export async function getPrecio(codigoPais) {
   const config = await getConfig();
   const paisesSA = ["AR","BO","BR","CL","CO","EC","PY","PE","UY","VE"];
-  if (paisesPA.includes(codigoPais)) {
+  if (paisesSA.includes(codigoPais)) {
     return parseFloat(config?.precio_sa || '1');
   }
   return parseFloat(config?.precio_mundo || '2');

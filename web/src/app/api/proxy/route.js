@@ -1,5 +1,3 @@
-export const runtime = 'edge';
-
 const SECRET = process.env.PROXY_SECRET ?? '';
 
 const ALLOWED = new Set([

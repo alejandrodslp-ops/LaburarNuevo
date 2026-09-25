@@ -68,7 +68,7 @@ Mantenelo actualizado desde Obsidian. Es la memoria del proyecto.
 
 ## BASE DE DATOS CLAVE
 
-- **concursos:** 219k+ registros activos, scraped de 33 países
+- **concursos:** 1.029.042 registros activos / 1.105.394 total (verificado 2026-09-25), scraped de 33 países
 - **Índices importantes en concursos:**
   - `idx_concursos_activo_created` — ON concursos(created_at DESC) WHERE activo=true
   - `idx_concursos_pais_activo` — ON concursos(pais, activo)

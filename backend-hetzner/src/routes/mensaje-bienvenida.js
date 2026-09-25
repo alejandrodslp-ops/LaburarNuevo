@@ -5,7 +5,7 @@ const router = Router();
 const KONEXU_ID      = '43a7baf9-f88e-463b-8e4c-385bd3fb8151';
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
-const BIENVENIDA = `¡Bienvenido a Konexu! 🧩
+const BIENVENIDA = `¡Bienvenido a konexu!
 Somos una plataforma de trabajo para toda Latinoamérica.
 Completá tu perfil para que los empleadores te encuentren.`;
 

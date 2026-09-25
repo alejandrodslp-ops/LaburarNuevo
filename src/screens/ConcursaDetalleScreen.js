@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SIZES, SHADOWS } from '../constants/theme';
+import { supabase } from '../services/supabase';
 
 const BANDERAS = { UY:'🇺🇾', AR:'🇦🇷', BR:'🇧🇷', CL:'🇨🇱', CO:'🇨🇴', PE:'🇵🇪', PY:'🇵🇾', BO:'🇧🇴', EC:'🇪🇨' };
 
@@ -65,6 +66,26 @@ export default function ConcursaDetalleScreen({ route, navigation }) {
     if (supported) Linking.openURL(url);
     else Alert.alert('Error', 'No se puede abrir el enlace.');
   };
+
+  // Guarda que el worker se postuló, para poder avisarle después si el
+  // llamado se cierra/vence. No bloquea ni avisa si falla — es best-effort,
+  // nunca debe entorpecer la postulación real (que pasa en el sitio externo).
+  const registrarPostulacion = async () => {
+    try {
+      if (!c.fuente || !c.fuente_id) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      await supabase.from('concurso_seguimientos').upsert({
+        worker_id: user.id,
+        fuente: c.fuente,
+        fuente_id: c.fuente_id,
+        titulo_snapshot: c.titulo || c.cargo || null,
+        pais: c.pais || null,
+      }, { onConflict: 'worker_id,fuente,fuente_id', ignoreDuplicates: true });
+    } catch (e) { /* best-effort, no interrumpe al usuario */ }
+  };
+
+  const esPostulacionReal = !esNoticia && !(c.pais === 'UY' || c.url_postulacion?.includes('uruguayconcursa'));
 
   const scoreColor = score >= 70 ? COLORS.mentaDark : score >= 40 ? COLORS.coral : COLORS.texto3;
   const scoreLabel = score >= 70 ? '✓ Cumplís todos los requisitos'
@@ -165,7 +186,10 @@ export default function ConcursaDetalleScreen({ route, navigation }) {
             )}
             <TouchableOpacity
               style={ss.btnPrincipal}
-              onPress={() => abrirLink(c.url_postulacion || c.url_detalle)}
+              onPress={() => {
+                if (esPostulacionReal) registrarPostulacion();
+                abrirLink(c.url_postulacion || c.url_detalle);
+              }}
             >
               <Text style={ss.btnPrincipalTxt}>{esNoticia ? '📰 Leer artículo →' : (c.pais === 'UY' || c.url_postulacion?.includes('uruguayconcursa')) ? '📄 Ver bases completas →' : 'Postularme →'}</Text>
             </TouchableOpacity>

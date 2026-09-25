@@ -22,7 +22,7 @@ router.post('/', async (req, res) => {
 <html lang="es">
 <head><meta charset="utf-8"><title>Comprobante Konexu</title></head>
 <body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-  <h1 style="color:#1a1a2e">Konexu 🧩</h1>
+  <h1 style="color:#1a1a2e">konexu</h1>
   <h2>Comprobante de Pago</h2>
   <p><strong>N°:</strong> ${numeroComp}</p>
   <p><strong>Fecha:</strong> ${fecha}</p>
