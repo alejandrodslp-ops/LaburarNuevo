@@ -108,7 +108,11 @@ serve(async (req: Request) => {
       const pushResult = await pushRes.json();
       const exito = pushResult?.data?.status === "ok" || pushResult?.status === "ok";
 
-      if (exito || pushRes.ok) {
+      // Solo `exito` (status real del ticket de Expo) cuenta como entrega — Expo
+      // devuelve HTTP 200 incluso cuando el ticket individual es un error (token
+      // invalido/expirado, DeviceNotRegistered, etc.), asi que `pushRes.ok` solo
+      // dice "la request llego", no "el push se entrego".
+      if (exito) {
         enviadas++;
         notificados.push(...data.matches.map((m) => m.id));
       }

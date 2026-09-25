@@ -2,7 +2,9 @@ import React,{useState,useEffect,useRef} from 'react';
 import{View,Text,ScrollView,TouchableOpacity,StyleSheet,Alert,Modal,TextInput,Pressable}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{LinearGradient}from 'expo-linear-gradient';
+import{Ionicons}from '@expo/vector-icons';
 import{supabase}from '../../services/supabase';
+import{useApp}from '../../services/AppContext';
 
 function Estrellitas({valor,onChange}){
   return(
@@ -214,7 +216,10 @@ export default function PerfilTrabajadorScreen({navigation,route}){
   const[reporteVisible,setReporteVisible]=useState(false);
   const[calificarVisible,setCalificarVisible]=useState(false);
   const[propuestaAceptada,setPropuestaAceptada]=useState(null);
+  const[datosAceptado,setDatosAceptado]=useState(null);
   const[yaCalificado,setYaCalificado]=useState(false);
+  const[cupoAgotado,setCupoAgotado]=useState(false);
+  const{modoActivo}=useApp();
 
   useEffect(()=>{
     registrarVisualizacion();
@@ -240,6 +245,11 @@ export default function PerfilTrabajadorScreen({navigation,route}){
         setPropuestaAceptada(prop);
         const{data:cal}=await supabase.from('calificaciones').select('id').eq('calificador_id',user.id).eq('calificado_id',perfil.id).maybeSingle();
         setYaCalificado(!!cal);
+        // Educacion + correo solo se muestran con propuesta aceptada — el gate real
+        // esta del lado del servidor (obtener_datos_aceptado verifica de nuevo que
+        // exista la propuesta aceptada), esto no es solo un chequeo de UI.
+        const{data:datos}=await supabase.rpc('obtener_datos_aceptado',{p_worker:perfil.id});
+        if(datos&&datos[0])setDatosAceptado(datos[0]);
       }
     }catch(e){}
   }
@@ -251,7 +261,36 @@ export default function PerfilTrabajadorScreen({navigation,route}){
 
       // El servidor verifica saldo, registra la visualización (idempotente: no cobra dos veces
       // el mismo perfil) y descuenta 1. 'vistas' lo incrementa el trigger on_visualizacion_insert.
-      await supabase.rpc('consumir_visualizacion',{p_worker:perfil.id});
+      // company usa su propio cupo (3/dia, 9/semana, o ilimitado con suscripcion) — NO el
+      // sistema de creditos de employer, que para company siempre estaria en 0.
+      // El resultado SI se chequea: si el servidor dice que no hay cupo, no alcanza con
+      // que la fila de visualizaciones no se cree — hay que bloquear el contacto en la
+      // pantalla tambien, sino el tope solo existe en el papel.
+      let resultado;
+      if(modoActivo==='company'){
+        const{data}=await supabase.rpc('consumir_visualizacion_empresa',{p_worker:perfil.id});
+        resultado=data;
+      }else{
+        const{data}=await supabase.rpc('consumir_visualizacion',{p_worker:perfil.id});
+        resultado=data;
+      }
+      const bloqueado=['sin_cupo_diario','sin_cupo_semanal','sin_saldo','fuera_de_region','sin_oferta_aprobada'].includes(resultado);
+      if(bloqueado){
+        setCupoAgotado(true);
+        Alert.alert(
+          resultado==='fuera_de_region'?'Fuera de tu región':resultado==='sin_oferta_aprobada'?'Publicá una oferta primero':'Alcanzaste tu límite de hoy',
+          resultado==='fuera_de_region'
+            ?'Tu plan Sudamérica no incluye trabajadores de esta región. Pasate a Mundial o Premium para contactarlo.'
+            :resultado==='sin_oferta_aprobada'
+              ?'Para ver trabajadores necesitás tener al menos una oferta de trabajo publicada y aprobada.'
+              :resultado==='sin_cupo_semanal'
+                ?'Ya viste el máximo de perfiles nuevos de esta semana. Volvé la próxima semana o activá tu suscripción.'
+                :(modoActivo==='company'
+                    ?'Ya viste el máximo de perfiles nuevos de hoy para tu plan. Volvé mañana o mejorá tu suscripción para ver más.'
+                    :'No tenés saldo para ver perfiles nuevos. Comprá más visualizaciones para continuar.'),
+          [{text:'Entendido',onPress:()=>navigation.goBack()}]
+        );
+      }
     }catch(e){}
   }
 
@@ -269,6 +308,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
 
   async function enviarInteres(){
     if(enviandoRef.current||enviado)return;
+    if(cupoAgotado){Alert.alert('Sin cupo','Alcanzaste tu límite de perfiles nuevos. Activá o mejorá tu suscripción para contactar más.');return;}
     enviandoRef.current=true;
     setEnviando(true);
     try{
@@ -284,10 +324,14 @@ export default function PerfilTrabajadorScreen({navigation,route}){
         ?(empProfile.apellido1?`${empProfile.nombre} ${empProfile.apellido1[0]}.`:empProfile.nombre)
         :'Empleador';
 
-      // Cargar oferta más reciente del empleador
+      // Cargar oferta más reciente del empleador — solo aprobada: sino se
+      // filtra al trabajador contenido pendiente/rechazado sin pasar por
+      // la revision (el gate de RLS no alcanza porque esto lo lee el propio
+      // dueño, que si puede ver sus ofertas pendientes; el filtro va aca).
       const{data:ofertas}=await supabase.from('ofertas')
         .select('titulo,empleo,lugar,carga_horaria,sueldo_tipo,sueldo_min,sueldo_max,descripcion')
         .eq('employer_id',user.id)
+        .eq('estado','aprobada')
         .order('created_at',{ascending:false})
         .limit(1);
       const ofertaSnapshot=ofertas?.[0]||null;
@@ -335,28 +379,35 @@ export default function PerfilTrabajadorScreen({navigation,route}){
       <ScrollView contentContainerStyle={{paddingBottom:48}} showsVerticalScrollIndicator={false}>
 
         <LinearGradient colors={['#D6E4F0','#B8D4E8']} style={ss.hero}>
-          <View style={ss.avatar}><Text style={{fontSize:40}}>👤</Text></View>
+          <View style={ss.avatar}><Ionicons name="person" size={34} color="#1A3A5C"/></View>
           <Text style={ss.nombre}>{perfil?.nombre||'Trabajador'}</Text>
           {edad&&<Text style={ss.sub}>{edad} años · {perfil?.ciudad||''}</Text>}
-          {(perfil?.total_calificaciones>0)&&(
+          {perfil?.total_calificaciones>0?(
             <View style={ss.ratingRow}>
               <Text style={ss.stars}>{estrellas(perfil?.estrellas)}</Text>
               <Text style={ss.ratingNum}>{Number(perfil?.estrellas||0).toFixed(1)}</Text>
               <Text style={ss.ratingCount}>({perfil?.total_calificaciones} calificaciones)</Text>
             </View>
+          ):(
+            <Text style={ss.nuevoTxt}>Nuevo en Konexu</Text>
           )}
           {perfil?.referencias&&(
             <View style={ss.refBadge}><Text style={ss.refTxt}>✓ Tiene referencias laborales</Text></View>
           )}
 
-          {actividad&&<Text style={ss.actividad}>🟢 {actividad}</Text>}
+          {actividad&&(
+            <View style={{flexDirection:'row',alignItems:'center',gap:5,marginTop:6}}>
+              <View style={{width:7,height:7,borderRadius:3.5,backgroundColor:'#3DA882'}}/>
+              <Text style={[ss.actividad,{marginTop:0}]}>{actividad}</Text>
+            </View>
+          )}
         </LinearGradient>
 
         <View style={ss.sec}>
           <Text style={ss.stit}>DISPONIBILIDAD</Text>
           <View style={ss.card}>
             <View style={ss.row}>
-              <Text style={ss.rowIcon}>📅</Text>
+              <Ionicons name="calendar-outline" size={17} color="#5A4E6A" style={ss.rowIcon}/>
               <View>
                 <Text style={ss.rowTit}>Disponibilidad</Text>
                 <Text style={ss.rowVal}>{disponibilidad}</Text>
@@ -364,7 +415,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
             </View>
             {tipos.length>0&&(
               <View style={[ss.row,{marginTop:10}]}>
-                <Text style={ss.rowIcon}>💼</Text>
+                <Ionicons name="briefcase-outline" size={17} color="#5A4E6A" style={ss.rowIcon}/>
                 <View style={{flex:1}}>
                   <Text style={ss.rowTit}>Tipo de empleo</Text>
                   <Text style={ss.rowVal}>{tipos.join(', ')}</Text>
@@ -380,7 +431,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
             <View style={ss.card}>
               {aniosExp&&(
                 <View style={ss.row}>
-                  <Text style={ss.rowIcon}>📊</Text>
+                  <Ionicons name="bar-chart-outline" size={17} color="#5A4E6A" style={ss.rowIcon}/>
                   <View>
                     <Text style={ss.rowTit}>Anos de experiencia</Text>
                     <Text style={ss.rowVal}>{aniosExp} {aniosExp===1?'ano':'anos'}</Text>
@@ -389,7 +440,7 @@ export default function PerfilTrabajadorScreen({navigation,route}){
               )}
               {(sueldoMin||sueldoMax)&&(
                 <View style={[ss.row,{marginTop:aniosExp?10:0}]}>
-                  <Text style={ss.rowIcon}>💰</Text>
+                  <Ionicons name="cash-outline" size={17} color="#5A4E6A" style={ss.rowIcon}/>
                   <View>
                     <Text style={ss.rowTit}>{tipos.includes('Por tarea')||tipos.includes('Temporal')?'Presupuesto':'Pretension salarial'}</Text>
                     <Text style={ss.rowVal}>
@@ -433,20 +484,71 @@ export default function PerfilTrabajadorScreen({navigation,route}){
           </View>
         )}
 
+        {datosAceptado?.educacion?.length>0&&(
+          <View style={ss.sec}>
+            <Text style={ss.stit}>EDUCACION</Text>
+            {datosAceptado.educacion.map((e,i)=>(
+              <View key={i} style={ss.card}>
+                {e.titulo?<Text style={ss.eduTitulo}>{e.titulo}</Text>:null}
+                {e.institucion?<Text style={ss.eduInstitucion}>{e.institucion}</Text>:null}
+                {(e.desde||e.hasta)?<Text style={ss.eduFechas}>{e.desde||'—'} – {e.hasta||'Presente'}</Text>:null}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {datosAceptado?.experiencia?.length>0&&(
+          <View style={ss.sec}>
+            <Text style={ss.stit}>EXPERIENCIA</Text>
+            {datosAceptado.experiencia.map((e,i)=>(
+              <View key={i} style={ss.card}>
+                {e.cargo?<Text style={ss.eduTitulo}>{e.cargo}</Text>:null}
+                {e.empresa?<Text style={ss.eduInstitucion}>{e.empresa}</Text>:null}
+                {(e.desde||e.hasta)?<Text style={ss.eduFechas}>{e.desde||'—'} – {e.hasta||'Presente'}</Text>:null}
+                {e.descripcion?<Text style={ss.bioTxt}>{e.descripcion}</Text>:null}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {datosAceptado?.certificaciones?.length>0&&(
+          <View style={ss.sec}>
+            <Text style={ss.stit}>CERTIFICACIONES</Text>
+            {datosAceptado.certificaciones.map((c,i)=>(
+              <View key={i} style={ss.card}>
+                {c.nombre?<Text style={ss.eduTitulo}>{c.nombre}</Text>:null}
+                {c.institucion?<Text style={ss.eduInstitucion}>{c.institucion}{c.anio?` · ${c.anio}`:''}</Text>:null}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {datosAceptado?.email&&(
+          <View style={ss.sec}>
+            <Text style={ss.stit}>CONTACTO</Text>
+            <View style={ss.card}>
+              <Text style={ss.bioTxt}>{datosAceptado.email}</Text>
+            </View>
+          </View>
+        )}
+
         {perfil?.perfil_visible?(
           <View style={ss.publicaNota}>
-            <Text style={ss.publicaNotaTxt}>🌐 Este trabajador tiene su perfil público. Sus datos de contacto son visibles directamente.</Text>
+            <Text style={ss.publicaNotaTxt}>Este trabajador tiene su perfil público. Sus datos de contacto son visibles directamente.</Text>
           </View>
         ):(
           <View style={ss.privaNota}>
-            <Text style={ss.privaNotaTxt}>🔒 Los datos de contacto del trabajador se revelan solo si acepta tu mensaje de interes.</Text>
+            <Text style={ss.privaNotaTxt}>Los datos de contacto del trabajador se revelan solo si acepta tu mensaje de interes.</Text>
           </View>
         )}
 
         <View style={{paddingHorizontal:16,marginTop:8}}>
           {enviado?(
             <View style={ss.enviadoCard}>
-              <Text style={ss.enviadoTxt}>✅ Mensaje de interes enviado</Text>
+              <View style={{flexDirection:'row',alignItems:'center',gap:6}}>
+                <Ionicons name="checkmark-circle" size={16} color="#2E9472"/>
+                <Text style={ss.enviadoTxt}>Mensaje de interes enviado</Text>
+              </View>
               <Text style={ss.enviadoSub}>Te notificaremos cuando el trabajador responda.</Text>
             </View>
           ):(
@@ -517,6 +619,7 @@ const ss=StyleSheet.create({
   nombre:{fontSize:24,fontWeight:'900',color:'#1A3A5C',marginBottom:4},
   sub:{fontSize:14,color:'rgba(26,58,92,0.65)',marginBottom:8},
   ratingRow:{flexDirection:'row',alignItems:'center',gap:6,marginBottom:8},
+  nuevoTxt:{fontSize:13,fontWeight:'700',color:'#0F766E',marginBottom:8},
   stars:{fontSize:14,color:'#F59E0B'},
   ratingNum:{fontSize:14,fontWeight:'800',color:'#1A3A5C'},
   ratingCount:{fontSize:12,color:'rgba(26,58,92,0.6)'},
@@ -534,6 +637,9 @@ const ss=StyleSheet.create({
   tag:{paddingHorizontal:12,paddingVertical:6,backgroundColor:'#F0FDFA',borderRadius:20,borderWidth:1,borderColor:'#2DD4BF'},
   tagTxt:{fontSize:12,fontWeight:'600',color:'#2DD4BF'},
   bioTxt:{fontSize:14,color:'#5A4E6A',lineHeight:20},
+  eduTitulo:{fontSize:14,fontWeight:'700',color:'#1A1020'},
+  eduInstitucion:{fontSize:13,color:'#5A4E6A',marginTop:2},
+  eduFechas:{fontSize:12,color:'#A898B8',marginTop:2},
   privaNota:{marginHorizontal:16,marginTop:16,backgroundColor:'#F0FDFA',borderRadius:10,padding:12,borderLeftWidth:3,borderLeftColor:'#2DD4BF'},
   privaNotaTxt:{fontSize:12,color:'#2DD4BF',lineHeight:18},
   publicaNota:{marginHorizontal:16,marginTop:16,backgroundColor:'#F0FDF4',borderRadius:10,padding:12,borderLeftWidth:3,borderLeftColor:'#22C55E'},

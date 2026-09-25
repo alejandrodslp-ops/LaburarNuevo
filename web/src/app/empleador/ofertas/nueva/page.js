@@ -280,6 +280,9 @@ export default function NuevaOferta() {
       contacto_whatsapp: contactoWhatsapp.trim() || null,
       condiciones_aceptadas: true,
       activa: true,
+      // este formulario es exclusivo del rol employer — la revision automatica de
+      // 24hs es solo para company, employer se aprueba de una (publicacion instantanea)
+      estado: 'aprobada',
     }
 
     const { error } = editId

@@ -2,6 +2,7 @@ import React,{useState,useEffect}from 'react';
 import{View,Text,StyleSheet,TouchableOpacity,TextInput,ScrollView,Alert,ActivityIndicator}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{supabase}from '../../services/supabase';
+import{useApp}from '../../services/AppContext';
 import*as Localization from 'expo-localization';
 
 const MONEDA_POR_REGION={UY:'UYU',AR:'ARS',BR:'BRL',ES:'EUR',PT:'EUR',FR:'EUR',DE:'EUR',IT:'EUR',GB:'GBP'};
@@ -58,18 +59,19 @@ const MODALIDAD_LBL={presencial:'🏢 Presencial',remoto:'💻 Remoto',hibrido:'
 const CONTRATO_LBL={full_time:'Tiempo completo',part_time:'Medio tiempo',contrato:'Contrato',freelance:'Freelance'};
 
 export default function CrearOfertaScreen({navigation,route}){
+  const{modoActivo}=useApp();
   const editando=route.params?.oferta||null;
   const[loading,setLoading]=useState(false);
 
   const[titulo,setTitulo]=useState(editando?.titulo||'');
-  const[cargo,setCargo]=useState(editando?.cargo||'');
+  const[cargo,setCargo]=useState(editando?.empleo||'');
   const[descripcion,setDescripcion]=useState(editando?.descripcion||'');
   const[requisitos,setRequisitos]=useState(editando?.requisitos||'');
   const[ciudad,setCiudad]=useState(editando?.ciudad||'');
   const[modalidad,setModalidad]=useState(editando?.modalidad||null);
   const[tipoContrato,setTipoContrato]=useState(editando?.tipo_contrato||null);
-  const[salarioMin,setSalarioMin]=useState(editando?.salario_min?.toString()||'');
-  const[salarioMax,setSalarioMax]=useState(editando?.salario_max?.toString()||'');
+  const[salarioMin,setSalarioMin]=useState(editando?.sueldo_min?.toString()||'');
+  const[salarioMax,setSalarioMax]=useState(editando?.sueldo_max?.toString()||'');
   const[moneda,setMoneda]=useState(editando?.moneda||monedaDefecto());
   const[fechaCierre,setFechaCierre]=useState(editando?.fecha_cierre||'');
 
@@ -80,21 +82,46 @@ export default function CrearOfertaScreen({navigation,route}){
       const{data:{user}}=await supabase.auth.getUser();
       if(!user){Alert.alert('Error','Debés iniciar sesión');return;}
 
+      const esCompany=modoActivo==='company';
+
+      // Sin esto el matching por pais no tiene ninguna señal de zona: no suma
+      // el bonus de +15 puntos (baja mucho el recall) y ademas no filtra por
+      // pais, asi que una busqueda en Montevideo puede matchear a alguien en
+      // otro continente y gastar cupo real en un candidato inviable.
+      // profiles.pais guarda cosas como "🇦🇷 Argentina" (emoji + nombre) o a
+      // veces solo "Uruguay" — se saca cualquier prefijo que no sea letra
+      // (el emoji + el espacio) para dejar el nombre limpio, que es lo que
+      // _shared/matching.ts espera para mapear a codigo ISO.
+      const{data:miPerfil}=await supabase.from('profiles').select('pais').eq('id',user.id).single();
+      const paisLimpio=(miPerfil?.pais||'').replace(/^[^\p{L}]+/u,'').trim()||null;
+
       const payload={
         employer_id:user.id,
         titulo:titulo.trim(),
-        cargo:cargo.trim()||null,
+        empleo:cargo.trim()||null,
         descripcion:descripcion.trim()||null,
         requisitos:requisitos.trim()||null,
         ciudad:ciudad.trim()||null,
+        pais:paisLimpio,
         modalidad:modalidad||null,
         tipo_contrato:tipoContrato||null,
-        salario_min:salarioMin?parseFloat(salarioMin):null,
-        salario_max:salarioMax?parseFloat(salarioMax):null,
+        sueldo_min:salarioMin?parseFloat(salarioMin):null,
+        sueldo_max:salarioMax?parseFloat(salarioMax):null,
         moneda,
         fecha_cierre:fechaCierre||null,
-        updated_at:new Date().toISOString(),
       };
+
+      // employer no pasa por revision automatica (esa es exclusiva de company) —
+      // se aprueba de una para no cambiar su publicacion instantanea existente.
+      if(!editando&&!esCompany){
+        payload.estado='aprobada';
+      }
+      // company: al editar, vuelve a quedar pendiente de revision (evita el bypass
+      // de aprobar contenido limpio y despues editarlo a spam sin re-chequeo).
+      if(editando&&esCompany){
+        payload.estado='pendiente';
+        payload.motivo_rechazo=null;
+      }
 
       let error;
       if(editando){
@@ -104,7 +131,15 @@ export default function CrearOfertaScreen({navigation,route}){
       }
       if(error)throw error;
 
-      Alert.alert(editando?'Oferta actualizada':'Oferta publicada',editando?'Los cambios fueron guardados.':'Tu oferta ya es visible para los trabajadores.',[{text:'OK',onPress:()=>navigation.goBack()}]);
+      const tituloAlert=editando?(esCompany?'Cambios recibidos':'Oferta actualizada'):(esCompany?'Búsqueda recibida':'Oferta publicada');
+      const mensajeAlert=editando
+        ?(esCompany
+            ?'Los cambios fueron guardados. Como modificaste el contenido, vuelve a pasar por la revisión de calidad — normalmente se activa dentro de las 24 horas.'
+            :'Los cambios fueron guardados.')
+        :(esCompany
+            ?'Tu búsqueda fue recibida correctamente. La estamos revisando para mantener la calidad de las publicaciones en Konexu — normalmente se activa dentro de las 24 horas.'
+            :'Tu oferta ya es visible para los trabajadores.');
+      Alert.alert(tituloAlert,mensajeAlert,[{text:'OK',onPress:()=>navigation.goBack()}]);
     }catch(e){Alert.alert('Error','No se pudo guardar la oferta. Intentá de nuevo.');}
     finally{setLoading(false);}
   }

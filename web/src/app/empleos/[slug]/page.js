@@ -119,7 +119,7 @@ async function getConcurso(slug) {
   // 2) Oferta propia de un empleador (tabla ofertas). Se normaliza a la forma
   //    del detalle y se marca con _esOferta + el contacto de postulación real.
   const { data: o } = await db.from('ofertas').select('*').eq('id', id).maybeSingle()
-  if (o && o.activa) {
+  if (o && o.activa && o.estado === 'aprobada') {
     const nombres = await empresaNombres([o.employer_id])
     return {
       id: o.id, titulo: o.titulo, cargo: o.titulo, organismo: nombres[o.employer_id] || null,

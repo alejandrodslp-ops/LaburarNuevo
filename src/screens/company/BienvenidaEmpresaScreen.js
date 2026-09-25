@@ -1,13 +1,13 @@
-import React from "react";
-import{View,Text,StyleSheet,TouchableOpacity,ScrollView,Alert}from "react-native";
+import React,{useState,useEffect,useRef}from "react";
+import{View,Text,StyleSheet,TouchableOpacity,ScrollView,Alert,ActivityIndicator,Linking,AppState}from "react-native";
 import{SafeAreaView}from "react-native-safe-area-context";
 import{LinearGradient}from "expo-linear-gradient";
+import{supabase}from "../../services/supabase";
 
 const PLANES=[
-  {id:"pago_sa",nombre:"Pago por perfil",zona:"Sudamerica",precio:"U$1.33",periodo:"/perfil",perfiles:"Sin limite mensual",color:"#2DD4BF",bg:"#F0FDFA",items:["Accede a cada perfil por U$1.33","Sin compromisos mensuales","Paga solo cuando lo necesitas","Busqueda por zona y oficio"]},
-  {id:"membresia_sa",nombre:"Membresia",zona:"Sudamerica",precio:"U$12",periodo:"/mes",perfiles:"10 perfiles incluidos",color:"#E8785A",bg:"#FFF0ED",destacado:true,items:["10 perfiles por mes incluidos","U$1.20 por perfil adicional","Busqueda avanzada","Soporte prioritario"]},
-  {id:"pago_world",nombre:"Pago por perfil",zona:"Mundial",precio:"U$2.66",periodo:"/perfil",perfiles:"Sin limite mensual",color:"#2DD4BF",bg:"#F0FDFA",items:["Accede a cada perfil por U$2.66","Sin compromisos mensuales","Paga solo cuando lo necesitas","Busqueda por zona y oficio"]},
-  {id:"membresia_world",nombre:"Membresia",zona:"Mundial",precio:"U$24",periodo:"/mes",perfiles:"10 perfiles incluidos",color:"#3DA882",bg:"#E6FBF5",destacado:true,items:["10 perfiles por mes incluidos","U$2.40 por perfil adicional","Busqueda avanzada","Soporte prioritario"]},
+  {id:"membresia_sa",nombre:"Suscripcion",zona:"Sudamerica",precio:"U$12",periodo:"/mes",perfiles:"Hasta 10 perfiles nuevos por dia",color:"#E8785A",bg:"#FFF0ED",items:["Hasta 10 perfiles nuevos por dia durante 30 dias","Busqueda avanzada","Soporte prioritario"]},
+  {id:"membresia_world",nombre:"Suscripcion",zona:"Mundial",precio:"U$24",periodo:"/mes",perfiles:"Hasta 10 perfiles nuevos por dia",color:"#3DA882",bg:"#E6FBF5",items:["Hasta 10 perfiles nuevos por dia durante 30 dias","Busqueda avanzada","Soporte prioritario"]},
+  {id:"membresia_premium",nombre:"Suscripcion",zona:"Premium",precio:"U$50",periodo:"/mes",perfiles:"Perfiles ilimitados",color:"#7C3AED",bg:"#F3E8FF",items:["Perfiles ilimitados durante 30 dias","Pensado para empresas con alto volumen de busqueda","Soporte prioritario"]},
 ];
 
 const BENEFICIOS=[
@@ -22,6 +22,70 @@ import{useApp}from "../../services/AppContext";
 
 export default function BienvenidaEmpresaScreen({navigation}){
   const{setSuscripcionActiva}=useApp();
+  const[pagando,setPagando]=useState(null); // id del plan que está procesando, o null
+  const[esperando,setEsperando]=useState(false);
+  const appStateRef=useRef(AppState.currentState);
+  const intervaloRef=useRef(null);
+  const prevVenceRef=useRef(null);
+
+  useEffect(()=>{
+    if(!esperando)return;
+    intervaloRef.current=setInterval(verificar,3000);
+    const sub=AppState.addEventListener('change',async(next)=>{
+      if(appStateRef.current.match(/inactive|background/)&&next==='active'){
+        await verificar();
+      }
+      appStateRef.current=next;
+    });
+    return()=>{
+      clearInterval(intervaloRef.current);
+      sub.remove();
+    };
+  },[esperando]);
+
+  async function verificar(){
+    try{
+      const{data:{user}}=await supabase.auth.getUser();
+      if(!user)return false;
+      const{data}=await supabase.from('profiles').select('suscripcion_activa,suscripcion_vence_at').eq('id',user.id).single();
+      const prevTs=prevVenceRef.current?new Date(prevVenceRef.current).getTime():0;
+      const newTs=data?.suscripcion_vence_at?new Date(data.suscripcion_vence_at).getTime():0;
+      if(data?.suscripcion_activa && newTs>prevTs){
+        clearInterval(intervaloRef.current);
+        const planActivado=PLANES.find(p=>p.id===pagando);
+        const mensaje=planActivado?.id==='membresia_premium'
+          ?'Ya podés ver perfiles sin límite durante 30 días.'
+          :'Ya podés ver hasta 10 perfiles nuevos por día durante 30 días.';
+        setEsperando(false);
+        setPagando(null);
+        setSuscripcionActiva(true);
+        Alert.alert('¡Suscripción activada!',mensaje,[{text:'Buscar trabajadores',onPress:()=>navigation.goBack()}]);
+        return true;
+      }
+    }catch(e){}
+    return false;
+  }
+
+  async function suscribirse(plan){
+    if(pagando)return;
+    setPagando(plan.id);
+    try{
+      const{data:{user}}=await supabase.auth.getUser();
+      if(!user){Alert.alert('Error','Debés iniciar sesión');return;}
+      const{data:perfil}=await supabase.from('profiles').select('suscripcion_vence_at').eq('id',user.id).single();
+      prevVenceRef.current=perfil?.suscripcion_vence_at||null;
+      const monto=plan.zona==='Sudamerica'?12:(plan.zona==='Mundial'?24:50);
+      const{data,error}=await supabase.functions.invoke('crear-pago',{
+        body:{monto,descripcion:'Konexu — Suscripción empresa (30 días)',tipo:'company_suscripcion',plan_id:plan.id},
+      });
+      if(error)throw error;
+      await Linking.openURL(data.init_point);
+      setEsperando(true);
+    }catch(e){
+      Alert.alert('Error',e?.message||'No se pudo iniciar el pago');
+      setPagando(null);
+    }
+  }
 
   return(
     <SafeAreaView style={ss.c} edges={["top"]}>
@@ -52,8 +116,16 @@ export default function BienvenidaEmpresaScreen({navigation}){
         </View>
 
         <View style={ss.sec}>
-          <Text style={ss.stit}>MODALIDAD DE ACCESO</Text>
-          <Text style={ss.planSub}>Elegi como prefieres acceder a los perfiles de trabajadores.</Text>
+          <Text style={ss.stit}>PLAN GRATUITO</Text>
+          <View style={ss.freeCard}>
+            <Text style={ss.freeTit}>Hasta 3 perfiles por dia, 9 por semana</Text>
+            <Text style={ss.freeDesc}>Sin costo y sin tarjeta. Si necesitas ver mas, suscribite para acceder a mas perfiles por dia.</Text>
+          </View>
+        </View>
+
+        <View style={ss.sec}>
+          <Text style={ss.stit}>SUSCRIPCION — MAS PERFILES POR DIA</Text>
+          <Text style={ss.planSub}>Elegi tu zona y el nivel de acceso que necesitas.</Text>
           <View style={ss.planesRow}>
             <Text style={ss.zonaLabel}>🌎 Sudamerica</Text>
           </View>
@@ -65,8 +137,12 @@ export default function BienvenidaEmpresaScreen({navigation}){
                 <Text style={ss.planPrecio}>{p.precio}<Text style={ss.planPeriodo}>{p.periodo}</Text></Text>
                 <Text style={ss.planPerfiles}>{p.perfiles}</Text>
                 {p.items.map((item,i)=>(<View key={i} style={ss.planItem}><Text style={[ss.planDot,{color:p.color}]}>✓</Text><Text style={ss.planItemTxt}>{item}</Text></View>))}
-                <TouchableOpacity style={[ss.planBtn,{backgroundColor:p.color}]} onPress={()=>Alert.alert("Proximamente","El sistema de pagos estara disponible muy pronto.")}>
-                  <Text style={ss.planBtnTxt}>Suscribirme</Text>
+                <TouchableOpacity
+                  style={[ss.planBtn,{backgroundColor:p.color},pagando===p.id&&{opacity:0.6}]}
+                  disabled={pagando===p.id}
+                  onPress={()=>p.id.startsWith('membresia_')?suscribirse(p):Alert.alert("Proximamente","El sistema de pagos estara disponible muy pronto.")}
+                >
+                  <Text style={ss.planBtnTxt}>{pagando===p.id?'Procesando...':'Suscribirme'}</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -84,8 +160,32 @@ export default function BienvenidaEmpresaScreen({navigation}){
                 <Text style={ss.planPrecio}>{p.precio}<Text style={ss.planPeriodo}>{p.periodo}</Text></Text>
                 <Text style={ss.planPerfiles}>{p.perfiles}</Text>
                 {p.items.map((item,i)=>(<View key={i} style={ss.planItem}><Text style={[ss.planDot,{color:p.color}]}>✓</Text><Text style={ss.planItemTxt}>{item}</Text></View>))}
-                <TouchableOpacity style={[ss.planBtn,{backgroundColor:p.color}]} onPress={()=>Alert.alert("Proximamente","El sistema de pagos estara disponible muy pronto.")}>
-                  <Text style={ss.planBtnTxt}>Suscribirme</Text>
+                <TouchableOpacity
+                  style={[ss.planBtn,{backgroundColor:p.color},pagando===p.id&&{opacity:0.6}]}
+                  disabled={pagando===p.id}
+                  onPress={()=>p.id.startsWith('membresia_')?suscribirse(p):Alert.alert("Proximamente","El sistema de pagos estara disponible muy pronto.")}
+                >
+                  <Text style={ss.planBtnTxt}>{pagando===p.id?'Procesando...':'Suscribirme'}</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+          <View style={ss.planesRow}>
+            <Text style={ss.zonaLabel}>💎 Premium</Text>
+          </View>
+          <View style={ss.planesGrid}>
+            {PLANES.filter(p=>p.zona==="Premium").map(p=>(
+              <View key={p.id} style={ss.planCard}>
+                <Text style={[ss.planNombre,{color:p.color}]}>{p.nombre}</Text>
+                <Text style={ss.planPrecio}>{p.precio}<Text style={ss.planPeriodo}>{p.periodo}</Text></Text>
+                <Text style={ss.planPerfiles}>{p.perfiles}</Text>
+                {p.items.map((item,i)=>(<View key={i} style={ss.planItem}><Text style={[ss.planDot,{color:p.color}]}>✓</Text><Text style={ss.planItemTxt}>{item}</Text></View>))}
+                <TouchableOpacity
+                  style={[ss.planBtn,{backgroundColor:p.color},pagando===p.id&&{opacity:0.6}]}
+                  disabled={pagando===p.id}
+                  onPress={()=>p.id.startsWith('membresia_')?suscribirse(p):Alert.alert("Proximamente","El sistema de pagos estara disponible muy pronto.")}
+                >
+                  <Text style={ss.planBtnTxt}>{pagando===p.id?'Procesando...':'Suscribirme'}</Text>
                 </TouchableOpacity>
               </View>
             ))}
@@ -120,6 +220,9 @@ const ss=StyleSheet.create({
   beneficioTit:{fontSize:14,fontWeight:"700",color:"#1A1020",marginBottom:3},
   beneficioDesc:{fontSize:13,color:"#A898B8",lineHeight:18},
   planSub:{fontSize:13,color:"#A898B8",marginBottom:16},
+  freeCard:{backgroundColor:"#E6FBF5",borderRadius:14,padding:16,borderWidth:1,borderColor:"#3DA882"},
+  freeTit:{fontSize:15,fontWeight:"800",color:"#2E9472",marginBottom:4},
+  freeDesc:{fontSize:12,color:"#2E9472",lineHeight:17},
   planesRow:{marginBottom:8},
   zonaLabel:{fontSize:13,fontWeight:"700",color:"#5A4E6A"},
   mundialNota:{backgroundColor:"#FFF0ED",borderRadius:8,padding:10,marginBottom:10,borderLeftWidth:3,borderLeftColor:"#E8785A"},

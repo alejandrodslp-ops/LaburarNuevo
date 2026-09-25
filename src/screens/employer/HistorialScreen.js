@@ -174,8 +174,12 @@ function CardPerfil({h,tipo,navigation}){
         }
       </View>
       <View style={ss.cardFooter}>
-        <Text style={ss.stars}>{estrellas(p.rating)}</Text>
-        <Text style={ss.rating}>{p.rating||0}</Text>
+        {p.total_valoraciones>0?(<>
+          <Text style={ss.stars}>{estrellas(p.rating)}</Text>
+          <Text style={ss.rating}>{p.rating||0}</Text>
+        </>):(
+          <Text style={ss.nuevoTxt}>✨ Nuevo en Konexu</Text>
+        )}
         {conectado
           ?<Text style={ss.venceConectado}>Sin vencimiento</Text>
           :<Text style={[ss.vence,dr<=5&&ss.venceUrgente]}>
@@ -209,6 +213,7 @@ const ss=StyleSheet.create({
   badgeConectadoTxt:{color:'#2E9472',fontSize:11,fontWeight:'800'},
   cardFooter:{flexDirection:'row',alignItems:'center',gap:6},
   stars:{fontSize:12,color:'#F59E0B'},
+  nuevoTxt:{fontSize:12,fontWeight:'700',color:'#2DD4BF'},
   rating:{fontSize:13,fontWeight:'700',color:'#1A1020'},
   vence:{fontSize:11,color:'#A898B8',marginLeft:'auto'},
   venceUrgente:{color:'#E8785A',fontWeight:'700'},

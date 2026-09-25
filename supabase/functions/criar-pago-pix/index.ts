@@ -24,7 +24,19 @@ serve(async (req) => {
     const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
     if (authErr || !user) return new Response(JSON.stringify({ error: "Token invalido" }), { status: 401, headers: CORS });
 
-    const { monto_brl = 15, tipo = "worker_activacion" } = await req.json().catch(() => ({}));
+    const { tipo = "worker_activacion" } = await req.json().catch(() => ({}));
+
+    // Precio SIEMPRE fijado por el servidor — el unico flujo PIX real hoy es
+    // la activacion de perfil trabajador (mismo patron que crear-pago para
+    // MP UY/AR). No hay paquete de creditos ni suscripcion company via PIX
+    // todavia, asi que cualquier otro tipo se rechaza en vez de aceptar un
+    // monto_brl inventado por el cliente.
+    if (tipo !== "worker_activacion") {
+      return new Response(JSON.stringify({ error: "tipo no soportado via PIX" }), {
+        status: 400, headers: CORS,
+      });
+    }
+    const monto_brl = 15;
 
     // Obtener email del usuario para el pagador PIX
     const authUser = await supabase.auth.admin.getUserById(user.id);

@@ -121,6 +121,31 @@ Se va actualizando a medida que avanza el desarrollo.
 - [x] **Cron jobs de scraper — activos y verificados** ✅ (2026-06-17)
   Los 4 jobs están corriendo: manana(06:00 UTC), resumen(06:30), mediodia(15:00), noche(23:00)
 
+- [x] **Cron jobs de "empresa publica vacante" — activos y verificados** ✅ (2026-09-19)
+  3 jobs en `cron.job`, todos con `active=true` y usando la secret key `scraper_nexu` embebida
+  en el header `Authorization`:
+  - `jobid 56` **moderar-ofertas-horario** — `0 * * * *` (cada hora, en punto). Invoca
+    `moderar-ofertas`: revisa ofertas de `company` con `created_at <= now()-24h` y las
+    aprueba/rechaza. Por diseño la revisión NO es instantánea (ventana de 24hs).
+  - `jobid 57` **match-ofertas-diario** — `20 * * * *` (cada hora, minuto :20 — el nombre
+    quedó desactualizado, ya no es diario; se cambió de "una vez al día" a "cada hora" para
+    bajar la demora de aviso, sin renombrar el job porque `cron.alter_job` no permite cambiar
+    el `jobname`). Invoca `match-ofertas` con `{"todos":true}` (re-matchea todas las ofertas
+    aprobadas+activas contra todos los workers).
+  - `jobid 58` **notificar-matches-ofertas-recurrente** — `10,40 * * * *` (minutos :10 y :40).
+    Invoca `notificar-matches-ofertas`: push a la empresa + marca `oferta_matches.notificado=true`.
+    Backstop independiente porque el invoke-cascade `match-ofertas -> notificar-matches-ofertas`
+    no es confiable (Supabase mata trabajo async no-awaited cuando el isolate se congela).
+  - Demora peor caso hoy: ~25h (moderación) + hasta 1h (match) + hasta 30min (notificación) ≈ 26.5h,
+    bajado desde ~49h (antes `match-ofertas-diario` corría 1×/día a las 8:15 UTC).
+  - **Para dar de baja o pausar** (ej. si hay que revertir esta feature): `select cron.unschedule(56);`
+    `select cron.unschedule(57);` `select cron.unschedule(58);` (o `cron.alter_job(job_id:=N, active:=false)`
+    para pausar sin borrar). Ninguno de los 3 borra datos — solo dejan de correr; `ofertas`/`oferta_matches`
+    quedan intactas y se puede volver a activar en cualquier momento con `cron.alter_job(job_id:=N, active:=true)`.
+  - Detalle completo de la feature (moderación, matching, cupo por 3 niveles de suscripción) en
+    `docs/superpowers/specs/2026-09-18-company-publicar-empleo-design.md` y el ledger de implementación
+    en `.superpowers/sdd/2026-09-18-company-publicar-empleo/progress.md`.
+
 - [ ] **Google Vision API — configurar límite de gasto mensual**
   Agregar un budget alert en Google Cloud para no recibir sorpresas.
   → console.cloud.google.com → Billing → Budgets & Alerts
@@ -139,6 +164,77 @@ Se va actualizando a medida que avanza el desarrollo.
 - [ ] **Apple Developer account** — USD 99/año. Sin esto no hay build iOS ni publicación en App Store.
   → developer.apple.com. Podés empezar como Individual (persona física, sin empresa).
   Si querés cuenta Organization necesitás DUNS number (requiere empresa).
+  ⚠️ 2026-09-13: no se puede confirmar el estado actual sin acceso interactivo a la cuenta —
+  `eas build:list --platform ios` no devuelve ningún build corrido nunca. Chequear vos directo en
+  developer.apple.com que la membresía esté activa/pagada antes de intentar el primer build.
+
+---
+
+## 📱 APP STORE — checklist de subida (iOS)
+
+Auditoría 2026-09-13 sobre `ios/` nativo (proyecto NO usa Continuous Native Generation — hay carpeta
+`ios/` checkeada en git, así que `app.json` no sincroniza sola al build real; hay que tocar los archivos
+nativos a mano cuando corresponda).
+
+- [x] **Ícono de app** — `assets/icon.png` 1024×1024 sin canal alfa (Apple rechaza transparencia). ✅
+- [x] **`NSPhotoLibraryUsageDescription`** — ya estaba en `ios/Nexu/Info.plist` (texto genérico en
+  inglés, de un prebuild viejo). Sin esto la app crashea al elegir foto de perfil (`EditarPerfilScreen.js`
+  usa `ImagePicker.launchImageLibraryAsync`). Agregado también a `app.json` por prolijidad.
+- [x] **`expo-notifications` plugin declarado en `app.json`** — push está activo de verdad
+  (`AppContext.js` pide `getExpoPushTokenAsync`), faltaba declarar el plugin.
+- [x] **`expo-location` eliminado** — dependencia instalada, cero uso real en el código.
+- [x] **Bug real corregido: `ios/Nexu/Nexu.entitlements` apuntaba a `applinks:nexu.app`** (dominio viejo)
+  en vez de `applinks:konexu.app` (el real — usado en toda la app: recuperar contraseña, compartir, etc).
+  Sin este fix, ningún Universal Link iba a abrir la app en producción.
+- [ ] **Team ID real en `web/src/app/.well-known/apple-app-site-association`** — creado con placeholder
+  `"TEAMID"`. Sin completarlo, los Universal Links no funcionan de punta a punta aunque el entitlements
+  ya esté bien. Se consigue en developer.apple.com/account → Membership, o con `eas credentials`
+  (comando interactivo, correrlo vos desde una terminal).
+- [x] **`aps-environment` en el entitlements queda en `"development"`** — investigado, NO es un bug:
+  el proyecto no fija `CODE_SIGN_STYLE`/`DEVELOPMENT_TEAM` en el `.pbxproj`, así que EAS Build maneja
+  la firma de forma remota y pisa este valor solo según el perfil de build real. No tocar a mano.
+- [x] **Paquetes `expo-*` alineados a versión exacta de SDK 57** (`expo install --fix`, 13 paquetes).
+- [x] **Política de Privacidad pública** — `konexu.app/privacidad` (mismo texto ya aprobado de
+  `PrivacidadScreen.js`, adaptado a página web). Apple exige esta URL en el listing de App Store Connect.
+- [x] **Términos y Condiciones públicos** — `konexu.app/terminos` (ídem, desde `TerminosScreen.js`).
+- [ ] **CocoaPods local desactualizado** (`expo-doctor`) — solo importa para build LOCAL con Xcode;
+  EAS Build (cloud) no lo necesita. Ignorar salvo que se quiera compilar en la Mac directamente.
+- [ ] **⚠️ Todo lo de arriba está commiteado en la rama `upgrade-sdk-57` (local, nunca pusheada) —
+  no está en `main` ni desplegado en konexu.app todavía.** Falta decisión: hacer merge/push para que
+  las páginas de privacidad/términos queden públicas de verdad (necesario para completar el listing
+  de App Store Connect) y decidir cuándo correr el primer build de EAS.
+
+### Metadata para App Store Connect (borrador — falta pegarlo ahí, requiere la cuenta activa)
+
+- **Nombre:** Konexu
+- **Subtítulo (máx. 30 car.):** `Empleo y concursos públicos`
+- **Categoría primaria sugerida:** Business (no existe categoría "Jobs" específica en Apple)
+- **URL de política de privacidad:** `https://konexu.app/privacidad`
+- **URL de soporte:** `https://konexu.app` (no hay una página de soporte dedicada — considerar crear
+  `konexu.app/soporte` o usar el mailto `soporte@konexu.app` directo si Connect lo acepta)
+- **Clasificación por edad:** requiere completar el cuestionario de Apple — la app tiene mensajería
+  entre usuarios (`TerminosScreen.js` cláusula 1) sin moderación humana previa, lo que típicamente
+  obliga a marcar "Sí" en la pregunta de contenido/comunicación generada por usuarios. Puede resultar
+  en 12+ en vez de 4+. No lo decido yo — lo define el cuestionario real en Connect.
+- **Descripción (ES, borrador):**
+  > Konexu conecta a trabajadores con empleadores y empresas de forma anónima y segura.
+  >
+  > Como trabajador: creá tu perfil profesional gratis, aparecé ante empleadores y empresas sin
+  > exponer tus datos de contacto hasta que ambas partes acuerden avanzar, y accedé a miles de
+  > concursos públicos y llamados laborales de Uruguay, Argentina y toda Latinoamérica, actualizados
+  > todos los días.
+  >
+  > Como empleador o empresa: buscá perfiles que coincidan con lo que necesitás y contactá solo a
+  > quienes te interesan — sin publicar tus datos de contacto hasta que decidís hacerlo.
+  >
+  > • Perfiles anónimos hasta el contacto mutuo
+  > • Concursos públicos y ofertas privadas en un solo lugar
+  > • Alertas por email de nuevos llamados según tu oficio
+  > • Registro y publicación de empleos gratis para empresas
+  >
+  > Disponible en español, portugués e inglés.
+- **Keywords (máx. 100 car., separadas por coma, sin espacios):**
+  `empleo,trabajo,concursos,concurso publico,llamados,bolsa trabajo,empleos uruguay,vacantes,cv,curriculum`
 
 - [ ] **SAS Uruguay** — ~USD 60 solo (con firma electrónica avanzada en cédula).
   Necesaria para: abrir cuenta bancaria empresarial + registrarse en Boku.

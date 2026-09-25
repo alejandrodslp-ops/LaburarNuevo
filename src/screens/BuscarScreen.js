@@ -55,18 +55,21 @@ function Card({item,onContactar}){
         <View style={ss.cardInfo}>
           <Text style={ss.cardNombre}>{nombre}</Text>
           <Text style={ss.cardOficio}>{trCat(oficio,idioma)}</Text>
-          <Text style={ss.cardZona}>📍 {zona}</Text>
+          <Text style={ss.cardZona}>{zona}</Text>
         </View>
         {item.referencias&&<View style={ss.refBadge}><Text style={ss.refTxt}>✓ Ref</Text></View>}
       </View>
       <View style={ss.privaRow}>
-        <Text style={ss.privaIcon}>🔒</Text>
         <Text style={ss.privaTxt}>{t('buscar_privacidad_match')}</Text>
       </View>
       <View style={ss.ratingRow}>
-        <Text style={ss.stars}>{estrellas(item.rating)}</Text>
-        <Text style={ss.ratingNum}>{item.rating||0}</Text>
-        <Text style={ss.ratingCount}>({item.total_valoraciones||0} {t('valoraciones')})</Text>
+        {item.total_valoraciones>0?(<>
+          <Text style={ss.stars}>{estrellas(item.rating)}</Text>
+          <Text style={ss.ratingNum}>{item.rating||0}</Text>
+          <Text style={ss.ratingCount}>({item.total_valoraciones||0} {t('valoraciones')})</Text>
+        </>):(
+          <Text style={ss.nuevoTxt}>Nuevo en Konexu</Text>
+        )}
         <Text style={ss.disponib}>● {dispTr}</Text>
       </View>
       {tags.length>0&&(
@@ -157,6 +160,7 @@ export default function BuscarScreen({navigation}){
       }
       let q=supabase.from('perfiles_publicos')
         .select('id,nombre,apellido1,servicios,profesiones,especialidades,rating,total_valoraciones,ciudad,barrio,pais,disponibilidad,referencias,fecha_nac,idiomas,tipos_empleo,bio,anios_experiencia,sueldo_pretension_min,sueldo_pretension_max,sueldo_moneda,updated_at,perfil_visible')
+        .eq('rol','worker')
         .eq('perfil_activo',true)
         .neq('id',user.id)
         .order('rating',{ascending:false});
@@ -227,7 +231,6 @@ export default function BuscarScreen({navigation}){
           </View>
           {sugs.length>0&&(<View style={ss.suggBox}>{sugs.map((s)=>(<TouchableOpacity key={s} style={ss.suggItem} onPress={()=>onSug(s)}><Text style={ss.suggTxt}>🔍 {s}</Text></TouchableOpacity>))}</View>)}
           <View style={ss.privaBanner}>
-            <Text>🔒</Text>
             <Text style={ss.privaBannerTxt}>{t('buscar_anonimo_banner')}</Text>
           </View>
         </View>
@@ -311,6 +314,7 @@ const ss=StyleSheet.create({
   privaIcon:{fontSize:12},privaTxt:{fontSize:11,color:'#2DD4BF',fontWeight:'600',flex:1},
   ratingRow:{flexDirection:'row',alignItems:'center',gap:6,marginBottom:8,flexWrap:'wrap'},
   stars:{fontSize:12,color:'#F59E0B'},ratingNum:{fontSize:13,fontWeight:'800',color:'#1A1020'},
+  nuevoTxt:{fontSize:12,fontWeight:'700',color:'#2DD4BF'},
   ratingCount:{fontSize:11,color:'#A898B8'},disponib:{fontSize:11,color:'#3DA882',fontWeight:'600',marginLeft:'auto'},
   tagsRow:{flexDirection:'row',flexWrap:'wrap',gap:6,marginBottom:12},
   tag:{backgroundColor:'#E6FBF5',paddingHorizontal:8,paddingVertical:3,borderRadius:5},tagTxt:{color:'#2E9472',fontSize:10,fontWeight:'700'},

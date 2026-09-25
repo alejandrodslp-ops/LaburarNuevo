@@ -7,7 +7,7 @@ const SCREEN_H = Dimensions.get('window').height;
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../services/supabase';
-import { tieneSessionAdmin, cerrarSesionAdmin, cambiarPinAdmin, PIN_DEFAULT } from '../../components/PinAdminModal';
+import { tieneSessionAdmin, cerrarSesionAdmin } from '../../components/PinAdminModal';
 import { useI18n } from '../../services/I18nContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,6 +36,17 @@ function diasRestantes(iso) {
   return d > 0 ? d : 0;
 }
 function oficio(u) { return u?.servicios?.[0] || u?.profesiones?.[0] || '—'; }
+function edadDeFecha(fechaNac) {
+  const m = String(fechaNac ?? '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const nac = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  if (isNaN(nac.getTime())) return null;
+  const hoy = new Date();
+  let edad = hoy.getFullYear() - nac.getFullYear();
+  const antesDelCumple = hoy.getMonth() < nac.getMonth() || (hoy.getMonth() === nac.getMonth() && hoy.getDate() < nac.getDate());
+  if (antesDelCumple) edad--;
+  return edad >= 0 && edad < 130 ? edad : null;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Llamada a la Edge Function (service role → ve todos los datos sin RLS)
@@ -161,8 +172,8 @@ function ConcursoCard({ c, onPress }) {
 function OfertaCard({ o }) {
   const dias = o.fecha_cierre ? Math.ceil((new Date(o.fecha_cierre) - new Date()) / 86400000) : null;
   const employer = o.profiles ?? {};
-  const salario = o.salario_min
-    ? `${o.moneda ?? 'USD'} ${fmt(o.salario_min)}${o.salario_max ? `–${fmt(o.salario_max)}` : '+'}`
+  const salario = o.sueldo_min
+    ? `${o.moneda ?? 'USD'} ${fmt(o.sueldo_min)}${o.sueldo_max ? `–${fmt(o.sueldo_max)}` : '+'}`
     : null;
   return (
     <View style={ss.concursoCard}>
@@ -174,7 +185,7 @@ function OfertaCard({ o }) {
           {o.pais ? <Text style={{ fontSize: 10, color: '#A898B8', fontWeight: '600' }}>{BANDERAS[o.pais] ?? '🌍'} {o.pais}</Text> : null}
           {o.modalidad ? <Text style={{ fontSize: 10, color: '#A898B8' }}>{o.modalidad}</Text> : null}
         </View>
-        <Text style={ss.concursoTitle} numberOfLines={2}>{o.cargo || o.titulo || '—'}</Text>
+        <Text style={ss.concursoTitle} numberOfLines={2}>{o.titulo || o.empleo || '—'}</Text>
         <Text style={ss.concursoOrg} numberOfLines={1}>
           {employer.nombre ? `${employer.nombre} ${employer.apellido1 ?? ''}`.trim() : '—'}
         </Text>
@@ -323,8 +334,76 @@ function DetalleModal({ visible, usuario, onClose }) {
                 </View>
               ))}
             </View>
+
+            {/* DATOS PERSONALES */}
+            <View style={ss.modalSec}>
+              <Text style={ss.modalSecTit}>DATOS PERSONALES</Text>
+              <View style={ss.modalGrid}>
+                {[
+                  ['Nombre completo', [p?.nombre, p?.nombre2, p?.apellido1, p?.apellido2].filter(Boolean).join(' ') || '—'],
+                  ['Fecha de nac.',   p?.fecha_nac || '—'],
+                  ['Edad',            (() => { const e = edadDeFecha(p?.fecha_nac); return e != null ? `${e} años` : '—'; })()],
+                  ['Sexo',            p?.sexo || '—'],
+                  ['Estado civil',    p?.estado_civil || '—'],
+                  ['Nacionalidad',    p?.nacionalidad || '—'],
+                  ['RUT/documento',   p?.rut || '—'],
+                ].map(([k, v]) => (
+                  <View key={k} style={ss.gridRow}>
+                    <Text style={ss.gridKey}>{k}</Text>
+                    <Text style={ss.gridVal}>{String(v)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* CONTACTO */}
+            <View style={ss.modalSec}>
+              <Text style={ss.modalSecTit}>CONTACTO</Text>
+              <View style={ss.modalGrid}>
+                {[
+                  ['Teléfono',        p?.telefono ? `${p.telefono}${p?.telefono_verificado ? ' ✅' : ' (sin verificar)'}` : '—'],
+                  ['Email verificado',p?.email_verificado ? '✅ Sí' : '⭕ No'],
+                  ['Dirección',       p?.direccion || '—'],
+                ].map(([k, v]) => (
+                  <View key={k} style={ss.gridRow}>
+                    <Text style={ss.gridKey}>{k}</Text>
+                    <Text style={ss.gridVal}>{String(v)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* PERFIL PROFESIONAL */}
+            <View style={ss.modalSec}>
+              <Text style={ss.modalSecTit}>PERFIL PROFESIONAL</Text>
+              <View style={ss.modalGrid}>
+                {[
+                  ['Tipo de cuenta',  [p?.es_trabajador && 'Trabajador', p?.es_empleador && 'Empleador', p?.es_empresa && 'Empresa'].filter(Boolean).join(' · ') || '—'],
+                  ['Rol',             p?.rol || '—'],
+                  ['Rubro',           p?.rubro || '—'],
+                  ['Empleo buscado',  p?.empleo_buscado || '—'],
+                  ['Pretensión salarial', (p?.sueldo_pretension_min || p?.sueldo_pretension_max)
+                      ? `${p?.sueldo_moneda ?? ''} ${p?.sueldo_pretension_min ?? '?'} - ${p?.sueldo_pretension_max ?? '?'}`.trim()
+                      : '—'],
+                  ['Nómada digital',  p?.nomada_digital ? '✅ Sí' : '⭕ No'],
+                  ['Da referencias',  p?.referencias ? '✅ Sí' : '⭕ No'],
+                ].map(([k, v]) => (
+                  <View key={k} style={ss.gridRow}>
+                    <Text style={ss.gridKey}>{k}</Text>
+                    <Text style={ss.gridVal}>{String(v)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
             {p?.servicios?.length > 0 && <View style={ss.modalSec}><Text style={ss.modalSecTit}>SERVICIOS</Text><Text style={ss.modalChips}>{p.servicios.join(' · ')}</Text></View>}
             {p?.profesiones?.length > 0 && <View style={ss.modalSec}><Text style={ss.modalSecTit}>PROFESIONES</Text><Text style={ss.modalChips}>{p.profesiones.join(' · ')}</Text></View>}
+            {p?.especialidades?.length > 0 && <View style={ss.modalSec}><Text style={ss.modalSecTit}>ESPECIALIDADES</Text><Text style={ss.modalChips}>{p.especialidades.join(' · ')}</Text></View>}
+            {p?.tecnicaturas?.length > 0 && <View style={ss.modalSec}><Text style={ss.modalSecTit}>TECNICATURAS / ESTUDIOS</Text><Text style={ss.modalChips}>{p.tecnicaturas.join(' · ')}</Text></View>}
+            {p?.tipos_empleo?.length > 0 && <View style={ss.modalSec}><Text style={ss.modalSecTit}>TIPOS DE EMPLEO BUSCADO</Text><Text style={ss.modalChips}>{p.tipos_empleo.join(' · ')}</Text></View>}
+            {p?.idiomas?.length > 0 && <View style={ss.modalSec}><Text style={ss.modalSecTit}>IDIOMAS</Text><Text style={ss.modalChips}>{p.idiomas.join(' · ')}</Text></View>}
+            {p?.idiomas_trabajo?.length > 0 && <View style={ss.modalSec}><Text style={ss.modalSecTit}>IDIOMAS DE TRABAJO</Text><Text style={ss.modalChips}>{p.idiomas_trabajo.join(' · ')}</Text></View>}
+            {p?.descripcion_libre ? <View style={ss.modalSec}><Text style={ss.modalSecTit}>DESCRIPCIÓN LIBRE</Text><Text style={ss.bioTxt}>{p.descripcion_libre}</Text></View> : null}
             {datos?.pagos?.length > 0 && (
               <View style={ss.modalSec}>
                 <Text style={ss.modalSecTit}>PAGOS ({datos.pagos.length})</Text>
@@ -581,20 +660,28 @@ function DetalleModal({ visible, usuario, onClose }) {
 }
 
 function ConfigModal({ visible, onClose }) {
+  const [pinActual, setPinActual] = useState('');
   const [pin1, setPin1] = useState('');
   const [pin2, setPin2] = useState('');
   const [guardando, setGuardando] = useState(false);
 
-  function cerrar() { setPin1(''); setPin2(''); onClose(); }
+  function cerrar() { setPinActual(''); setPin1(''); setPin2(''); onClose(); }
 
   async function guardar() {
     if (pin1.length < 4) { Alert.alert('PIN muy corto', 'Usá al menos 4 caracteres.'); return; }
     if (pin1 !== pin2)   { Alert.alert('No coinciden', 'Los dos campos deben ser iguales.'); return; }
     setGuardando(true);
-    await cambiarPinAdmin(pin1);
-    setGuardando(false);
-    cerrar();
-    Alert.alert('✅ PIN actualizado', 'La próxima vez usá el PIN nuevo.');
+    try {
+      const { data, error } = await supabase.functions.invoke('verificar-pin-admin', {
+        body: { accion: 'cambiar', pin_actual: pinActual.trim(), pin_nuevo: pin1.trim() },
+      });
+      if (error) { Alert.alert('Error', 'No se pudo conectar. Probá de nuevo.'); return; }
+      if (!data?.cambiado) { Alert.alert('No se pudo cambiar', data?.error || 'PIN actual incorrecto.'); return; }
+      cerrar();
+      Alert.alert('✅ PIN actualizado', 'La próxima vez usá el PIN nuevo.');
+    } finally {
+      setGuardando(false);
+    }
   }
 
   return (
@@ -602,12 +689,13 @@ function ConfigModal({ visible, onClose }) {
       <Pressable style={ss.modalBackdrop} onPress={cerrar}>
         <Pressable style={ss.cfgCard} onPress={() => {}}>
           <Text style={ss.cfgTit}>⚙️  Configuración</Text>
+          <Text style={ss.cfgLbl}>PIN actual</Text>
+          <TextInput style={ss.cfgInput} placeholder="PIN actual..." placeholderTextColor="#A898B8" secureTextEntry value={pinActual} onChangeText={setPinActual} maxLength={64} />
           <Text style={ss.cfgLbl}>Nuevo PIN de acceso</Text>
           <TextInput style={ss.cfgInput} placeholder="Nuevo PIN..." placeholderTextColor="#A898B8" secureTextEntry value={pin1} onChangeText={setPin1} maxLength={64} />
-          <Text style={ss.cfgLbl}>Repetir PIN</Text>
+          <Text style={ss.cfgLbl}>Repetir PIN nuevo</Text>
           <TextInput style={ss.cfgInput} placeholder="Repetir PIN..." placeholderTextColor="#A898B8" secureTextEntry value={pin2} onChangeText={setPin2} maxLength={64} onSubmitEditing={guardar} returnKeyType="done" />
-          <Text style={ss.cfgHint}>PIN por defecto: <Text style={{ fontWeight: '900' }}>{PIN_DEFAULT}</Text></Text>
-          <TouchableOpacity style={[ss.cfgBtn, (!pin1 || !pin2 || guardando) && { opacity: 0.4 }]} onPress={guardar} disabled={!pin1 || !pin2 || guardando}>
+          <TouchableOpacity style={[ss.cfgBtn, (!pinActual || !pin1 || !pin2 || guardando) && { opacity: 0.4 }]} onPress={guardar} disabled={!pinActual || !pin1 || !pin2 || guardando}>
             {guardando ? <ActivityIndicator color="#FFF" /> : <Text style={ss.cfgBtnTxt}>Guardar PIN →</Text>}
           </TouchableOpacity>
           <TouchableOpacity style={{ paddingVertical: 12 }} onPress={cerrar}>

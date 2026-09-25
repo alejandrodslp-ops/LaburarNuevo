@@ -22,6 +22,8 @@ const AppContext=createContext({
   marcarEmailVerificado:()=>{},
   empleadorDatosCompletos:null,
   marcarEmpleadorDatosCompletos:()=>{},
+  tieneOfertaAprobada:null,
+  refrescarOfertaAprobada:()=>{},
   emailPendiente:false,
   clearEmailPendiente:()=>{},
   calificacionPendiente:null,
@@ -39,6 +41,7 @@ export function AppProvider({children}){
   const[perfilCompleto,setPerfilCompleto]=useState(null);
   const[emailVerificado,setEmailVerificado]=useState(null);
   const[empleadorDatosCompletos,setEmpleadorDatosCompletos]=useState(null);
+  const[tieneOfertaAprobada,setTieneOfertaAprobada]=useState(null);
   const[calificacionPendiente,setCalificacionPendiente]=useState(null);
 
   useEffect(()=>{
@@ -122,6 +125,7 @@ export function AppProvider({children}){
       verificarPerfilCompleto(session.user.id);
       verificarEmailVerificado(session.user.id);
       verificarEmpleadorDatos(session.user.id);
+      verificarOfertaAprobada(session.user.id);
       verificarCalificacionesPendientes(session.user.id);
       // Verificar si hay coach mark pendiente (nuevo usuario)
       AsyncStorage.getItem("coach_perfil_pendiente").then(val=>{
@@ -218,9 +222,26 @@ export function AppProvider({children}){
     }catch{setEmpleadorDatosCompletos(false);}
   }
 
+  // Un empleador individual no puede buscar/ver trabajadores sin antes haber
+  // publicado (y que se le apruebe, misma revision que las empresas) al menos
+  // una oferta real — sino la busqueda queda como una ventana abierta para
+  // mirar perfiles sin intencion real de contratar. Esto es solo el gate de UI;
+  // el gate real (no se puede esquivar por API directa) esta en consumir_visualizacion().
+  async function verificarOfertaAprobada(userId){
+    try{
+      const{count}=await supabase.from("ofertas")
+        .select("id",{count:"exact",head:true})
+        .eq("employer_id",userId).eq("estado","aprobada");
+      setTieneOfertaAprobada((count||0)>0);
+    }catch{setTieneOfertaAprobada(false);}
+  }
+
   const marcarPerfilCompleto=useCallback(()=>setPerfilCompleto(true),[]);
   const marcarEmailVerificado=useCallback(()=>setEmailVerificado(true),[]);
   const marcarEmpleadorDatosCompletos=useCallback(()=>setEmpleadorDatosCompletos(true),[]);
+  const refrescarOfertaAprobada=useCallback(()=>{
+    if(session?.user?.id)verificarOfertaAprobada(session.user.id);
+  },[session?.user?.id]);
   const dismissCoach=useCallback(()=>setCoachPendiente(false),[]);
   const activarCoachEditar=useCallback(()=>setCoachEditarPendiente(true),[]);
   const dismissCoachEditar=useCallback(()=>setCoachEditarPendiente(false),[]);
@@ -240,10 +261,11 @@ export function AppProvider({children}){
     mensajesSinLeer,recargarSinLeer,perfilCompleto,marcarPerfilCompleto,
     emailVerificado,marcarEmailVerificado,
     empleadorDatosCompletos,marcarEmpleadorDatosCompletos,
+    tieneOfertaAprobada,refrescarOfertaAprobada,
     emailPendiente,clearEmailPendiente,calificacionPendiente,completarCalificacion,
   }),[
     session,modoActivo,suscripcionActiva,coachPendiente,coachEditarPendiente,
-    mensajesSinLeer,perfilCompleto,emailVerificado,empleadorDatosCompletos,emailPendiente,calificacionPendiente,
+    mensajesSinLeer,perfilCompleto,emailVerificado,empleadorDatosCompletos,tieneOfertaAprobada,refrescarOfertaAprobada,emailPendiente,calificacionPendiente,
   ]);
 
   return(

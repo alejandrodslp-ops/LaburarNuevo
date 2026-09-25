@@ -4,6 +4,7 @@ import NexuWatermark from '../components/NexuWatermark';
 import{View,Text,ScrollView,TouchableOpacity,StyleSheet,Switch,Alert,Share,Image}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{LinearGradient}from 'expo-linear-gradient';
+import{Ionicons}from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import{supabase}from '../services/supabase';
@@ -41,7 +42,7 @@ function Fila({icono,titulo,subtitulo,onPress,derecha,peligro}){
     <TouchableOpacity style={ss.fila} onPress={onPress} activeOpacity={0.7}>
       <View style={ss.filaIzq}>
         <View style={[ss.filaIcono,peligro&&{backgroundColor:'#FEF2F2'}]}>
-          <Text style={{fontSize:16}}>{icono}</Text>
+          <Ionicons name={icono} size={17} color={peligro?'#EF4444':'#5A4E6A'}/>
         </View>
         <View style={{flex:1}}>
           <Text style={[ss.filaTitulo,peligro&&{color:'#EF4444'}]}>{titulo}</Text>
@@ -64,7 +65,7 @@ function Sec({titulo,children}){
 
 function Sep(){return <View style={ss.sep}/>;}
 
-const MODOS_EMOJIS={worker:'💼',employer:'🏠',company:'🏢'};
+const MODOS_ICONOS={worker:'briefcase-outline',employer:'home-outline',company:'business-outline'};
 
 function calcularEdad(fechaNac){
   if(!fechaNac)return null;
@@ -349,7 +350,7 @@ export default function PerfilScreen({navigation}){
   }
 
   const esWorker=modoActivo==='worker';
-  const modoEmoji=MODOS_EMOJIS[modoActivo]||'💼';
+  const modoIcono=MODOS_ICONOS[modoActivo]||'briefcase-outline';
 
   return(
     <SafeAreaView style={ss.container} edges={['top']}>
@@ -363,11 +364,11 @@ export default function PerfilScreen({navigation}){
                 <View style={ss.avatar}>
                   {u.avatar
                     ?<Image source={{uri:u.avatar}} style={{width:88,height:88,borderRadius:44}}/>
-                    :<Text style={{fontSize:40}}>{modoEmoji}</Text>
+                    :<Ionicons name={modoIcono} size={34} color="#1A3A5C"/>
                   }
                 </View>
                 <TouchableOpacity style={ss.avatarEdit} onPress={()=>navigation.navigate(esWorker?'EditarPerfil':'EditarPerfilEmpleadorDatos')}>
-                  <Text style={{fontSize:11}}>✏️</Text>
+                  <Ionicons name="pencil" size={12} color="#1A3A5C"/>
                 </TouchableOpacity>
                 {u.activo&&<View style={ss.badge}><Text style={{fontSize:13,color:'#fff'}}>✓</Text></View>}
               </View>
@@ -410,7 +411,7 @@ export default function PerfilScreen({navigation}){
 
         {esWorker&&(
           <Sec titulo="HERRAMIENTAS">
-            <Fila icono="📄" titulo="Mi CV" subtitulo="Creá y exportá tu currículum profesional" onPress={()=>navigation.navigate('CV')}/>
+            <Fila icono="document-text-outline" titulo="Mi CV" subtitulo="Creá y exportá tu currículum profesional" onPress={()=>navigation.navigate('CV')}/>
           </Sec>
         )}
 
@@ -439,16 +440,16 @@ export default function PerfilScreen({navigation}){
 
         {!esWorker&&(
           <Sec titulo={t('sec_mis_busquedas')}>
-            <Fila icono="📋" titulo={t('ver_busquedas')} subtitulo={t('gestionar_busquedas')} onPress={()=>navigation.navigate('Ofertas')}/>
+            <Fila icono="list-outline" titulo={t('ver_busquedas')} subtitulo={t('gestionar_busquedas')} onPress={()=>navigation.navigate('Ofertas')}/>
             <Sep/>
-            <Fila icono="👁️" titulo={t('perfiles_vistos')} subtitulo={t('historial_desbloqueados')} onPress={()=>navigation.navigate('Historial')}/>
+            <Fila icono="eye-outline" titulo={t('perfiles_vistos')} subtitulo={t('historial_desbloqueados')} onPress={()=>navigation.navigate('Historial')}/>
           </Sec>
         )}
 
         <Sec titulo={t('sec_mi_cuenta')}>
-          <Fila icono="📧" titulo="Email" subtitulo={u.email} onPress={null}/>
+          <Fila icono="mail-outline" titulo="Email" subtitulo={u.email} onPress={null}/>
           {esWorker&&(<><Sep/><Fila
-            icono="📱"
+            icono="call-outline"
             titulo="Teléfono"
             subtitulo={u.telefono?(u.telefonoVerificado?'✅ '+u.telefono+' — Verificado':'⚠️ '+u.telefono+' — Sin verificar'):'No configurado'}
             onPress={null}
@@ -459,7 +460,7 @@ export default function PerfilScreen({navigation}){
           <Sec titulo="TRABAJO REMOTO">
             <View style={ss.fila}>
               <View style={ss.filaIzq}>
-                <View style={ss.filaIcono}><Text style={{fontSize:16}}>🌍</Text></View>
+                <View style={ss.filaIcono}><Ionicons name="globe-outline" size={17} color="#5A4E6A"/></View>
                 <View style={{flex:1}}>
                   <Text style={ss.filaTitulo}>Nómada digital</Text>
                   <Text style={ss.filaSub}>Ver ofertas de trabajo en el mundo</Text>
@@ -487,34 +488,34 @@ export default function PerfilScreen({navigation}){
         )}
 
         <Sec titulo={t('sec_preferencias')}>
-          <Fila icono="🌐" titulo={t('idioma')} subtitulo={IDIOMA_NOMBRE[idioma]||'Español'} onPress={()=>setIdiomaModalVisible(true)}/>
+          <Fila icono="language-outline" titulo={t('idioma')} subtitulo={IDIOMA_NOMBRE[idioma]||'Español'} onPress={()=>setIdiomaModalVisible(true)}/>
           <Sep/>
-          <Fila icono="🔔" titulo={t('notificaciones')} subtitulo={t('avisos_notif')}
+          <Fila icono="notifications-outline" titulo={t('notificaciones')} subtitulo={t('avisos_notif')}
             derecha={<Switch value={notif} onValueChange={toggleNotif} trackColor={{false:'#EDE8E2',true:'#E8785A'}} thumbColor="#FFFFFF"/>}/>
         </Sec>
 
         <Sec titulo={t('sec_seguridad')}>
-          <Fila icono="👆" titulo={t('huella_face')} subtitulo={bio?t('activado'):t('desactivado')}
+          <Fila icono="finger-print-outline" titulo={t('huella_face')} subtitulo={bio?t('activado'):t('desactivado')}
             derecha={<Switch value={bio} onValueChange={toggleBio} trackColor={{false:'#EDE8E2',true:'#E8785A'}} thumbColor="#FFFFFF"/>}/>
           <Sep/>
-          <Fila icono="🔑" titulo={t('cambiar_contrasena')} onPress={cambiarContrasena}/>
+          <Fila icono="key-outline" titulo={t('cambiar_contrasena')} onPress={cambiarContrasena}/>
         </Sec>
 
         <Sec titulo={t('sec_general')}>
-          <Fila icono="📤" titulo={t('compartir_nexu')} subtitulo={t('invita_amigos')} onPress={compartirNexu}/>
+          <Fila icono="share-social-outline" titulo={t('compartir_nexu')} subtitulo={t('invita_amigos')} onPress={compartirNexu}/>
           <Sep/>
-          <Fila icono="❓" titulo={t('ayuda_soporte')} onPress={()=>setSoporteVisible(true)}/>
+          <Fila icono="help-circle-outline" titulo={t('ayuda_soporte')} onPress={()=>setSoporteVisible(true)}/>
           <Sep/>
-          <Fila icono="📋" titulo={t('terminos')} onPress={()=>navigation.navigate('Terminos')}/>
+          <Fila icono="document-outline" titulo={t('terminos')} onPress={()=>navigation.navigate('Terminos')}/>
           <Sep/>
-          <Fila icono="🔒" titulo={t('privacidad')} onPress={()=>navigation.navigate('Privacidad')}/>
+          <Fila icono="lock-closed-outline" titulo={t('privacidad')} onPress={()=>navigation.navigate('Privacidad')}/>
         </Sec>
 
-        <Sec titulo=""><Fila icono="🚪" titulo={t('cerrar_sesion_tit')} onPress={cerrarSesion} peligro/></Sec>
+        <Sec titulo=""><Fila icono="log-out-outline" titulo={t('cerrar_sesion_tit')} onPress={cerrarSesion} peligro/></Sec>
 
         {u.email==='alejandrodslp@gmail.com'&&(
           <TouchableOpacity style={ss.adminBtn} onPress={abrirAdmin}>
-            <Text style={ss.adminEmoji}>⚙️</Text>
+            <Ionicons name="settings-outline" size={20} color="#1A3A5C" style={{marginRight:4}}/>
             <View style={{flex:1}}>
               <Text style={ss.adminTit}>Panel de Administrador</Text>
               <Text style={ss.adminSub}>Estadísticas · Usuarios · Pagos · Consultas</Text>

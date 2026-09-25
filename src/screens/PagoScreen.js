@@ -5,10 +5,42 @@ import{LinearGradient}from "expo-linear-gradient";
 import{supabase}from "../services/supabase";
 import * as SMS from "expo-sms";
 
-const PAISES_SA=["AR","BO","BR","CL","CO","EC","PY","PE","UY","VE","MX","GT","HN","SV","NI","CR","PA","CU","HT","DO","PR","BZ","GY","SR","TT","JM","BB","LC","VC","GD","AG","DM","KN"];
+// Los unicos codigos que "pais" puede tomar hoy son los que devuelve NOMBRE_A_ISO
+// (mapeo de los 32 paises reales del selector de onboarding, ver mas abajo) — esta
+// lista tenia antes 14 codigos de Caribe/Centroamerica extra (HT,PR,BZ,GY,SR,TT,JM,
+// BB,LC,VC,GD,AG,DM,KN) que nunca podian alcanzarse via ese selector; se sacaron
+// porque quedaban como codigo muerto. Misma lista que es_pais_sudamerica() (SQL) y
+// crear-pago/index.ts.
+const PAISES_SA=["AR","BO","BR","CL","CO","EC","PY","PE","UY","VE","MX","GT","HN","SV","NI","CR","PA","CU","DO"];
 const PAISES_DEVALUADOS=["IN"];
 const MONEDAS={"AR":{simbolo:"ARS",tasa:1200},"BO":{simbolo:"BOB",tasa:6.9},"BR":{simbolo:"BRL",tasa:5.1},"CL":{simbolo:"CLP",tasa:950},"CO":{simbolo:"COP",tasa:4100},"EC":{simbolo:"USD",tasa:1},"PY":{simbolo:"PYG",tasa:7400},"PE":{simbolo:"PEN",tasa:3.8},"UY":{simbolo:"UYU",tasa:41},"VE":{simbolo:"USD",tasa:1},"MX":{simbolo:"MXN",tasa:17},"GT":{simbolo:"GTQ",tasa:7.8},"HN":{simbolo:"HNL",tasa:24.8},"SV":{simbolo:"USD",tasa:1},"NI":{simbolo:"NIO",tasa:36.6},"CR":{simbolo:"CRC",tasa:520},"PA":{simbolo:"USD",tasa:1}};
 // Pagos: MercadoPago para todos los países (acepta tarjetas internacionales). Stripe descartado.
+
+// Mismos 32 paises del selector de onboarding (EditarPerfilScreen.js /
+// EditarPerfilEmpleadorDatosScreen.js) — mapeados a ISO2 para reusar
+// PAISES_SA/PAISES_DEVALUADOS/MONEDAS de arriba. Debe coincidir con el
+// tramo que deriva crear-pago/index.ts (mismo profiles.pais, misma logica
+// de normalizacion) para que el precio que se muestra acá sea el mismo
+// que MercadoPago termina cobrando — sino el usuario ve un monto y le
+// cobran otro.
+const NOMBRE_A_ISO={
+  uruguay:"UY",argentina:"AR",brasil:"BR",brazil:"BR",chile:"CL",paraguay:"PY",
+  bolivia:"BO",peru:"PE",colombia:"CO",mexico:"MX",ecuador:"EC",venezuela:"VE",
+  cuba:"CU","costa rica":"CR",panama:"PA",guatemala:"GT","el salvador":"SV",
+  honduras:"HN",nicaragua:"NI","republica dominicana":"DO",
+  spain:"ES",espana:"ES",portugal:"PT",france:"FR",francia:"FR",
+  italy:"IT",italia:"IT",germany:"DE",alemania:"DE",
+  "united kingdom":"GB","reino unido":"GB",
+  "united states":"US","estados unidos":"US",
+  canada:"CA",australia:"AU",sweden:"SE",suecia:"SE",
+  norway:"NO",noruega:"NO",japan:"JP",japon:"JP",india:"IN",
+};
+function normalizarPais(raw){
+  return(raw||"")
+    .replace(/^[^\p{L}]+/u,"").trim()
+    .normalize("NFD").replace(/[̀-ͯ]/g,"")
+    .toLowerCase();
+}
 
 export default function PagoScreen({navigation,route}){
   const perfil=route?.params?.perfil||null;
@@ -92,15 +124,22 @@ export default function PagoScreen({navigation,route}){
   const precioLocal=moneda&&moneda.simbolo!=="USD"?Math.round(montoPago*moneda.tasa):null;
 
   useEffect(()=>{
-    detectarPais();
+    cargarPaisDePerfil();
   },[]);
 
-  async function detectarPais(){
+  // El pais que decide el precio es siempre profiles.pais (mismo campo que ya
+  // usa el resto de la app) — antes se detectaba por IP (ipapi.co), pero eso
+  // podia mostrar un precio distinto del que crear-pago termina cobrando
+  // (que deriva el tramo del perfil, no de la IP). Ahora ambos lados leen la
+  // misma fuente.
+  async function cargarPaisDePerfil(){
     try{
-      const res=await fetch("https://ipapi.co/json/");
-      const data=await res.json();
-      if(data.country_code)setPais(data.country_code);
-    }catch(e){setPais("UY");}
+      const{data:{user}}=await supabase.auth.getUser();
+      if(!user)return;
+      const{data}=await supabase.from('profiles').select('pais').eq('id',user.id).single();
+      const nombre=normalizarPais(data?.pais);
+      setPais(NOMBRE_A_ISO[nombre]||"US");
+    }catch(e){setPais("US");}
   }
 
   async function iniciarPagoMP(metodo){
