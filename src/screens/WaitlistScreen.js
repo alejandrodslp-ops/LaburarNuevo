@@ -55,7 +55,9 @@ export default function WaitlistScreen({ navigation, route }) {
     try {
       const pushToken = await getPushToken();
       const { data, error } = await supabase.functions.invoke('waitlist', {
-        body: { accion: 'unirse', email: email.trim().toLowerCase(), nombre: nombre.trim(), push_token: pushToken },
+        // origen:'app' marca el camino exento de pais/ciudad/busqueda obligatorios
+        // (esta pantalla no los pide) — sin esto, el edge function los exige por default.
+        body: { accion: 'unirse', origen: 'app', email: email.trim().toLowerCase(), nombre: nombre.trim(), push_token: pushToken },
       });
       if (error || data?.error) throw new Error(data?.error ?? error?.message ?? 'Error');
       setPosicion(data.posicion);

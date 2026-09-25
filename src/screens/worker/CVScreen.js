@@ -4,6 +4,7 @@ import {
   ScrollView, Alert, ActivityIndicator, Keyboard, Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Print from "expo-print";
@@ -42,10 +43,13 @@ function Campo({ label, value, onChangeText, placeholder, multiline, keyboardTyp
   );
 }
 
-function SeccionHeader({ titulo, onAdd }) {
+function SeccionHeader({ titulo, icono, onAdd }) {
   return (
     <View style={s.secHdr}>
-      <Text style={s.secTit}>{titulo}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+        {icono && <Ionicons name={icono} size={15} color={DARK} />}
+        <Text style={s.secTit}>{titulo}</Text>
+      </View>
       {onAdd && (
         <TouchableOpacity style={s.addBtn} onPress={onAdd}>
           <Text style={s.addTxt}>+ Agregar</Text>
@@ -91,7 +95,7 @@ export default function CVScreen({ navigation }) {
         // Si no hay guardado, auto-rellenar desde el perfil
         const { data } = await supabase
           .from("profiles")
-          .select("nombre,apellido1,apellido2,telefono,pais,ciudad,servicios,profesiones,tecnicaturas,especialidades,idiomas,bio,descripcion_libre,nacionalidad,anios_experiencia,avatar_url")
+          .select("nombre,apellido1,apellido2,telefono,pais,ciudad,servicios,profesiones,tecnicaturas,especialidades,idiomas,bio,descripcion_libre,nacionalidad,anios_experiencia,avatar_url,educacion,experiencia,certificaciones")
           .eq("id", user.id)
           .single();
         if (data) {
@@ -119,6 +123,18 @@ export default function CVScreen({ navigation }) {
             habilidades,
             idiomas: idiomasArr,
             foto: data.avatar_url || "",
+            // Si ya habia educacion/experiencia/certificaciones guardadas en el
+            // servidor (por ej. cargadas desde otro dispositivo) se priorizan
+            // sobre el placeholder vacio inicial.
+            ...(Array.isArray(data.educacion) && data.educacion.length > 0
+              ? { educacion: data.educacion }
+              : {}),
+            ...(Array.isArray(data.experiencia) && data.experiencia.length > 0
+              ? { experiencia: data.experiencia }
+              : {}),
+            ...(Array.isArray(data.certificaciones) && data.certificaciones.length > 0
+              ? { certificaciones: data.certificaciones }
+              : {}),
           }));
         }
       } catch { /* sigue con campos vacíos */ }
@@ -148,6 +164,19 @@ export default function CVScreen({ navigation }) {
     setSaving(true);
     try {
       await AsyncStorage.setItem(`cv_${userId}`, JSON.stringify(cv));
+      // Educacion/experiencia/certificaciones tambien se sincronizan al servidor
+      // (antes solo vivian en este dispositivo) — es lo que ve el empleador/empresa
+      // una vez que el trabajador acepta su propuesta (obtener_datos_aceptado).
+      // Best-effort: si falla la red, el guardado local ya se hizo y no se
+      // interrumpe al usuario por esto.
+      const educacionReal = cv.educacion.filter(e => e.titulo || e.institucion);
+      const experienciaReal = cv.experiencia.filter(e => e.empresa || e.cargo);
+      const certificacionesReal = cv.certificaciones.filter(c => c.nombre);
+      supabase.from("profiles").update({
+        educacion: educacionReal,
+        experiencia: experienciaReal,
+        certificaciones: certificacionesReal,
+      }).eq("id", userId).then(() => {});
       Alert.alert("Guardado", "Tu CV fue guardado correctamente.");
     } catch (e) {
       Alert.alert("Error", "No se pudo guardar: " + e.message);
@@ -390,17 +419,26 @@ export default function CVScreen({ navigation }) {
         <TouchableOpacity style={s.exportBtn} onPress={exportarPDF} disabled={exporting}>
           {exporting
             ? <ActivityIndicator color={CORAL} size="small" />
-            : <Text style={s.exportTxt}>📤 Exportar</Text>}
+            : <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+                <Ionicons name="share-outline" size={14} color={CORAL} />
+                <Text style={s.exportTxt}>Exportar</Text>
+              </View>}
         </TouchableOpacity>
       </View>
 
       {/* TABS */}
       <View style={s.tabs}>
         <TouchableOpacity style={[s.tab, tab === "form" && s.tabA]} onPress={() => setTab("form")}>
-          <Text style={[s.tabTxt, tab === "form" && s.tabTxtA]}>✏️ Formulario</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            <Ionicons name="create-outline" size={15} color={tab === "form" ? CORAL : MUTED} />
+            <Text style={[s.tabTxt, tab === "form" && s.tabTxtA]}>Formulario</Text>
+          </View>
         </TouchableOpacity>
         <TouchableOpacity style={[s.tab, tab === "preview" && s.tabA]} onPress={() => setTab("preview")}>
-          <Text style={[s.tabTxt, tab === "preview" && s.tabTxtA]}>👁 Vista Previa</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+            <Ionicons name="eye-outline" size={15} color={tab === "preview" ? CORAL : MUTED} />
+            <Text style={[s.tabTxt, tab === "preview" && s.tabTxtA]}>Vista Previa</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -423,7 +461,7 @@ function FormularioCV({ cv, set, addItem, removeItem, updateItem, onGuardar, sav
     >
       {/* DATOS PERSONALES */}
       <View style={s.card}>
-        <SeccionHeader titulo="👤 Datos Personales" />
+        <SeccionHeader titulo="Datos Personales" icono="person-outline" />
         <Campo label="Nombre completo" value={cv.nombre} onChangeText={v => set("nombre", v)} placeholder="Ana García" />
         <Campo label="Profesión / Cargo" value={cv.profesion} onChangeText={v => set("profesion", v)} placeholder="Desarrolladora Web" />
         <Campo label="Email" value={cv.email} onChangeText={v => set("email", v)} placeholder="ana@email.com" keyboardType="email-address" />
@@ -437,13 +475,13 @@ function FormularioCV({ cv, set, addItem, removeItem, updateItem, onGuardar, sav
 
       {/* OBJETIVO */}
       <View style={s.card}>
-        <SeccionHeader titulo="🎯 Perfil Profesional" />
+        <SeccionHeader titulo="Perfil Profesional" icono="person-circle-outline" />
         <Campo label="Describite brevemente" value={cv.objetivo} onChangeText={v => set("objetivo", v)} placeholder="Profesional con 5 años de experiencia en..." multiline optional />
       </View>
 
       {/* EDUCACIÓN */}
       <View style={s.card}>
-        <SeccionHeader titulo="🎓 Educación" onAdd={() => addItem("educacion", { institucion: "", titulo: "", desde: "", hasta: "" })} />
+        <SeccionHeader titulo="Educación" icono="school-outline" onAdd={() => addItem("educacion", { institucion: "", titulo: "", desde: "", hasta: "" })} />
         {cv.educacion.map((e, i) => (
           <View key={i} style={s.itemCard}>
             {cv.educacion.length > 1 && (
@@ -463,7 +501,7 @@ function FormularioCV({ cv, set, addItem, removeItem, updateItem, onGuardar, sav
 
       {/* EXPERIENCIA */}
       <View style={s.card}>
-        <SeccionHeader titulo="💼 Experiencia Laboral" onAdd={() => addItem("experiencia", { empresa: "", cargo: "", desde: "", hasta: "", descripcion: "" })} />
+        <SeccionHeader titulo="Experiencia Laboral" icono="briefcase-outline" onAdd={() => addItem("experiencia", { empresa: "", cargo: "", desde: "", hasta: "", descripcion: "" })} />
         {cv.experiencia.map((e, i) => (
           <View key={i} style={s.itemCard}>
             {cv.experiencia.length > 1 && (
@@ -484,13 +522,13 @@ function FormularioCV({ cv, set, addItem, removeItem, updateItem, onGuardar, sav
 
       {/* HABILIDADES */}
       <View style={s.card}>
-        <SeccionHeader titulo="⚡ Habilidades" />
+        <SeccionHeader titulo="Habilidades" icono="flash-outline" />
         <Campo label="Separadas por comas" value={cv.habilidades} onChangeText={v => set("habilidades", v)} placeholder="React Native, Node.js, SQL, Photoshop..." optional />
       </View>
 
       {/* IDIOMAS */}
       <View style={s.card}>
-        <SeccionHeader titulo="🌐 Idiomas" onAdd={() => addItem("idiomas", { idioma: "", nivel: "Intermedio" })} />
+        <SeccionHeader titulo="Idiomas" icono="language-outline" onAdd={() => addItem("idiomas", { idioma: "", nivel: "Intermedio" })} />
         {cv.idiomas.map((id, i) => (
           <View key={i} style={[s.itemCard, { flexDirection: "row", gap: 10, alignItems: "flex-start" }]}>
             <View style={{ flex: 1 }}>
@@ -517,7 +555,7 @@ function FormularioCV({ cv, set, addItem, removeItem, updateItem, onGuardar, sav
 
       {/* CERTIFICACIONES */}
       <View style={s.card}>
-        <SeccionHeader titulo="📜 Certificaciones" onAdd={() => addItem("certificaciones", { nombre: "", institucion: "", anio: "" })} />
+        <SeccionHeader titulo="Certificaciones" icono="ribbon-outline" onAdd={() => addItem("certificaciones", { nombre: "", institucion: "", anio: "" })} />
         {cv.certificaciones.length === 0 && (
           <Text style={{ fontSize: 13, color: MUTED, textAlign: "center", paddingVertical: 12 }}>
             Tocá "+ Agregar" para sumar certificaciones, cursos o diplomas.

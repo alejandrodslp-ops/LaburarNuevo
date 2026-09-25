@@ -4,8 +4,27 @@ import {
   StyleSheet, ActivityIndicator, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../services/supabase';
-import { useApp } from '../../services/AppContext';
+
+// El plan "Sudamerica" ($12) solo debe mostrar candidatos de la region (Latam+Caribe,
+// misma lista que crear-pago usa para el tramo de precio de creditos) — "Mundial" y
+// "Premium" no tienen esta restriccion. Este filtro es solo de UI (no mostrar lo que
+// no corresponde); el enforcement real que no se puede esquivar por API directa vive
+// en consumir_visualizacion_empresa() (SQL, server-side).
+const PAISES_SA_NOMBRES = new Set([
+  'uruguay', 'argentina', 'brasil', 'brazil', 'chile', 'paraguay', 'bolivia',
+  'peru', 'colombia', 'mexico', 'ecuador', 'venezuela', 'cuba', 'costa rica',
+  'panama', 'guatemala', 'el salvador', 'honduras', 'nicaragua',
+  'republica dominicana',
+]);
+function esPaisSudamerica(raw) {
+  const n = (raw || '')
+    .replace(/^[^\p{L}]+/u, '').trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+  return PAISES_SA_NOMBRES.has(n);
+}
 
 const CATS = [
   { id: 'Limpieza del hogar', emoji: '🧹' },
@@ -21,8 +40,6 @@ const CATS = [
   { id: 'Abogado/a',          emoji: '⚖️' },
   { id: 'Medico/a',           emoji: '🩺' },
 ];
-
-const FREE_LIMIT = 3;
 
 function estrellas(r) {
   const n = Math.round(r || 0);
@@ -41,7 +58,7 @@ function WorkerCard({ item, onPress }) {
         <View style={ss.cardInfo}>
           <Text style={ss.cardNombre}>{item.nombre || 'Trabajador'}</Text>
           <Text style={ss.cardOficio}>{oficio}</Text>
-          <Text style={ss.cardZona}>📍 {zona}</Text>
+          <Text style={ss.cardZona}>{zona}</Text>
         </View>
         {item.referencias && (
           <View style={ss.refBadge}><Text style={ss.refTxt}>✓ Ref</Text></View>
@@ -53,7 +70,7 @@ function WorkerCard({ item, onPress }) {
           <Text style={ss.ratingNum}>{(item.rating || 0).toFixed(1)}</Text>
           <Text style={ss.ratingCount}>({item.total_valoraciones || 0})</Text>
         </>):(
-          <Text style={ss.nuevoTxt}>✨ Nuevo en Konexu</Text>
+          <Text style={ss.nuevoTxt}>Nuevo en Konexu</Text>
         )}
         {item.disponibilidad && (
           <Text style={ss.disponib}>● {item.disponibilidad}</Text>
@@ -70,14 +87,14 @@ function WorkerCard({ item, onPress }) {
   );
 }
 
-function LockedCard({ onPress }) {
+function LockedCard({ onPress, suscripto }) {
   return (
     <TouchableOpacity style={[ss.card, ss.lockedCard]} onPress={onPress} activeOpacity={0.9}>
       <View style={ss.lockedRow}>
-        <View style={ss.lockCircle}><Text style={ss.lockIcon}>🔒</Text></View>
+        <View style={ss.lockCircle}><Ionicons name="lock-closed" size={18} color="#A898B8"/></View>
         <View style={{ flex: 1 }}>
           <Text style={ss.lockTitle}>Perfil bloqueado</Text>
-          <Text style={ss.lockSub}>Activá tu suscripción para ver este perfil</Text>
+          <Text style={ss.lockSub}>{suscripto ? 'Volvé mañana o pasate a Premium' : 'Activá tu suscripción para ver este perfil'}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -85,28 +102,61 @@ function LockedCard({ onPress }) {
 }
 
 export default function BuscarEmpresaScreen({ navigation }) {
-  const { suscripcionActiva } = useApp();
   const [query,     setQuery]     = useState('');
   const [catActiva, setCatActiva] = useState(null);
   const [todos,     setTodos]     = useState([]);
   const [loading,   setLoading]   = useState(false);
+  const [cupo,      setCupo]      = useState({ restante_efectivo: 0, suscripcion_activa: false });
+  const [vistosIds, setVistosIds] = useState([]);
+  const [planSA,    setPlanSA]    = useState(false);
 
-  useEffect(() => { buscar('', catActiva); }, [catActiva]);
+  useEffect(() => { buscar('', catActiva); }, [catActiva, planSA]);
+
+  async function cargarCupo() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const [{ data: cupoData }, { data: vistos }, { data: miPerfil }] = await Promise.all([
+      supabase.rpc('cupo_empresa_restante'),
+      supabase.from('visualizaciones').select('worker_id').eq('employer_id', user.id),
+      supabase.from('profiles').select('suscripcion_plan').eq('id', user.id).single(),
+    ]);
+    if (cupoData && cupoData[0]) setCupo(cupoData[0]);
+    if (vistos) setVistosIds(vistos.map((v) => v.worker_id));
+    setPlanSA(miPerfil?.suscripcion_plan === 'membresia_sa');
+  }
+
+  useEffect(() => {
+    // Se refresca al volver a esta pantalla (ej. despues de ver un perfil) —
+    // sino el cupo/lista de vistos queda congelado desde el primer montaje,
+    // porque esta pantalla vive en un tab que no se remonta.
+    const unsub = navigation.addListener('focus', cargarCupo);
+    cargarCupo();
+    return unsub;
+  }, []);
 
   async function buscar(q, cat) {
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // perfiles_publicos, no profiles directo: profiles solo deja ver la fila
+      // propia por RLS (auth.uid()=id) — con profiles esta busqueda siempre
+      // devolvia 0 resultados reales. Mismo patron que BuscarScreen.js (employer).
       let req = supabase
-        .from('profiles')
-        .select('id,nombre,servicios,profesiones,especialidades,ciudad,barrio,pais,disponibilidad,rating,total_valoraciones,referencias')
+        .from('perfiles_publicos')
+        .select('id,nombre,apellido1,servicios,profesiones,especialidades,rating,estrellas,total_valoraciones,total_calificaciones,ciudad,barrio,pais,disponibilidad,referencias,fecha_nac,idiomas,tipos_empleo,bio,anios_experiencia,sueldo_pretension_min,sueldo_pretension_max,sueldo_moneda,updated_at,perfil_visible')
+        .eq('rol', 'worker')
         .eq('perfil_activo', true)
         .order('rating', { ascending: false })
         .limit(40);
 
+      if (user) req = req.neq('id', user.id);
       if (cat) req = req.contains('servicios', [cat]);
 
       const { data } = await req;
       let items = data || [];
+
+      if (planSA) items = items.filter(p => esPaisSudamerica(p.pais));
 
       const lower = (q || '').toLowerCase().trim();
       if (lower) {
@@ -145,9 +195,20 @@ export default function BuscarEmpresaScreen({ navigation }) {
     navigation.getParent()?.navigate('BienvenidaEmpresa');
   }
 
-  const visibles  = suscripcionActiva ? todos : todos.slice(0, FREE_LIMIT);
-  const bloqueados = (!suscripcionActiva && todos.length > FREE_LIMIT)
-    ? todos.length - FREE_LIMIT : 0;
+  // Perfiles que la empresa ya vio antes (gratis para siempre, dedupe server-side) +
+  // hasta el cupo que le quede hoy/esta semana. restante_efectivo ya viene calculado
+  // por el RPC segun el plan real (gratis 3/9, SA/World 10/dia, premium 999999 =
+  // efectivamente ilimitado) — no hay que volver a ramificar por suscripcion_activa
+  // aca, porque los 3 niveles pagos NO son todos ilimitados.
+  const yaVistosIds = new Set(vistosIds);
+  const nuevosDisponibles = cupo.restante_efectivo;
+  let nuevosUsados = 0;
+  const visibles = todos.filter((item) => {
+    if (yaVistosIds.has(item.id)) return true;
+    if (nuevosUsados < nuevosDisponibles) { nuevosUsados++; return true; }
+    return false;
+  });
+  const bloqueados = todos.length - visibles.length;
 
   return (
     <SafeAreaView style={ss.container} edges={['top']}>
@@ -211,7 +272,15 @@ export default function BuscarEmpresaScreen({ navigation }) {
           <TouchableOpacity style={ss.gateBanner} onPress={verPlanes} activeOpacity={0.9}>
             <View style={{ flex: 1 }}>
               <Text style={ss.gateTitle}>+{bloqueados} perfiles más disponibles</Text>
-              <Text style={ss.gateSub}>Activá tu plan para contactar sin límite</Text>
+              <Text style={ss.gateSub}>
+                {cupo.suscripcion_activa
+                  ? (cupo.restante_efectivo === 0
+                      ? 'Alcanzaste tus perfiles de hoy — volvé mañana o pasate a Premium para no tener tope diario'
+                      : `Te quedan ${cupo.restante_efectivo} perfiles nuevos hoy, o pasate a Premium para no tener tope`)
+                  : (cupo.restante_semana === 0
+                      ? 'Volvé la próxima semana o activá tu suscripción'
+                      : 'Activá tu suscripción para ver más perfiles por día')}
+              </Text>
             </View>
             <View style={ss.gateBtn}><Text style={ss.gateBtnTxt}>Ver planes →</Text></View>
           </TouchableOpacity>
@@ -225,7 +294,7 @@ export default function BuscarEmpresaScreen({ navigation }) {
               <WorkerCard key={item.id} item={item} onPress={() => irAPerfil(item)} />
             ))}
             {bloqueados > 0 && Array.from({ length: Math.min(2, bloqueados) }).map((_, i) => (
-              <LockedCard key={'lock-' + i} onPress={verPlanes} />
+              <LockedCard key={'lock-' + i} onPress={verPlanes} suscripto={cupo.suscripcion_activa} />
             ))}
             {todos.length === 0 && !loading && (
               <View style={ss.empty}>

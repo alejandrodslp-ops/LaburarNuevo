@@ -55,12 +55,11 @@ function Card({item,onContactar}){
         <View style={ss.cardInfo}>
           <Text style={ss.cardNombre}>{nombre}</Text>
           <Text style={ss.cardOficio}>{trCat(oficio,idioma)}</Text>
-          <Text style={ss.cardZona}>📍 {zona}</Text>
+          <Text style={ss.cardZona}>{zona}</Text>
         </View>
         {item.referencias&&<View style={ss.refBadge}><Text style={ss.refTxt}>✓ Ref</Text></View>}
       </View>
       <View style={ss.privaRow}>
-        <Text style={ss.privaIcon}>🔒</Text>
         <Text style={ss.privaTxt}>{t('buscar_privacidad_match')}</Text>
       </View>
       <View style={ss.ratingRow}>
@@ -69,7 +68,7 @@ function Card({item,onContactar}){
           <Text style={ss.ratingNum}>{item.rating||0}</Text>
           <Text style={ss.ratingCount}>({item.total_valoraciones||0} {t('valoraciones')})</Text>
         </>):(
-          <Text style={ss.nuevoTxt}>✨ Nuevo en Konexu</Text>
+          <Text style={ss.nuevoTxt}>Nuevo en Konexu</Text>
         )}
         <Text style={ss.disponib}>● {dispTr}</Text>
       </View>
@@ -161,6 +160,7 @@ export default function BuscarScreen({navigation}){
       }
       let q=supabase.from('perfiles_publicos')
         .select('id,nombre,apellido1,servicios,profesiones,especialidades,rating,total_valoraciones,ciudad,barrio,pais,disponibilidad,referencias,fecha_nac,idiomas,tipos_empleo,bio,anios_experiencia,sueldo_pretension_min,sueldo_pretension_max,sueldo_moneda,updated_at,perfil_visible')
+        .eq('rol','worker')
         .eq('perfil_activo',true)
         .neq('id',user.id)
         .order('rating',{ascending:false});
@@ -231,7 +231,6 @@ export default function BuscarScreen({navigation}){
           </View>
           {sugs.length>0&&(<View style={ss.suggBox}>{sugs.map((s)=>(<TouchableOpacity key={s} style={ss.suggItem} onPress={()=>onSug(s)}><Text style={ss.suggTxt}>🔍 {s}</Text></TouchableOpacity>))}</View>)}
           <View style={ss.privaBanner}>
-            <Text>🔒</Text>
             <Text style={ss.privaBannerTxt}>{t('buscar_anonimo_banner')}</Text>
           </View>
         </View>

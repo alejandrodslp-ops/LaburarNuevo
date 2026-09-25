@@ -121,6 +121,27 @@ serve(async (req) => {
             perfil_activo:       true,
             perfil_activo_hasta: hasta.toISOString(),
           }).eq("id", userId);
+        } else if (tipo === "company_suscripcion") {
+          const vence = new Date();
+          vence.setDate(vence.getDate() + 30);
+          const planesValidos = ["membresia_sa", "membresia_world", "membresia_premium"];
+          let planId = String(payment.metadata?.plan_id || "");
+          if (!planesValidos.includes(planId)) {
+            // Fallback por monto — el pago ya salio de nuestra propia preferencia,
+            // asi que el monto es confiable aunque falte/venga mal el plan_id
+            // (build viejo de la app, o un nivel nuevo que se olvido agregar aca).
+            const monto = Number(payment.transaction_amount);
+            planId = monto === 12 ? "membresia_sa" : monto === 24 ? "membresia_world" : monto === 50 ? "membresia_premium" : "";
+            if (!planId) {
+              console.error("company_suscripcion sin plan_id reconocible, monto:", monto, "userId:", userId);
+            }
+          }
+          const update: Record<string, unknown> = {
+            suscripcion_activa:    true,
+            suscripcion_vence_at:  vence.toISOString(),
+          };
+          if (planesValidos.includes(planId)) update.suscripcion_plan = planId;
+          await supabase.from("profiles").update(update).eq("id", userId);
         } else {
           await supabase.rpc("sumar_visualizaciones", {
             employer_id: userId,
@@ -140,6 +161,8 @@ serve(async (req) => {
             referencia_externa:  String(paymentId),
             concepto:            tipo === "worker_activacion"
               ? "Activación de perfil trabajador — Konexu (60 días)"
+              : tipo === "company_suscripcion"
+              ? "Suscripción empresa — Konexu (30 días)"
               : `Visualizaciones de perfiles empleador — Konexu (${cantidadPerfiles} créditos)`,
           },
         }).catch(() => {});

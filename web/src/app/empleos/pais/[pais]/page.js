@@ -118,6 +118,7 @@ async function getOfertasPais(codigo) {
     .from('ofertas')
     .select('id,titulo,pais,ciudad,lugar,fecha_cierre,created_at,employer_id')
     .eq('activa', true)
+    .eq('estado', 'aprobada')
     .eq('pais', codigo)
     .order('created_at', { ascending: false })
     .limit(40)

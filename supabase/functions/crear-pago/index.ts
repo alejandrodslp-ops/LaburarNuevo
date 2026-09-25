@@ -29,23 +29,100 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { monto, descripcion, worker_id, cantidad_perfiles, tipo } = body;
+    const { monto, descripcion, worker_id, cantidad_perfiles, tipo, plan_id } = body;
 
     // user_id siempre del token verificado — nunca del body
     const userId = user.id;
+
+    // El precio (y, para creditos, la cantidad que se acredita) SIEMPRE los
+    // decide el servidor a partir de una tabla fija — nunca lo que mande el
+    // cliente en el body, sino cualquiera edita el request y paga lo que
+    // quiera por lo que quiera (plan Premium por U$1, 10000 creditos por un
+    // centavo, etc).
+    const PRECIOS_SUSCRIPCION: Record<string, number> = {
+      membresia_sa: 12,
+      membresia_world: 24,
+      membresia_premium: 50,
+    };
+    const PRECIO_ACTIVACION_WORKER = 1;
+    // Precios reales de PagoScreen.js (mismo mapa duplicado ahi, mantener en
+    // sync) — 2 cantidades x 3 tramos segun el pais del perfil. El monto NUNCA
+    // se toma del body: se deriva 100% server-side a partir de profiles.pais,
+    // que es la unica señal de pais que ya usa el resto de la app (bonus de
+    // matching, etc.) — sin esto, cualquiera podia pedir el tramo mas barato
+    // (pensado para paises con moneda muy devaluada) mandando el monto exacto
+    // en el body, sin importar su pais real.
+    const PRECIOS_VISUALIZACIONES: Record<number, Record<"sa" | "devaluado" | "world", number>> = {
+      3:  { sa: 3.99,  world: 7.98,  devaluado: 1.50 },
+      10: { sa: 9.99,  world: 19.99, devaluado: 4.99 },
+    };
+    // Mismos 32 paises que ofrece el selector de onboarding (EditarPerfilScreen.js /
+    // EditarPerfilEmpleadorDatosScreen.js) — "Otro" y cualquier valor no reconocido
+    // caen en "world" (el tramo mas caro), nunca en el mas barato, por seguridad.
+    const PAISES_SA = new Set([
+      "uruguay", "argentina", "brasil", "brazil", "chile", "paraguay", "bolivia",
+      "peru", "colombia", "mexico", "ecuador", "venezuela", "cuba", "costa rica",
+      "panama", "guatemala", "el salvador", "honduras", "nicaragua",
+      "republica dominicana",
+    ]);
+    const PAISES_DEVALUADOS = new Set(["india"]);
+
+    function normalizarPais(raw: string): string {
+      return raw
+        .replace(/^[^\p{L}]+/u, "").trim() // saca emoji/prefijo no-letra
+        .normalize("NFD").replace(/[̀-ͯ]/g, "") // saca acentos
+        .toLowerCase();
+    }
+    function tierDePais(raw: string | null | undefined): "sa" | "devaluado" | "world" {
+      if (!raw) return "world";
+      const n = normalizarPais(raw);
+      if (PAISES_DEVALUADOS.has(n)) return "devaluado";
+      if (PAISES_SA.has(n)) return "sa";
+      return "world";
+    }
+
+    let montoFinal: number;
+    let cantidadFinal: number;
+    const tipoFinal = tipo || "employer_visualizaciones";
+
+    if (tipoFinal === "company_suscripcion") {
+      const precio = PRECIOS_SUSCRIPCION[plan_id as string];
+      if (!precio) {
+        return new Response(JSON.stringify({ error: "plan_id inválido o ausente" }), {
+          status: 400, headers: CORS,
+        });
+      }
+      montoFinal = precio;
+      cantidadFinal = 0;
+    } else if (tipoFinal === "worker_activacion") {
+      montoFinal = PRECIO_ACTIVACION_WORKER;
+      cantidadFinal = 0;
+    } else {
+      const cantidad = Number(cantidad_perfiles);
+      if (cantidad !== 3 && cantidad !== 10) {
+        return new Response(JSON.stringify({ error: "Cantidad de perfiles inválida" }), {
+          status: 400, headers: CORS,
+        });
+      }
+      const { data: perfilPago } = await supabase.from("profiles").select("pais").eq("id", userId).single();
+      const tier = tierDePais(perfilPago?.pais);
+      montoFinal = PRECIOS_VISUALIZACIONES[cantidad][tier];
+      cantidadFinal = cantidad;
+    }
 
     const preference = {
       items: [{
         title:      descripcion || "Konexu - Ver perfiles completos",
         quantity:   1,
-        unit_price: monto || 1,
+        unit_price: montoFinal,
         currency_id: "USD",
       }],
       external_reference: userId,
       metadata: {
         worker_id:          worker_id          || null,
-        cantidad_perfiles:  cantidad_perfiles  || 3,
-        tipo:               tipo               || "employer_visualizaciones",
+        cantidad_perfiles:  cantidadFinal,
+        tipo:               tipoFinal,
+        plan_id:            plan_id            || null,
       },
       notification_url: "https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/webhook-pago",
       back_urls: {

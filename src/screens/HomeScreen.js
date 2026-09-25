@@ -40,14 +40,10 @@ function HomeHeader({ nombre, activo, diasRestantes, vistas, contactos, onActiva
       <View style={ss.headerTop}>
         <View>
           <Text style={ss.greeting}>{saludo}</Text>
-          <Text style={ss.name}>{nombre ? t('hola_nombre', { nombre }) : `${t('hola')} 👋`}</Text>
+          <Text style={ss.name}>{nombre ? t('hola_nombre', { nombre }) : t('hola')}</Text>
         </View>
         <View style={ss.headerRight}>
           <IdiomaBoton />
-          <TouchableOpacity style={ss.bellWrap}>
-            <Text style={ss.bell}>🔔</Text>
-            <View style={ss.bellDot} />
-          </TouchableOpacity>
           <View style={ss.avatar}>
             {avatar
               ? <Image source={{ uri: avatar }} style={{ width: 38, height: 38, borderRadius: 19 }} />
@@ -442,9 +438,6 @@ const ss = StyleSheet.create({
   greeting: { color: 'rgba(26,58,92,0.6)', fontSize: SIZES.textSm, fontWeight: '500' },
   name:     { color: '#1A3A5C', fontSize: SIZES.textXl, fontWeight: '800', letterSpacing: -0.5, marginTop: 2 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  bellWrap: { position: 'relative' },
-  bell:     { fontSize: 22 },
-  bellDot:  { position: 'absolute', top: -1, right: -1, width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.coral, borderWidth: 1.5, borderColor: COLORS.indigo },
   avatar:   { width: 38, height: 38, borderRadius: 19, backgroundColor: COLORS.coral, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)' },
 
   // Status pill

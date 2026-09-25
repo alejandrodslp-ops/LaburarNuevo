@@ -5,6 +5,7 @@ import { createStackNavigator } from "@react-navigation/stack";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, Text, StyleSheet, ActivityIndicator, Linking, Alert } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { LinearGradient } from "expo-linear-gradient";
@@ -35,6 +36,8 @@ import BienvenidaEmpresaScreen from "./src/screens/company/BienvenidaEmpresaScre
 import HomeEmpresaScreen from "./src/screens/company/HomeEmpresaScreen";
 import BuscarEmpresaScreen from "./src/screens/company/BuscarEmpresaScreen";
 import PerfilEmpresaScreen from "./src/screens/company/PerfilEmpresaScreen";
+import MisOfertasEmpresaScreen from "./src/screens/company/MisOfertasEmpresaScreen";
+import CandidatosOfertaScreen from "./src/screens/company/CandidatosOfertaScreen";
 import EditarPerfilScreen from "./src/screens/worker/EditarPerfilScreen";
 import PropuestaScreen from "./src/screens/worker/PropuestaScreen";
 import EncuestaRechazoScreen from "./src/screens/worker/EncuestaRechazoScreen";
@@ -58,11 +61,21 @@ const Tab=createBottomTabNavigator();
 const Stack=createStackNavigator();
 
 function TabIcon({name,focused}){
-  const icons={Inicio:"🏠",Buscar:"🔍",Concursa:"🏛️",Mensajes:"💬",Perfil:"👤",Cuenta:"👤",Ofertas:"📋"};
+  const iconNames={
+    Inicio:focused?"home":"home-outline",
+    Buscar:focused?"search":"search-outline",
+    Explorar:focused?"search":"search-outline",
+    Concursa:focused?"business":"business-outline",
+    Mensajes:focused?"chatbubble-ellipses":"chatbubble-ellipses-outline",
+    Perfil:focused?"person":"person-outline",
+    Cuenta:focused?"person":"person-outline",
+    Ofertas:focused?"clipboard":"clipboard-outline",
+    Publicar:focused?"megaphone":"megaphone-outline",
+  };
   return(
     <View style={{alignItems:"center"}}>
       {focused&&<View style={ss.ind}/>}
-      <Text style={{fontSize:18,color:focused?"#4DC8C4":"#A898B8"}}>{icons[name]}</Text>
+      <Ionicons name={iconNames[name]} size={20} color={focused?"#4DC8C4":"#A898B8"}/>
     </View>
   );
 }
@@ -180,10 +193,15 @@ function WorkerTabs(){
 }
 
 function EmployerTabs(){
-  const{mensajesSinLeer,session,empleadorDatosCompletos}=useApp();
+  const{mensajesSinLeer,session,empleadorDatosCompletos,tieneOfertaAprobada}=useApp();
   const{t}=useI18n();
   const esAdmin=session?.user?.email==='alejandrodslp@gmail.com';
   const datosFaltantes=!esAdmin&&empleadorDatosCompletos===false;
+  // Sin esto, cualquiera se registra como empleador y busca/ve trabajadores sin
+  // ninguna intencion real de contratar — se exige publicar (y que se apruebe,
+  // misma revision que las empresas) al menos una oferta antes de poder buscar.
+  // El gate real (no se puede esquivar por API directa) esta en consumir_visualizacion().
+  const sinOferta=!esAdmin&&tieneOfertaAprobada===false;
 
   return(
     <Tab.Navigator screenOptions={({route})=>({
@@ -208,6 +226,18 @@ function EmployerTabs(){
                   {text:'Completar datos',onPress:()=>navigation.navigate('Cuenta',{screen:'EditarPerfilEmpleadorDatos'})},
                 ]
               );
+              return;
+            }
+            if(sinOferta){
+              e.preventDefault();
+              Alert.alert(
+                'Publicá una oferta primero',
+                'Para buscar trabajadores necesitás tener al menos una oferta de trabajo publicada y aprobada. Publicala desde la pestaña Ofertas.',
+                [
+                  {text:'Ahora no',style:'cancel'},
+                  {text:'Ir a Ofertas',onPress:()=>navigation.navigate('Ofertas')},
+                ]
+              );
             }
           }
         })}
@@ -221,6 +251,13 @@ function EmployerTabs(){
 }
 
 function CompanyTabs(){
+  const{session,tieneOfertaAprobada}=useApp();
+  const esAdmin=session?.user?.email==='alejandrodslp@gmail.com';
+  // Mismo motivo que en EmployerTabs: sin esto, una empresa se registra y
+  // busca/ve trabajadores sin haber publicado nunca una vacante real. El gate
+  // real (no se puede esquivar por API directa) esta en consumir_visualizacion_empresa().
+  const sinOferta=!esAdmin&&tieneOfertaAprobada===false;
+
   return(
     <Tab.Navigator screenOptions={({route})=>({
       headerShown:false,
@@ -231,7 +268,24 @@ function CompanyTabs(){
       tabBarIcon:({focused})=><TabIcon name={route.name} focused={focused}/>,
     })}>
       <Tab.Screen name="Inicio" component={HomeEmpresaScreen}/>
-      <Tab.Screen name="Explorar" component={BuscarEmpresaScreen}/>
+      <Tab.Screen name="Publicar" component={MisOfertasEmpresaScreen}/>
+      <Tab.Screen name="Explorar" component={BuscarEmpresaScreen}
+        listeners={({navigation})=>({
+          tabPress:(e)=>{
+            if(sinOferta){
+              e.preventDefault();
+              Alert.alert(
+                'Publicá una vacante primero',
+                'Para buscar trabajadores necesitás tener al menos una búsqueda publicada y aprobada. Publicala desde la pestaña Publicar.',
+                [
+                  {text:'Ahora no',style:'cancel'},
+                  {text:'Ir a Publicar',onPress:()=>navigation.navigate('Publicar')},
+                ]
+              );
+            }
+          }
+        })}
+      />
       <Tab.Screen name="Cuenta" component={PerfilEmpresaScreen}/>
     </Tab.Navigator>
   );
@@ -244,6 +298,9 @@ function CompanyStack(){
       <Stack.Screen name="BienvenidaEmpresa" component={BienvenidaEmpresaScreen}/>
       <Stack.Screen name="Pago" component={PagoScreen}/>
       <Stack.Screen name="PerfilTrabajador" component={PerfilTrabajadorScreen}/>
+      <Stack.Screen name="CrearOferta" component={CrearOfertaScreen}/>
+      <Stack.Screen name="MisOfertasEmpresa" component={MisOfertasEmpresaScreen}/>
+      <Stack.Screen name="CandidatosOferta" component={CandidatosOfertaScreen}/>
     </Stack.Navigator>
   );
 }

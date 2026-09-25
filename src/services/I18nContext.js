@@ -12,7 +12,7 @@ const TR = {
     buenas_tardes: 'Buenas tardes',
     buenas_noches: 'Buenas noches',
     hola:          'Hola',
-    hola_nombre:   'Hola, {nombre} 👋',
+    hola_nombre:   'Hola, {nombre}',
 
     // ── HomeScreen — perfil pill ─────────────────────────────────────
     mi_perfil:      'MI PERFIL',
@@ -356,7 +356,7 @@ const TR = {
     buenas_tardes: 'Boa tarde',
     buenas_noches: 'Boa noite',
     hola:          'Olá',
-    hola_nombre:   'Olá, {nombre} 👋',
+    hola_nombre:   'Olá, {nombre}',
 
     // ── HomeScreen — perfil pill ─────────────────────────────────────
     mi_perfil:      'MEU PERFIL',
@@ -701,7 +701,7 @@ const TR = {
     buenas_tardes: 'Good afternoon',
     buenas_noches: 'Good evening',
     hola:          'Hello',
-    hola_nombre:   'Hello, {nombre} 👋',
+    hola_nombre:   'Hello, {nombre}',
 
     // ── HomeScreen — profile pill ────────────────────────────────────
     mi_perfil:      'MY PROFILE',
@@ -1045,7 +1045,7 @@ const TR = {
     buenas_tardes: 'Bon après-midi',
     buenas_noches: 'Bonsoir',
     hola:          'Salut',
-    hola_nombre:   'Salut, {nombre} 👋',
+    hola_nombre:   'Salut, {nombre}',
 
     // ── HomeScreen — profil pill ─────────────────────────────────────
     mi_perfil:      'MON PROFIL',
@@ -1389,7 +1389,7 @@ const TR = {
     buenas_tardes: 'Buon pomeriggio',
     buenas_noches: 'Buonasera',
     hola:          'Ciao',
-    hola_nombre:   'Ciao, {nombre} 👋',
+    hola_nombre:   'Ciao, {nombre}',
 
     // ── HomeScreen — pill profilo ────────────────────────────────────
     mi_perfil:      'IL MIO PROFILO',
@@ -1733,7 +1733,7 @@ const TR = {
     buenas_tardes: 'Guten Nachmittag',
     buenas_noches: 'Guten Abend',
     hola:          'Hallo',
-    hola_nombre:   'Hallo, {nombre} 👋',
+    hola_nombre:   'Hallo, {nombre}',
 
     // ── HomeScreen — Profil-Pill ─────────────────────────────────────
     mi_perfil:      'MEIN PROFIL',
@@ -2076,7 +2076,7 @@ const TR = {
     buenas_tardes: 'God eftermiddag',
     buenas_noches: 'God kväll',
     hola:          'Hej',
-    hola_nombre:   'Hej, {nombre} 👋',
+    hola_nombre:   'Hej, {nombre}',
     mi_perfil:      'MIN PROFIL',
     activo:         'Aktiv',
     inactivo:       'Inaktiv',
@@ -2379,7 +2379,7 @@ const TR = {
     buenas_tardes: 'God ettermiddag',
     buenas_noches: 'God kveld',
     hola:          'Hei',
-    hola_nombre:   'Hei, {nombre} 👋',
+    hola_nombre:   'Hei, {nombre}',
     mi_perfil:      'MIN PROFIL',
     activo:         'Aktiv',
     inactivo:       'Inaktiv',
@@ -2682,7 +2682,7 @@ const TR = {
     buenas_tardes: 'こんにちは',
     buenas_noches: 'こんばんは',
     hola:          'こんにちは',
-    hola_nombre:   'こんにちは、{nombre} 👋',
+    hola_nombre:   'こんにちは、{nombre}',
     mi_perfil:      'マイプロフィール',
     activo:         'アクティブ',
     inactivo:       '非アクティブ',
@@ -2985,7 +2985,7 @@ const TR = {
     buenas_tardes: 'नमस्कार',
     buenas_noches: 'शुभ संध्या',
     hola:          'नमस्ते',
-    hola_nombre:   'नमस्ते, {nombre} 👋',
+    hola_nombre:   'नमस्ते, {nombre}',
     mi_perfil:      'मेरा प्रोफ़ाइल',
     activo:         'सक्रिय',
     inactivo:       'निष्क्रिय',

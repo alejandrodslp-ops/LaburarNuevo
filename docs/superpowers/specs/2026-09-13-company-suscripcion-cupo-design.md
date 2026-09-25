@@ -51,7 +51,8 @@ declare
   v_sem int;
   v_inicio_semana date;
 begin
-  select coalesce(p.suscripcion_activa,false) into v_sub from profiles p where p.id = v_company;
+  select coalesce(p.suscripcion_activa,false) and coalesce(p.suscripcion_vence_at, 'epoch') > now()
+    into v_sub from profiles p where p.id = v_company;
 
   -- Semana ISO: lunes a domingo, huso Montevideo
   v_inicio_semana := (date_trunc('week', (now() at time zone 'America/Montevideo')))::date;

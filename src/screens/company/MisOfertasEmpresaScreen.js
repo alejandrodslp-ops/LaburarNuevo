@@ -14,7 +14,7 @@ function formatFecha(iso){
   return d.toLocaleDateString('es-UY',{day:'2-digit',month:'2-digit',year:'2-digit'});
 }
 
-function OfertaCard({oferta,onPress,onToggle}){
+function OfertaCard({oferta,onPress,onToggle,onVerCandidatos}){
   const activa=oferta.activa;
   return(
     <TouchableOpacity style={ss.card} onPress={onPress} activeOpacity={0.8}>
@@ -51,11 +51,16 @@ function OfertaCard({oferta,onPress,onToggle}){
           <Text style={[ss.badgeTxt,activa?ss.badgeTxtOn:ss.badgeTxtOff]}>{activa?'Activa':'Inactiva'}</Text>
         </View>
       </View>
+      {oferta.estado==='aprobada'&&(
+        <TouchableOpacity style={ss.candidatosBtn} onPress={onVerCandidatos} activeOpacity={0.85}>
+          <Text style={ss.candidatosBtnTxt}>👥 Ver candidatos</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 }
 
-export default function OfertasEmpleadorScreen({navigation}){
+export default function MisOfertasEmpresaScreen({navigation}){
   const[ofertas,setOfertas]=useState([]);
   const[loading,setLoading]=useState(true);
   const{refrescarOfertaAprobada}=useApp();
@@ -70,7 +75,7 @@ export default function OfertasEmpleadorScreen({navigation}){
         .eq('employer_id',user.id)
         .order('created_at',{ascending:false});
       setOfertas(data||[]);
-    }catch(e){logError('OfertasEmpleador',e);}
+    }catch(e){logError('MisOfertasEmpresa',e);}
     finally{setLoading(false);}
   },[]);
 
@@ -78,8 +83,8 @@ export default function OfertasEmpleadorScreen({navigation}){
   useEffect(()=>{
     const u=navigation.addListener('focus',()=>{
       cargar();
-      // Recien aprobada la primera oferta se desbloquea "Buscar" — sin esto el
-      // empleador tendria que cerrar sesion y volver a entrar para verlo reflejado.
+      // Recien aprobada la primera busqueda se desbloquea "Explorar" — sin esto
+      // la empresa tendria que cerrar sesion y volver a entrar para verlo reflejado.
       refrescarOfertaAprobada();
     });
     return u;
@@ -91,12 +96,13 @@ export default function OfertasEmpleadorScreen({navigation}){
     const{error}=await supabase.from('ofertas').update({activa:nueva}).eq('id',oferta.id);
     if(error){
       setOfertas(prev=>prev.map(o=>o.id===oferta.id?{...o,activa:oferta.activa}:o));
-      Alert.alert('Error','No se pudo actualizar la oferta.');
+      Alert.alert('Error','No se pudo actualizar la búsqueda.');
     }
   }
 
   function irACrear(){navigation.navigate('CrearOferta',{oferta:null});}
   function irAEditar(oferta){navigation.navigate('CrearOferta',{oferta});}
+  function irACandidatos(oferta){navigation.navigate('CandidatosOferta',{ofertaId:oferta.id,titulo:oferta.titulo});}
 
   return(
     <SafeAreaView style={ss.c} edges={['top']}>
@@ -105,9 +111,9 @@ export default function OfertasEmpleadorScreen({navigation}){
         <TouchableOpacity onPress={()=>navigation.goBack()}>
           <Text style={ss.back}>Volver</Text>
         </TouchableOpacity>
-        <Text style={ss.htit}>Mis Ofertas</Text>
+        <Text style={ss.htit}>Mis Búsquedas</Text>
         <TouchableOpacity style={ss.addBtn} onPress={irACrear}>
-          <Text style={ss.addTxt}>+ Nueva</Text>
+          <Text style={ss.addTxt}>+ Nueva búsqueda</Text>
         </TouchableOpacity>
       </View>
 
@@ -116,17 +122,17 @@ export default function OfertasEmpleadorScreen({navigation}){
       ):ofertas.length===0?(
         <View style={ss.empty}>
           <Text style={{fontSize:48,marginBottom:12}}>📋</Text>
-          <Text style={ss.emptyTit}>Sin ofertas publicadas</Text>
-          <Text style={ss.emptySub}>Publicá tu primera oferta y llegá a cientos de trabajadores calificados.</Text>
+          <Text style={ss.emptyTit}>Sin búsquedas publicadas</Text>
+          <Text style={ss.emptySub}>Publicá tu primera búsqueda y llegá a cientos de trabajadores calificados.</Text>
           <TouchableOpacity style={ss.emptyBtn} onPress={irACrear}>
-            <Text style={ss.emptyBtnTxt}>Publicar oferta</Text>
+            <Text style={ss.emptyBtnTxt}>Publicar búsqueda</Text>
           </TouchableOpacity>
         </View>
       ):(
         <FlatList
           data={ofertas}
           keyExtractor={o=>o.id}
-          renderItem={({item})=><OfertaCard oferta={item} onPress={()=>irAEditar(item)} onToggle={toggleActiva}/>}
+          renderItem={({item})=><OfertaCard oferta={item} onPress={()=>irAEditar(item)} onToggle={toggleActiva} onVerCandidatos={()=>irACandidatos(item)}/>}
           contentContainerStyle={{padding:16,paddingBottom:32}}
           showsVerticalScrollIndicator={false}
         />
@@ -147,10 +153,6 @@ const ss=StyleSheet.create({
   cardLeft:{flex:1,marginRight:12},
   cardTitulo:{fontSize:16,fontWeight:'800',color:C.texto1,lineHeight:22},
   cardCargo:{fontSize:12,color:C.texto3,marginTop:2,fontWeight:'600'},
-  badgePendiente:{backgroundColor:'#FEF3C7',borderRadius:8,paddingHorizontal:8,paddingVertical:4,alignSelf:'flex-start',marginTop:6},
-  badgeAprobada:{backgroundColor:'#D1FAE5',borderRadius:8,paddingHorizontal:8,paddingVertical:4,alignSelf:'flex-start',marginTop:6},
-  badgeRechazada:{backgroundColor:'#FEE2E2',borderRadius:8,paddingHorizontal:8,paddingVertical:4,alignSelf:'flex-start',marginTop:6},
-  motivoTxt:{fontSize:11,color:'#5A4E6A',marginTop:2},
   cardMeta:{flexDirection:'row',flexWrap:'wrap',gap:6,marginBottom:10},
   metaTag:{fontSize:11,color:C.texto2,backgroundColor:'#F2EDE6',borderRadius:8,paddingHorizontal:8,paddingVertical:3,fontWeight:'600'},
   cardFooter:{flexDirection:'row',alignItems:'center',flexWrap:'wrap',gap:10},
@@ -159,6 +161,12 @@ const ss=StyleSheet.create({
   badgeOn:{backgroundColor:'#E6FBF5'},badgeOff:{backgroundColor:'#F2EDE6'},
   badgeTxt:{fontSize:10,fontWeight:'700'},
   badgeTxtOn:{color:'#2E9472'},badgeTxtOff:{color:C.texto3},
+  badgePendiente:{backgroundColor:'#FEF3C7',borderRadius:8,paddingHorizontal:8,paddingVertical:4,alignSelf:'flex-start',marginTop:6},
+  badgeAprobada:{backgroundColor:'#D1FAE5',borderRadius:8,paddingHorizontal:8,paddingVertical:4,alignSelf:'flex-start',marginTop:6},
+  badgeRechazada:{backgroundColor:'#FEE2E2',borderRadius:8,paddingHorizontal:8,paddingVertical:4,alignSelf:'flex-start',marginTop:6},
+  motivoTxt:{fontSize:11,color:'#5A4E6A',marginTop:2},
+  candidatosBtn:{marginTop:12,backgroundColor:'#F2EDE6',borderRadius:10,paddingVertical:10,alignItems:'center'},
+  candidatosBtnTxt:{fontSize:13,fontWeight:'700',color:C.texto1},
   empty:{flex:1,alignItems:'center',justifyContent:'center',padding:40},
   emptyTit:{fontSize:18,fontWeight:'800',color:C.texto1,marginBottom:8,textAlign:'center'},
   emptySub:{fontSize:14,color:C.texto3,textAlign:'center',lineHeight:20,marginBottom:24},

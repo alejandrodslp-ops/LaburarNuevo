@@ -81,7 +81,8 @@ declare
   v_sem int;
   v_inicio_semana date;
 begin
-  select coalesce(p.suscripcion_activa,false) into v_sub from profiles p where p.id = v_company;
+  select coalesce(p.suscripcion_activa,false) and coalesce(p.suscripcion_vence_at, 'epoch') > now()
+    into v_sub from profiles p where p.id = v_company;
 
   v_inicio_semana := (date_trunc('week', (now() at time zone 'America/Montevideo')))::date;
 
@@ -362,11 +363,14 @@ Reemplazar por:
 ```js
   // Perfiles que la empresa ya vio antes (gratis para siempre, dedupe server-side) +
   // hasta el cupo que le quede hoy/esta semana. La suscripcion activa desbloquea todo.
+  // Se usa cupo.suscripcion_activa (recien calculado por el RPC, chequea vencimiento) en vez de
+  // suscripcionActiva de useApp() — ese valor de contexto solo se refresca al abrir la app y
+  // puede quedar desactualizado si la suscripcion vence mientras la sesion sigue abierta.
   const yaVistosIds = new Set(vistosIds); // ver Step 5 — set de worker_id ya vistos
-  const nuevosDisponibles = suscripcionActiva ? Infinity : cupo.restante_efectivo;
+  const nuevosDisponibles = cupo.suscripcion_activa ? Infinity : cupo.restante_efectivo;
   let nuevosUsados = 0;
   const visibles = todos.filter((item) => {
-    if (suscripcionActiva) return true;
+    if (cupo.suscripcion_activa) return true;
     if (yaVistosIds.has(item.id)) return true;
     if (nuevosUsados < nuevosDisponibles) { nuevosUsados++; return true; }
     return false;
@@ -418,7 +422,7 @@ Reemplazar el `Text` de `gateSub` para reflejar si el bloqueo es por cupo tempor
             <View style={{ flex: 1 }}>
               <Text style={ss.gateTitle}>+{bloqueados} perfiles más disponibles</Text>
               <Text style={ss.gateSub}>
-                {cupo.restante_semana === 0 && !suscripcionActiva
+                {cupo.restante_semana === 0 && !cupo.suscripcion_activa
                   ? 'Volvé la próxima semana o activá tu suscripción'
                   : 'Activá tu suscripción para ver sin límite'}
               </Text>
