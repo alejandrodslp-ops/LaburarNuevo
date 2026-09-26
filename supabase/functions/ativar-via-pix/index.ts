@@ -37,6 +37,14 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Usuario no encontrado" }), { status: 404 });
     }
 
+    // Con más de un match para el mismo prefijo de 8 caracteres, no hay forma
+    // segura de saber a cuál de los dos le corresponde el pago — activar el
+    // primero a ciegas podía acreditarle el pago de una persona a otra.
+    if (profiles.length > 1) {
+      console.error("ref_label ambiguo, varios usuarios con el mismo prefijo:", ref_label, profiles.map((p) => p.id));
+      return new Response(JSON.stringify({ error: "ref_label ambiguo — requiere revisión manual" }), { status: 409 });
+    }
+
     const perfil = profiles[0];
 
     if (perfil.perfil_activo) {
@@ -45,22 +53,33 @@ serve(async (req) => {
       });
     }
 
-    // Activar perfil por 60 días
-    const hasta = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
-    await supabase.from("profiles").update({
-      perfil_activo:       true,
-      perfil_activo_hasta: hasta,
-    }).eq("id", perfil.id);
-
-    // Registrar pago
-    await Promise.resolve(supabase.from("pagos").insert({
+    // Registrar el pago PRIMERO (mismo patrón que webhook-pago/webhook-paypal)
+    // — pagos.referencia_externa tiene un UNIQUE real, así que un reintento
+    // del mismo ref_label cae en el catch de abajo en vez de re-procesar.
+    const { error: pagoErr } = await supabase.from("pagos").insert({
       user_id:            perfil.id,
       monto:              15,
       moneda:             "BRL",
       estado:             "aprobado",
       metodo:             "pix_rendimento",
       referencia_externa: ref_label,
-    })).catch(() => {});
+    });
+    if (pagoErr) {
+      if (pagoErr.code === "23505") {
+        return new Response(JSON.stringify({ ok: true, duplicado: true }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      console.error("Error al registrar pago PIX:", pagoErr.message, "ref:", ref_label);
+      return new Response(JSON.stringify({ error: "No se pudo registrar el pago" }), { status: 500 });
+    }
+
+    // Activar perfil por 60 días
+    const hasta = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString();
+    await supabase.from("profiles").update({
+      perfil_activo:       true,
+      perfil_activo_hasta: hasta,
+    }).eq("id", perfil.id);
 
     // Generar comprobante (silencioso)
     supabase.functions.invoke("generar-comprobante", {
