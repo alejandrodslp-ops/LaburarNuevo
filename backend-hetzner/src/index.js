@@ -2,6 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const app = express();
 
+// Corre detras de Caddy — sin esto, req.protocol/req.get('host') devuelven
+// el localhost interno en vez del dominio publico real. Lo necesita, entre
+// otras cosas, la verificacion de firma de Twilio en whatsapp-pix-bot.js.
+app.set('trust proxy', true);
+
 app.use(express.json());
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -8,6 +8,36 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const CORS = { "Access-Control-Allow-Origin": "*" };
 
+// Verificacion de firma real de Twilio — sin esto, cualquiera podia
+// falsificar el webhook y lograr: enumeracion de cuentas registradas,
+// generar un pago PIX real a nombre de otra cuenta, y mandar un WhatsApp
+// (a costo de Konexu) al numero que el atacante eligiera en "From".
+// Algoritmo documentado por Twilio: HMAC-SHA1 de (URL + params ordenados
+// alfabeticamente, key+value concatenados sin separador) con el Auth
+// Token como clave, base64. https://www.twilio.com/docs/usage/webhooks/webhooks-security
+async function verificarFirmaTwilio(req: Request, params: Record<string, string>): Promise<boolean> {
+  const authToken = Deno.env.get("TWILIO_AUTH_TOKEN") ?? "";
+  if (!authToken) return true; // sin auth token configurado, se acepta (modo desarrollo)
+
+  const firmaRecibida = req.headers.get("X-Twilio-Signature") ?? "";
+  if (!firmaRecibida) return false;
+
+  const claves = Object.keys(params).sort();
+  let base = req.url;
+  for (const k of claves) base += k + params[k];
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(authToken),
+    { name: "HMAC", hash: "SHA-1" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(base));
+  const firmaCalculada = btoa(String.fromCharCode(...new Uint8Array(sig)));
+  return firmaCalculada === firmaRecibida;
+}
+
 // ── Enviar mensaje WhatsApp via Twilio ──────────────────────────────────────
 async function enviarWhatsApp(para: string, mensaje: string): Promise<void> {
   const sid   = Deno.env.get("TWILIO_ACCOUNT_SID") ?? "";
@@ -106,6 +136,12 @@ serve(async (req) => {
     const form     = await req.formData().catch(() => null);
     const body     = form ? Object.fromEntries(form.entries()) : await req.json().catch(() => ({}));
 
+    const firmaOk = await verificarFirmaTwilio(req, body as Record<string, string>);
+    if (!firmaOk) {
+      console.error("Firma de webhook Twilio inválida — request rechazado");
+      return new Response("Unauthorized", { status: 401, headers: CORS });
+    }
+
     const telefono = String(body.From ?? "").replace("whatsapp:", "").trim();
     const mensaje  = String(body.Body ?? "").trim().toLowerCase();
 
@@ -153,9 +189,6 @@ serve(async (req) => {
       // Generar PIX
       const MONTO_BRL = 15;
       const { qr_code, payment_id } = await generarPIX(authUser.email!, authUser.id, MONTO_BRL);
-
-      // Guardar el telefono en el perfil para futuros mensajes
-      await Promise.resolve(supabase.from("profiles").update({ telefono_whatsapp: telefono }).eq("id", authUser.id)).catch(() => {});
 
       const nome = perfil?.nombre ?? authUser.email?.split("@")[0] ?? "trabalhador";
       await enviarWhatsApp(telefono, mensagemResposta("pix", {

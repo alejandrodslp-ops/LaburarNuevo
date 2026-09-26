@@ -12,6 +12,29 @@ const MONTO_BRL             = 15.0;
 // Twilio envía application/x-www-form-urlencoded
 router.use(require('express').urlencoded({ extended: false }));
 
+// Verificacion de firma real de Twilio — sin esto, cualquiera podia
+// falsificar el webhook y lograr: enumeracion de cuentas registradas,
+// generar un pago PIX real a nombre de otra cuenta, y mandar un WhatsApp
+// (a costo de Konexu) al numero que el atacante eligiera. Requiere
+// app.set('trust proxy', true) en index.js para que req.protocol/host
+// reflejen el dominio publico real detras de Caddy, no el localhost interno.
+function verificarFirmaTwilio(req) {
+  if (!TWILIO_AUTH_TOKEN) return true; // sin auth token configurado, se acepta (modo desarrollo)
+  const firmaRecibida = req.headers['x-twilio-signature'] ?? '';
+  if (!firmaRecibida) return false;
+
+  const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+  const claves = Object.keys(req.body ?? {}).sort();
+  let base = url;
+  for (const k of claves) base += k + req.body[k];
+
+  const firmaCalculada = require('crypto')
+    .createHmac('sha1', TWILIO_AUTH_TOKEN)
+    .update(Buffer.from(base, 'utf-8'))
+    .digest('base64');
+  return firmaCalculada === firmaRecibida;
+}
+
 async function enviarWA(to, body) {
   const auth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64');
   await fetch(
@@ -25,8 +48,13 @@ async function enviarWA(to, body) {
 }
 
 router.post('/', async (req, res) => {
-  // Twilio espera siempre 200 — nunca devolver error HTTP
+  // Twilio espera siempre 200 — nunca devolver error HTTP (salvo firma invalida)
   try {
+    if (!verificarFirmaTwilio(req)) {
+      console.error('Firma de webhook Twilio inválida — request rechazado');
+      return res.status(401).send('Unauthorized');
+    }
+
     const from  = req.body?.From ?? '';
     const texto = (req.body?.Body ?? '').trim().toLowerCase();
 
