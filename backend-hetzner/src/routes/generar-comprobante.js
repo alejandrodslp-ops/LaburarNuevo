@@ -3,9 +3,18 @@ const { db } = require('../lib/supabase');
 const router = Router();
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const SERVICE_KEY     = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 router.post('/', async (req, res) => {
   try {
+    // Ruta interna, servidor-a-servidor — solo la llaman webhook-pago y
+    // ativar-via-pix. Sin esto, cualquiera con la URL podia generar un
+    // comprobante de pago falso a nombre de cualquier usuario (mismo fix
+    // que se hizo en la funcion real Deno, 2026-09-26).
+    const auth = req.headers['authorization'] ?? '';
+    if (auth !== `Bearer ${SERVICE_KEY}`) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
     // referencia_externa/concepto son los nombres reales (comprobantes tiene
     // esas columnas, no descripcion/worker_id — corregido junto con el mismo
     // bug en webhook-pago.js, 2026-09-25, esta ruta nunca estuvo en vivo).

@@ -187,6 +187,16 @@ serve(async (req) => {
   const RESEND_KEY   = Deno.env.get("RESEND_API_KEY") ?? "";
   const supabase     = createClient(SUPABASE_URL, SERVICE_KEY);
 
+  // Funci&oacute;n interna, servidor-a-servidor &mdash; solo la llaman webhook-pago y
+  // ativar-via-pix, ambos con el cliente de service_role (que manda este header
+  // automatico via supabase.functions.invoke). Sin esto, cualquiera con la URL
+  // podia generar un comprobante de pago falso a nombre de cualquier usuario.
+  const auth = req.headers.get("Authorization") ?? "";
+  const rawServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  if (auth !== `Bearer ${rawServiceKey}` && auth !== `Bearer ${SERVICE_KEY}`) {
+    return new Response(JSON.stringify({ error: "No autorizado" }), { status: 401, headers: CORS });
+  }
+
   // Funci&oacute;n interna &mdash; validaci&oacute;n de employer_id contra la DB
 
   const {

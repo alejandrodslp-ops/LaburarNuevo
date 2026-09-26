@@ -97,7 +97,10 @@ router.post('/', async (req, res) => {
     // Comprobante — silencioso, no bloquea si falla
     fetch(`http://localhost:${process.env.PORT || 3000}/generar-comprobante`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+      },
       body: JSON.stringify({
         employer_id: userId, monto: montoNum, moneda, metodo: 'mercadopago',
         referencia_externa: String(paymentId),

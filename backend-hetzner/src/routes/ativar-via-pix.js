@@ -29,14 +29,13 @@ router.post('/', async (req, res) => {
       monto: 15, moneda: 'BRL', metodo: 'pix', estado: 'aprobado',
     });
 
-    // CUANDO MIGRES A HETZNER: cambiar a fetch('http://localhost:3000/generar-comprobante')
-    fetch('https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/generar-comprobante', {
+    fetch(`http://localhost:${process.env.PORT || 3000}/generar-comprobante`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ employer_id: perfil.id, monto: 15, moneda: 'BRL', metodo: 'pix', worker_id: perfil.id }),
+      body: JSON.stringify({ employer_id: perfil.id, monto: 15, moneda: 'BRL', metodo: 'pix', referencia_externa: ref_label }),
     }).catch(() => {});
 
     return res.json({ ok: true, user_id: perfil.id, activo_hasta: hasta });
