@@ -57,6 +57,14 @@ async function verificarAdmin(authHeader: string): Promise<{ email: string | nul
       );
       if (valid) {
         const payload = JSON.parse(new TextDecoder().decode(b64url(payloadB64)));
+        // La verificación local solo chequeaba la firma, nunca la expiración
+        // (exp) — un JWT de admin, una vez emitido, seguía funcionando para
+        // siempre en este camino. auth.getUser() (el fallback de abajo) sí
+        // valida exp, pero el camino normal (secret configurado, firma
+        // válida) nunca llegaba a usarlo.
+        if (typeof payload.exp === "number" && Date.now() / 1000 > payload.exp) {
+          return { email: null, sub: null };
+        }
         return { email: payload.email ?? null, sub: payload.sub ?? null };
       }
     } catch { /* algoritmo distinto — continuar con fallback */ }

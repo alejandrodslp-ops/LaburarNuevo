@@ -37,6 +37,11 @@ async function verificarAdmin(authHeader) {
       );
       if (valid) {
         const payload = JSON.parse(new TextDecoder().decode(b64url(payloadB64)));
+        // Sin esto, un JWT de admin seguía funcionando para siempre en este
+        // camino local — solo chequeaba la firma, nunca la expiración.
+        if (typeof payload.exp === 'number' && Date.now() / 1000 > payload.exp) {
+          return { email: null, sub: null };
+        }
         return { email: payload.email ?? null, sub: payload.sub ?? null };
       }
     } catch { /* algoritmo distinto — continuar con fallback */ }
@@ -742,8 +747,8 @@ router.post('/', async (req, res) => {
       case 'ofertas_empleadores':        result = await getOfertasEmpleadores(db, params ?? {}); break;
       case 'analytics':                  result = await getAnalytics(db); break;
       case 'enviar_mensaje_directo':     result = await enviarMensajeDirecto(db, params ?? {}); break;
-      case 'listar_mensajes_konexu':       result = await listarMensajesKonexu(db, params ?? {}); break;
-      case 'eliminar_mensaje_konexu':      result = await eliminarMensajeKonexu(db, params ?? {}); break;
+      case 'listar_mensajes_nexu':       result = await listarMensajesKonexu(db, params ?? {}); break;
+      case 'eliminar_mensaje_nexu':      result = await eliminarMensajeKonexu(db, params ?? {}); break;
       case 'gestionar_identidad':        result = await gestionarIdentidad(db, params ?? {}); break;
       case 'verificaciones_pendientes':  result = await getVerificacionesPendientes(db); break;
       case 'scraper_stats': {
