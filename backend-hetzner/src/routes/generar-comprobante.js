@@ -6,17 +6,21 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
 router.post('/', async (req, res) => {
   try {
-    const { employer_id, monto, moneda, metodo, descripcion, worker_id, numero } = req.body ?? {};
-    if (!employer_id) return res.status(400).json({ error: 'employer_id requerido' });
+    // referencia_externa/concepto son los nombres reales (comprobantes tiene
+    // esas columnas, no descripcion/worker_id — corregido junto con el mismo
+    // bug en webhook-pago.js, 2026-09-25, esta ruta nunca estuvo en vivo).
+    const { employer_id, monto, moneda, metodo, referencia_externa, concepto } = req.body ?? {};
+    if (!employer_id || !monto || !metodo) return res.status(400).json({ error: 'Faltan datos requeridos' });
 
     const [{ data: emp }, { data: authUser }] = await Promise.all([
       db.from('profiles').select('nombre, apellido1').eq('id', employer_id).single(),
       db.auth.admin.getUserById(employer_id),
     ]);
 
-    const email      = authUser?.user?.email ?? null;
-    const numeroComp = numero ?? `KONEXU-${Date.now()}`;
-    const fecha      = new Date().toLocaleString('es-UY', { timeZone: 'America/Montevideo' });
+    const email          = authUser?.user?.email ?? null;
+    const numeroComp     = `KONEXU-${Date.now()}`;
+    const conceptoFinal  = concepto || 'Suscripción Konexu — Visualizaciones de perfiles';
+    const fecha          = new Date().toLocaleString('es-UY', { timeZone: 'America/Montevideo' });
 
     const html = `<!DOCTYPE html>
 <html lang="es">
@@ -29,7 +33,7 @@ router.post('/', async (req, res) => {
   <p><strong>Cliente:</strong> ${emp?.nombre ?? ''} ${emp?.apellido1 ?? ''}</p>
   <p><strong>Monto:</strong> ${moneda ?? 'USD'} ${monto}</p>
   <p><strong>Método:</strong> ${metodo ?? '—'}</p>
-  <p><strong>Descripción:</strong> ${descripcion ?? '—'}</p>
+  <p><strong>Descripción:</strong> ${conceptoFinal}</p>
   <hr>
   <p style="color:#888;font-size:12px">Konexu — plataforma de trabajo para LATAM</p>
 </body>
@@ -43,7 +47,8 @@ router.post('/', async (req, res) => {
     );
 
     await db.from('comprobantes').insert({
-      employer_id, worker_id, numero: numeroComp, monto, moneda, metodo, descripcion,
+      employer_id, numero: numeroComp, monto, moneda, metodo,
+      referencia_externa, concepto: conceptoFinal,
     });
 
     if (email) {

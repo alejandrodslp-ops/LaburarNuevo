@@ -146,9 +146,11 @@ Se va actualizando a medida que avanza el desarrollo.
     `docs/superpowers/specs/2026-09-18-company-publicar-empleo-design.md` y el ledger de implementación
     en `.superpowers/sdd/2026-09-18-company-publicar-empleo/progress.md`.
 
-- [ ] **Google Vision API — configurar límite de gasto mensual**
-  Agregar un budget alert en Google Cloud para no recibir sorpresas.
-  → console.cloud.google.com → Billing → Budgets & Alerts
+- [x] **Google Vision API — ya no se llama desde ningún lado (2026-09-25)**
+  Se sacó la verificación de la foto de perfil en `EditarPerfilScreen.js` — esa fotp nunca es visible
+  para nadie más que el propio worker (`BuscarScreen`/`PerfilTrabajadorScreen` no seleccionan
+  `avatar_url`, confirmado en el código). Era el único lugar que llamaba a Vision API en toda la app.
+  Sin llamadas, no hay riesgo de factura — no hace falta budget alert por esto.
 
 - [ ] **Variables de entorno en producción del backend Node.js**
   Si se despliega `backend/server.js` en un hosting (Railway, Render, etc.), configurar
@@ -204,6 +206,12 @@ nativos a mano cuando corresponda).
   las páginas de privacidad/términos queden públicas de verdad (necesario para completar el listing
   de App Store Connect) y decidir cuándo correr el primer build de EAS.
 
+- [ ] **⚠️ Activar PayPal en modo LIVE (hoy corre en sandbox a propósito)** — credenciales, plan de
+  precio y webhook reales ya están creados y probados (ver `docs/superpowers/specs/2026-09-25-worker-activacion-recurrente-design.md`,
+  sección "Credenciales LIVE preparadas"). Falta solo el cambio de 3 variables + 1 valor en `config`
+  para activarlo — hacerlo recién cuando la app esté por publicarse de verdad, con una prueba de pago
+  real chica antes de anunciar el lanzamiento.
+
 ### Metadata para App Store Connect (borrador — falta pegarlo ahí, requiere la cuenta activa)
 
 - **Nombre:** Konexu
@@ -235,6 +243,12 @@ nativos a mano cuando corresponda).
   > Disponible en español, portugués e inglés.
 - **Keywords (máx. 100 car., separadas por coma, sin espacios):**
   `empleo,trabajo,concursos,concurso publico,llamados,bolsa trabajo,empleos uruguay,vacantes,cv,curriculum`
+
+- [ ] **Capturas de pantalla para App Store Connect** — obligatorias, mínimo 1 juego para iPhone 6.7"
+  (el resto de tamaños son opcionales pero recomendados). Tienen que salir de una build real corriendo
+  (simulador o dispositivo) mostrando las pantallas de verdad — no se pueden redactar de antemano como
+  la descripción. Pendiente: definir qué 3-6 pantallas mostrar (ej. búsqueda de concursos, perfil,
+  alertas, mensajería) y sacarlas recién de un build de EAS ya corriendo.
 
 - [ ] **SAS Uruguay** — ~USD 60 solo (con firma electrónica avanzada en cédula).
   Necesaria para: abrir cuenta bancaria empresarial + registrarse en Boku.

@@ -17,20 +17,34 @@ app.use('/enviar-encuestas',     require('./routes/enviar-encuestas'));     // �
 app.use('/mensaje-bienvenida',   require('./routes/mensaje-bienvenida'));   // ✅ lógica migrada
 app.use('/notificar-propuesta',  require('./routes/notificar-propuesta'));  // ✅ lógica migrada
 app.use('/notificar-matches',    require('./routes/notificar-matches'));    // ✅ lógica migrada
+app.use('/mantenimiento',        require('./routes/mantenimiento'));        // ✅ lógica migrada
+app.use('/moderar-ofertas',      require('./routes/moderar-ofertas'));      // ✅ lógica migrada
+app.use('/match-ofertas',        require('./routes/match-ofertas'));        // ✅ lógica migrada
+app.use('/notificar-matches-ofertas', require('./routes/notificar-matches-ofertas')); // ✅ lógica migrada
+app.use('/webhook-paypal',       require('./routes/webhook-paypal'));       // ✅ lógica migrada
+app.use('/cancelar-renovacion-worker', require('./routes/cancelar-renovacion-worker')); // ✅ lógica migrada
 app.use('/send-apk-link',        require('./routes/send-apk-link'));        // ✅ lógica migrada
+app.use('/alertas-waitlist',     require('./routes/alertas-waitlist'));     // ✅ lógica migrada
+app.use('/notificar-indexacion', require('./routes/notificar-indexacion')); // ✅ lógica migrada
 
 // ── Verificaciones ───────────────────────────────────────────────────────────
 app.use('/verificar-email',      require('./routes/verificar-email'));      // ✅ lógica migrada
 app.use('/verificar-telefono',   require('./routes/verificar-telefono'));   // ✅ lógica migrada
-app.use('/verificar-imagen',     require('./routes/verificar-imagen'));     // ✅ lógica migrada
 
 // ── Usuarios ─────────────────────────────────────────────────────────────────
 app.use('/reportar',             require('./routes/reportar'));             // ✅ lógica migrada
 app.use('/simular-visitas',      require('./routes/simular-visitas'));      // ✅ lógica migrada
+app.use('/acreditar-referido',   require('./routes/acreditar-referido'));   // ✅ lógica migrada
+app.use('/activar-prueba',       require('./routes/activar-prueba'));       // ✅ lógica migrada
+app.use('/verificar-pin-admin',  require('./routes/verificar-pin-admin'));  // ✅ lógica migrada
 
 // ── Waitlist ─────────────────────────────────────────────────────────────────
 app.use('/waitlist',             require('./routes/waitlist'));             // ✅ lógica migrada
 app.use('/waitlist-autorizador', require('./routes/waitlist-autorizador')); // ✅ lógica migrada
+
+// ── Telegram / Monitoreo ─────────────────────────────────────────────────────
+app.use('/telegram-concursos',   require('./routes/telegram-concursos'));   // ✅ lógica migrada
+app.use('/monitor-crons',        require('./routes/monitor-crons'));        // ✅ lógica migrada
 
 // ── Matching y búsqueda ──────────────────────────────────────────────────────
 app.use('/match-concursos',      require('./routes/match-concursos'));      // ✅ lógica migrada
@@ -64,4 +78,15 @@ app.use('/vigilante-scraper',    require('./routes/vigilante-scraper'));    // �
 app.get('/health', (_, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`[konexu-backend] corriendo en :${PORT}`));
+app.listen(PORT, () => {
+  console.log(`[konexu-backend] corriendo en :${PORT}`);
+
+  // Prender recién con ACTIVAR_CRON_INTERNO=true el día que este servidor sea
+  // el que corre las tareas de verdad (ver cron.js) — mientras tanto, apagado,
+  // para no duplicar contra los pg_cron de Supabase.
+  if (process.env.ACTIVAR_CRON_INTERNO === 'true') {
+    require('./cron').iniciarCronInterno();
+  } else {
+    console.log('[cron] scheduler interno NO activado (ACTIVAR_CRON_INTERNO != "true")');
+  }
+});

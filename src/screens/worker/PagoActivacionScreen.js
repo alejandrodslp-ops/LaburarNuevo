@@ -15,6 +15,7 @@ export default function PagoActivacionScreen({navigation}){
   const[loadingTarjeta,setLoadingTarjeta]=useState(false);
   const[loadingSMS,setLoadingSMS]=useState(false);
   const[loadingPIX,setLoadingPIX]=useState(false);
+  const[loadingPaypal,setLoadingPaypal]=useState(false);
   const[esperando,setEsperando]=useState(false);
   const[mostrarAyuda,setMostrarAyuda]=useState(false);
   const[pixData,setPixData]=useState(null); // {qr_code, qr_base64, monto, modo}
@@ -110,8 +111,14 @@ export default function PagoActivacionScreen({navigation}){
       const{data:perfil}=await supabase.from('profiles').select('perfil_activo_hasta').eq('id',user.id).single();
       prevHastaRef.current=perfil?.perfil_activo_hasta||null;
       await AsyncStorage.setItem('metodo_pago_worker',metodo);
+      // PayPal es el unico metodo recurrente — usa un tipo distinto para que
+      // crear-pago arme una Subscription en vez de un pago unico de MP.
+      const tipo=metodo==='paypal'?'worker_activacion_paypal':'worker_activacion';
+      const descripcion=metodo==='paypal'
+        ?'Konexu - Activacion recurrente de perfil trabajador (cada 60 dias)'
+        :'Konexu - Activar perfil trabajador 60 días';
       const{data,error}=await supabase.functions.invoke('crear-pago',{
-        body:{user_id:user.id,monto:1,descripcion:'Konexu - Activar perfil trabajador 60 días',tipo:'worker_activacion'},
+        body:{user_id:user.id,monto:1,descripcion,tipo},
       });
       if(error)throw error;
       await Linking.openURL(data.init_point);
@@ -189,6 +196,12 @@ export default function PagoActivacionScreen({navigation}){
 
         <Text style={ss.metodosTit}>ELEGIR MÉTODO DE PAGO</Text>
 
+        <TouchableOpacity style={ss.btnWrap} onPress={()=>iniciarPago('paypal',setLoadingPaypal,'No se pudo conectar con PayPal.')} disabled={loadingPaypal||esperando}>
+          <LinearGradient colors={['#003087','#0070BA']} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
+            {loadingPaypal?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>PayPal — activación recurrente</Text>}
+          </LinearGradient>
+        </TouchableOpacity>
+
         <TouchableOpacity style={ss.btnWrap} onPress={()=>iniciarPago('mp',setLoadingMP,'No se pudo conectar con MercadoPago.')} disabled={loadingMP||esperando}>
           <LinearGradient colors={['#009EE3','#0077B6']} start={{x:0,y:0}} end={{x:1,y:0}} style={ss.btn}>
             {loadingMP?<ActivityIndicator color="#FFF" size="small"/>:<Text style={ss.btnTxt}>💳 MercadoPago</Text>}
@@ -222,8 +235,6 @@ export default function PagoActivacionScreen({navigation}){
           </LinearGradient>
         </TouchableOpacity>
         <Text style={ss.smsHint}>Qualquer banco, qualquer hora. Aprovacao instantanea.</Text>
-
-        <Text style={ss.legal}>Pago único de USD $1 por 60 días. No se renueva automáticamente. Al vencer podés reactivar cuando quieras.</Text>
 
       </ScrollView>
 

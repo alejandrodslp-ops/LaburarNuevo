@@ -1,9 +1,30 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const MP_ACCESS_TOKEN = Deno.env.get("MP_ACCESS_TOKEN") ?? "";
-const SUPABASE_URL    = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_KEY     = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const MP_ACCESS_TOKEN  = Deno.env.get("MP_ACCESS_TOKEN") ?? "";
+const SUPABASE_URL     = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_KEY      = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const PAYPAL_CLIENT_ID = Deno.env.get("PAYPAL_CLIENT_ID") ?? "";
+const PAYPAL_SECRET    = Deno.env.get("PAYPAL_SECRET") ?? "";
+const PAYPAL_ENV       = Deno.env.get("PAYPAL_ENV") ?? "sandbox";
+const PAYPAL_API_BASE  = PAYPAL_ENV === "live"
+  ? "https://api-m.paypal.com"
+  : "https://api-m.sandbox.paypal.com";
+
+async function obtenerTokenPaypal(): Promise<string> {
+  const res = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Authorization": "Basic " + btoa(`${PAYPAL_CLIENT_ID}:${PAYPAL_SECRET}`),
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+    signal: AbortSignal.timeout(10000),
+  });
+  const data = await res.json();
+  if (!data.access_token) throw new Error("PayPal no devolvió access_token");
+  return data.access_token;
+}
 
 const CORS = {
   "Access-Control-Allow-Origin":  "*",
@@ -84,6 +105,63 @@ serve(async (req) => {
     let montoFinal: number;
     let cantidadFinal: number;
     const tipoFinal = tipo || "employer_visualizaciones";
+
+    // PayPal — activación recurrente del worker. Se maneja aparte del resto
+    // porque no crea una preferencia de MercadoPago, sino una Subscription de
+    // PayPal contra un plan ya creado de antemano (uno por tramo de precio,
+    // guardado en config.paypal_plan_id_sa / paypal_plan_id_world). El monto
+    // lo fija el plan (USD, no lo manda el cliente ni esta función).
+    if (tipoFinal === "worker_activacion_paypal") {
+      // La activación del worker es un monto plano (USD 1) para cualquier
+      // país — a diferencia de employer_visualizaciones, NO tiene tramo
+      // SA/Mundo (ver PRECIO_ACTIVACION_WORKER más abajo, mismo criterio).
+      // paypal_plan_id_world quedó creado en config por si alguna vez se
+      // decide diferenciar, pero hoy no se usa.
+      const { data: configRows, error: configErr } = await supabase
+        .from("config")
+        .select("clave, valor")
+        .eq("clave", "paypal_plan_id_sa");
+      const planId = configRows?.[0]?.valor;
+      if (!planId) {
+        console.error("Plan de PayPal no configurado:", configErr?.message);
+        return new Response(JSON.stringify({ error: "Plan de PayPal no configurado" }), {
+          status: 500, headers: CORS,
+        });
+      }
+
+      const ppToken = await obtenerTokenPaypal();
+      const subRes = await fetch(`${PAYPAL_API_BASE}/v1/billing/subscriptions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${ppToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan_id: planId,
+          custom_id: userId,
+          application_context: {
+            return_url: "https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/pago-resultado?status=success",
+            cancel_url: "https://waevdcqdkovqaxkonlvj.supabase.co/functions/v1/pago-resultado?status=failure",
+          },
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!subRes.ok) {
+        const errData = await subRes.json().catch(() => ({}));
+        console.error("PayPal crear subscription error:", subRes.status, errData);
+        return new Response(JSON.stringify({ error: "Error al crear suscripción de PayPal" }), {
+          status: 502, headers: CORS,
+        });
+      }
+      const sub = await subRes.json();
+      const approveLink = (sub.links || []).find((l: { rel: string }) => l.rel === "approve")?.href;
+      if (!approveLink) {
+        return new Response(JSON.stringify({ error: "PayPal no devolvió link de aprobación" }), {
+          status: 502, headers: CORS,
+        });
+      }
+      return new Response(JSON.stringify({
+        init_point: approveLink,
+        preference_id: sub.id,
+      }), { headers: CORS });
+    }
 
     if (tipoFinal === "company_suscripcion") {
       const precio = PRECIOS_SUSCRIPCION[plan_id as string];

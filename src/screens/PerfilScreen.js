@@ -251,6 +251,9 @@ export default function PerfilScreen({navigation}){
         codigo_referido:data.codigo_referido||'',
         dias_extra:data.dias_extra||0,
         fecha_activacion:data.fecha_activacion||null,
+        perfil_activo_hasta:data.perfil_activo_hasta||null,
+        renovacion_automatica:data.worker_renovacion_automatica!==false,
+        paypal_subscription_id:data.worker_paypal_subscription_id||null,
         vistas:data.vistas||0,
         contactos:data.contactos||0,
         avatar:data.avatar_url||null,
@@ -351,6 +354,23 @@ export default function PerfilScreen({navigation}){
     }catch(e){}
   }
 
+  function cancelarRenovacion(){
+    Alert.alert(
+      'Cancelar renovación automática',
+      'Tu perfil sigue activo hasta la fecha ya pagada — solo no se te va a volver a cobrar después.',
+      [
+        {text:'Volver',style:'cancel'},
+        {text:'Cancelar renovación',style:'destructive',onPress:async()=>{
+          try{
+            const{error}=await supabase.functions.invoke('cancelar-renovacion-worker',{body:{}});
+            if(error)throw error;
+            setU(prev=>({...prev,renovacion_automatica:false}));
+          }catch(e){Alert.alert('Error','No se pudo cancelar la renovación. Probá de nuevo en un momento.');}
+        }},
+      ],
+    );
+  }
+
   function cerrarSesion(){
     Alert.alert(t('cerrar_sesion_tit'),t('cerrar_sesion_confirm'),[
       {text:t('cancelar'),style:'cancel'},
@@ -444,6 +464,26 @@ export default function PerfilScreen({navigation}){
                 </TouchableOpacity>
               )}
             </View>
+            {u.activo&&u.paypal_subscription_id&&(
+              <>
+                <Sep/>
+                {u.renovacion_automatica?(
+                  <Fila
+                    icono="repeat-outline"
+                    titulo="Renovación automática activa"
+                    subtitulo={u.perfil_activo_hasta?`Próximo cobro: ${new Date(u.perfil_activo_hasta).toLocaleDateString()}`:''}
+                    onPress={cancelarRenovacion}
+                    derecha={<Text style={ss.cancelarRenovacionTxt}>Cancelar</Text>}
+                  />
+                ):(
+                  <Fila
+                    icono="repeat-outline"
+                    titulo="Renovación automática cancelada"
+                    subtitulo={u.perfil_activo_hasta?`Tu perfil sigue activo hasta el ${new Date(u.perfil_activo_hasta).toLocaleDateString()}`:''}
+                  />
+                )}
+              </>
+            )}
           </Sec>
         )}
 
@@ -587,6 +627,7 @@ const ss=StyleSheet.create({
   statusDot:{width:10,height:10,borderRadius:5},
   renovarBtn:{backgroundColor:'#E8785A',borderRadius:8,paddingHorizontal:14,paddingVertical:7},
   renovarTxt:{color:'#FFFFFF',fontSize:12,fontWeight:'700'},
+  cancelarRenovacionTxt:{color:'#D64545',fontSize:13,fontWeight:'700'},
   version:{textAlign:'center',fontSize:10,color:'#D0C8DC',paddingVertical:32},
   idiomasWrap:{paddingHorizontal:16,paddingBottom:14,borderTopWidth:1,borderTopColor:'#EDE8E2',marginTop:4},
   idiomasTit:{fontSize:12,fontWeight:'700',color:'#1A1020',marginTop:12,marginBottom:2},

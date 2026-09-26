@@ -34,6 +34,18 @@ const JOBS = [
   { name: 'vigilante-6pm',                schedule: '0 21 * * *',  route: '/vigilante-scraper',    body: {} },
   { name: 'vigilante-10pm',               schedule: '0 1 * * *',   route: '/vigilante-scraper',    body: {} },
 
+  // ── Mantenimiento (SQL directo en Supabase, portado 2026-09-25) ─────────
+  { name: 'desactivar-concursos-vencidos',    schedule: '*/30 * * * *', route: '/mantenimiento/desactivar-concursos-vencidos',    body: {} },
+  { name: 'desactivar-suscripciones-vencidas',schedule: '*/30 * * * *', route: '/mantenimiento/desactivar-suscripciones-vencidas',body: {} },
+  { name: 'actualizar-stats-concursos',       schedule: '0 * * * *',   route: '/mantenimiento/actualizar-stats-concursos',       body: {} },
+  { name: 'refresh-stats-por-pais',           schedule: '0 4,16 * * *',route: '/mantenimiento/refresh-stats-por-pais',           body: {} },
+  { name: 'vacuum-concursos-nightly',         schedule: '0 3 * * *',   route: '/mantenimiento/vacuum-concursos',                 body: {} },
+
+  // ── Company: publicar/moderar/matching (portado 2026-09-25) ─────────────
+  { name: 'moderar-ofertas-horario',            schedule: '0 * * * *',    route: '/moderar-ofertas',            body: {} },
+  { name: 'match-ofertas-diario',               schedule: '20 * * * *',  route: '/match-ofertas',               body: { todos: true } },
+  { name: 'notificar-matches-ofertas-recurrente',schedule: '10,40 * * * *',route: '/notificar-matches-ofertas', body: {} },
+
   // ── Telegram ─────────────────────────────────────────────────────────────
   { name: 'telegram-concursos-uy',        schedule: '20 * * * *',  route: '/telegram-concursos',   body: { pais: 'UY', max: 12, horas: 48 } },
 

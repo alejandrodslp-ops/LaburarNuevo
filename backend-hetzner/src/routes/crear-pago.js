@@ -2,7 +2,27 @@ const { Router } = require('express');
 const { db } = require('../lib/supabase');
 const router = Router();
 
-const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN;
+const MP_ACCESS_TOKEN  = process.env.MP_ACCESS_TOKEN;
+const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID;
+const PAYPAL_SECRET    = process.env.PAYPAL_SECRET;
+const PAYPAL_ENV       = process.env.PAYPAL_ENV || 'sandbox';
+const PAYPAL_API_BASE  = PAYPAL_ENV === 'live'
+  ? 'https://api-m.paypal.com'
+  : 'https://api-m.sandbox.paypal.com';
+
+async function obtenerTokenPaypal() {
+  const res = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Basic ' + Buffer.from(`${PAYPAL_CLIENT_ID}:${PAYPAL_SECRET}`).toString('base64'),
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials',
+  });
+  const data = await res.json();
+  if (!data.access_token) throw new Error('PayPal no devolvió access_token');
+  return data.access_token;
+}
 
 // El precio (y, para creditos, la cantidad que se acredita) SIEMPRE los
 // decide el servidor a partir de una tabla fija — nunca lo que mande el
@@ -33,6 +53,44 @@ router.post('/', async (req, res) => {
 
     const { monto, descripcion, worker_id, cantidad_perfiles, tipo, plan_id } = req.body ?? {};
     const tipoFinal = tipo || 'employer_visualizaciones';
+
+    // PayPal — activación recurrente del worker. Aparte del resto: no crea
+    // una preferencia de MercadoPago, sino una Subscription de PayPal contra
+    // un plan ya creado de antemano (config.paypal_plan_id_sa). Monto plano
+    // USD 1 para cualquier país — mismo criterio que PRECIO_ACTIVACION_WORKER
+    // más abajo, no tiene tramo SA/Mundo como employer_visualizaciones.
+    if (tipoFinal === 'worker_activacion_paypal') {
+      const { data: configRows, error: configErr } = await db
+        .from('config').select('clave, valor').eq('clave', 'paypal_plan_id_sa');
+      const planId = configRows?.[0]?.valor;
+      if (!planId) {
+        console.error('Plan de PayPal no configurado:', configErr?.message);
+        return res.status(500).json({ error: 'Plan de PayPal no configurado' });
+      }
+
+      const ppToken = await obtenerTokenPaypal();
+      const subRes = await fetch(`${PAYPAL_API_BASE}/v1/billing/subscriptions`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ppToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          plan_id: planId,
+          custom_id: user.id,
+          application_context: {
+            return_url: 'https://api.konexu.app/pago-resultado?status=success',
+            cancel_url: 'https://api.konexu.app/pago-resultado?status=failure',
+          },
+        }),
+      });
+      if (!subRes.ok) {
+        const errData = await subRes.json().catch(() => ({}));
+        console.error('PayPal crear subscription error:', subRes.status, errData);
+        return res.status(502).json({ error: 'Error al crear suscripción de PayPal' });
+      }
+      const sub = await subRes.json();
+      const approveLink = (sub.links || []).find((l) => l.rel === 'approve')?.href;
+      if (!approveLink) return res.status(502).json({ error: 'PayPal no devolvió link de aprobación' });
+      return res.json({ init_point: approveLink, preference_id: sub.id });
+    }
 
     let montoFinal;
     let cantidadFinal;

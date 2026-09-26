@@ -2,7 +2,6 @@ import React,{useState,useEffect}from 'react';
 import{View,Text,StyleSheet,TouchableOpacity,TextInput,ScrollView,Alert,ActivityIndicator}from 'react-native';
 import{SafeAreaView}from 'react-native-safe-area-context';
 import{supabase}from '../../services/supabase';
-import{useApp}from '../../services/AppContext';
 import*as Localization from 'expo-localization';
 
 const MONEDA_POR_REGION={UY:'UYU',AR:'ARS',BR:'BRL',ES:'EUR',PT:'EUR',FR:'EUR',DE:'EUR',IT:'EUR',GB:'GBP'};
@@ -59,7 +58,6 @@ const MODALIDAD_LBL={presencial:'🏢 Presencial',remoto:'💻 Remoto',hibrido:'
 const CONTRATO_LBL={full_time:'Tiempo completo',part_time:'Medio tiempo',contrato:'Contrato',freelance:'Freelance'};
 
 export default function CrearOfertaScreen({navigation,route}){
-  const{modoActivo}=useApp();
   const editando=route.params?.oferta||null;
   const[loading,setLoading]=useState(false);
 
@@ -81,8 +79,6 @@ export default function CrearOfertaScreen({navigation,route}){
     try{
       const{data:{user}}=await supabase.auth.getUser();
       if(!user){Alert.alert('Error','Debés iniciar sesión');return;}
-
-      const esCompany=modoActivo==='company';
 
       // Sin esto el matching por pais no tiene ninguna señal de zona: no suma
       // el bonus de +15 puntos (baja mucho el recall) y ademas no filtra por
@@ -111,14 +107,11 @@ export default function CrearOfertaScreen({navigation,route}){
         fecha_cierre:fechaCierre||null,
       };
 
-      // employer no pasa por revision automatica (esa es exclusiva de company) —
-      // se aprueba de una para no cambiar su publicacion instantanea existente.
-      if(!editando&&!esCompany){
-        payload.estado='aprobada';
-      }
-      // company: al editar, vuelve a quedar pendiente de revision (evita el bypass
-      // de aprobar contenido limpio y despues editarlo a spam sin re-chequeo).
-      if(editando&&esCompany){
+      // Empleador y company pasan por la misma revisión de 24hs (el default
+      // de la tabla ya es 'pendiente', no hace falta setearlo al crear).
+      // Al editar, vuelve a quedar pendiente de revisión (evita el bypass de
+      // aprobar contenido limpio y después editarlo a spam sin re-chequeo).
+      if(editando){
         payload.estado='pendiente';
         payload.motivo_rechazo=null;
       }
@@ -131,14 +124,10 @@ export default function CrearOfertaScreen({navigation,route}){
       }
       if(error)throw error;
 
-      const tituloAlert=editando?(esCompany?'Cambios recibidos':'Oferta actualizada'):(esCompany?'Búsqueda recibida':'Oferta publicada');
+      const tituloAlert=editando?'Cambios recibidos':'Oferta recibida';
       const mensajeAlert=editando
-        ?(esCompany
-            ?'Los cambios fueron guardados. Como modificaste el contenido, vuelve a pasar por la revisión de calidad — normalmente se activa dentro de las 24 horas.'
-            :'Los cambios fueron guardados.')
-        :(esCompany
-            ?'Tu búsqueda fue recibida correctamente. La estamos revisando para mantener la calidad de las publicaciones en Konexu — normalmente se activa dentro de las 24 horas.'
-            :'Tu oferta ya es visible para los trabajadores.');
+        ?'Los cambios fueron guardados. Como modificaste el contenido, vuelve a pasar por la revisión de calidad — normalmente se activa dentro de las 24 horas.'
+        :'Tu oferta fue recibida correctamente. La estamos revisando para mantener la calidad de las publicaciones en Konexu — normalmente se activa dentro de las 24 horas.';
       Alert.alert(tituloAlert,mensajeAlert,[{text:'OK',onPress:()=>navigation.goBack()}]);
     }catch(e){Alert.alert('Error','No se pudo guardar la oferta. Intentá de nuevo.');}
     finally{setLoading(false);}
