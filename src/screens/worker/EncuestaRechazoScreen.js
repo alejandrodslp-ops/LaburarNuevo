@@ -1,5 +1,5 @@
 import React,{useState} from "react";
-import{View,Text,StyleSheet,TouchableOpacity,ActivityIndicator}from "react-native";
+import{View,Text,StyleSheet,TouchableOpacity,ActivityIndicator,Alert}from "react-native";
 import{SafeAreaView}from "react-native-safe-area-context";
 import{supabase}from "../../services/supabase";
 
@@ -21,13 +21,19 @@ export default function EncuestaRechazoScreen({navigation,route}){
     if(!seleccion)return;
     setCargando(true);
     try{
-      await supabase.from("propuestas")
+      // supabase-js no rechaza la promesa por un error de query (RLS,
+      // columna, etc.) — hay que chequear `error` a mano. Antes, si esto
+      // fallaba, la app navegaba igual como si el rechazo se hubiera
+      // registrado: el worker creía haber respondido y la propuesta
+      // quedaba pendiente para siempre, sin que el empleador se enterara.
+      const{error}=await supabase.from("propuestas")
         .update({
           estado:"rechazada",
           motivo_rechazo:seleccion,
           respondida_at:new Date().toISOString(),
         })
         .eq("id",propuesta.id);
+      if(error)throw error;
 
       // Notificar brevemente al empleador (sin revelar el motivo)
       await supabase.from("mensajes").insert({
@@ -47,10 +53,12 @@ export default function EncuestaRechazoScreen({navigation,route}){
         },
       }).catch(()=>{});
 
-    }catch(e){}finally{setCargando(false);}
-
-    // Volver a la lista de mensajes
-    navigation.navigate("MensajesList");
+      setCargando(false);
+      navigation.navigate("MensajesList");
+    }catch(e){
+      setCargando(false);
+      Alert.alert("Error","No se pudo enviar tu respuesta. Intentá de nuevo.");
+    }
   }
 
   return(

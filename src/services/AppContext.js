@@ -44,21 +44,33 @@ export function AppProvider({children}){
   const[tieneOfertaAprobada,setTieneOfertaAprobada]=useState(null);
   const[calificacionPendiente,setCalificacionPendiente]=useState(null);
 
-  useEffect(()=>{
-    requestNotificationPermission().then(async(granted)=>{
+  async function guardarPushToken(userId){
+    try{
+      const granted=await requestNotificationPermission();
       if(!granted)return;
-      try{
-        const tokenResult=await Notifications.getExpoPushTokenAsync({
-          projectId: Constants.expoConfig?.extra?.eas?.projectId,
-        }).catch(e=>{ if(__DEV__) console.warn("[Konexu] push token error:",e?.message); return null; });
-        const token=tokenResult?.data;
-        const{data}=await supabase.auth.getUser();
-        const user=data?.user;
-        if(user&&token) await supabase.from("profiles").update({push_token:token}).eq("id",user.id);
-      }catch(e){ if(__DEV__) console.warn("[Konexu] push setup error:",e?.message); }
-    });
+      const tokenResult=await Notifications.getExpoPushTokenAsync({
+        projectId: Constants.expoConfig?.extra?.eas?.projectId,
+      }).catch(e=>{ if(__DEV__) console.warn("[Konexu] push token error:",e?.message); return null; });
+      const token=tokenResult?.data;
+      if(userId&&token) await supabase.from("profiles").update({push_token:token}).eq("id",userId);
+    }catch(e){ if(__DEV__) console.warn("[Konexu] push setup error:",e?.message); }
+  }
+
+  useEffect(()=>{
+    supabase.auth.getUser().then(({data})=>{if(data?.user)guardarPushToken(data.user.id);});
     supabase.auth.getSession().then(({data:{session}})=>{setSession(session);});
-    const{data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>{setSession(session);});
+    // Sin esto, un usuario que todavia no habia iniciado sesion al montar la
+    // app (caso normal: Welcome->Register/Login) nunca guardaba su push
+    // token en esa sesion de la app — el efecto de arriba corria una sola
+    // vez, antes de que existiera el usuario. Ahora se reintenta cada vez
+    // que aparece una sesion nueva (login real, no solo refresh de token).
+    let userIdAnterior=null;
+    const{data:{subscription}}=supabase.auth.onAuthStateChange((_,session)=>{
+      setSession(session);
+      const userId=session?.user?.id??null;
+      if(userId&&userId!==userIdAnterior)guardarPushToken(userId);
+      userIdAnterior=userId;
+    });
     return()=>subscription.unsubscribe();
   },[]);
 
@@ -189,8 +201,15 @@ export function AppProvider({children}){
   async function verificarPerfilCompleto(userId){
     try{
       const{data}=await supabase.from("profiles")
-        .select("nombre,apellido1,apellido2,fecha_nac,pais,ciudad,sexo,telefono,servicios,profesiones,tecnicaturas")
+        .select("nombre,apellido1,apellido2,fecha_nac,pais,ciudad,sexo,telefono,servicios,profesiones,tecnicaturas,descripcion_libre")
         .eq("id",userId).single();
+      // EditarPerfilScreen.js tambien deja guardar el perfil solo con
+      // descripcion_libre (>10 caracteres) para quien no encuentra su oficio
+      // en las listas — sin este OR, esos usuarios quedaban atrapados en el
+      // gate de "completa tu perfil" en cada reinicio de la app, aunque su
+      // perfil fuera valido segun las reglas del propio formulario.
+      const tieneCategoria=((data?.servicios?.length??0)+(data?.profesiones?.length??0)+(data?.tecnicaturas?.length??0))>=1;
+      const tieneDescripcionLibre=(data?.descripcion_libre?.trim()?.length??0)>10;
       const ok=!!(
         data?.nombre?.trim()&&
         data?.apellido1?.trim()&&
@@ -200,7 +219,7 @@ export function AppProvider({children}){
         data?.ciudad&&
         data?.sexo&&
         data?.telefono?.trim()&&
-        ((data?.servicios?.length??0)+(data?.profesiones?.length??0)+(data?.tecnicaturas?.length??0))>=1
+        (tieneCategoria||tieneDescripcionLibre)
       );
       setPerfilCompleto(ok);
     }catch{setPerfilCompleto(false);}

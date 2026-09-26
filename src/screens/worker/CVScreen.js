@@ -10,6 +10,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { supabase } from "../../services/supabase";
+import { logError } from "../../services/logError";
 
 const NIVELES_IDIOMA = ["Básico", "Intermedio", "Avanzado", "Nativo"];
 const CORAL = "#E8785A";
@@ -176,7 +177,15 @@ export default function CVScreen({ navigation }) {
         educacion: educacionReal,
         experiencia: experienciaReal,
         certificaciones: certificacionesReal,
-      }).eq("id", userId).then(() => {});
+      }).eq("id", userId).then(({ error }) => {
+        // supabase-js no rechaza la promesa por un error de query — sin
+        // chequear `error` acá, un fallo (RLS, columna, lo que sea) era
+        // 100% invisible, justo en el dato que ve el empleador al aceptar
+        // una propuesta. Sigue siendo best-effort (no interrumpe al
+        // usuario, ya tiene el guardado local), solo que ahora queda
+        // registrado en vez de perderse en silencio.
+        if (error) logError('CVScreen.guardarCambios', error);
+      });
       Alert.alert("Guardado", "Tu CV fue guardado correctamente.");
     } catch (e) {
       Alert.alert("Error", "No se pudo guardar: " + e.message);

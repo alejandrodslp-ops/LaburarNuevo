@@ -572,7 +572,17 @@ export default function PerfilTrabajadorScreen({navigation,route}){
                 'Deseas realizar una nueva busqueda?',
                 [
                   {text:'No',style:'cancel'},
-                  {text:'Si, nueva busqueda',onPress:()=>navigation.getParent()?.navigate('Buscar')},
+                  {text:'Si, nueva busqueda',onPress:()=>{
+                    // company no tiene Tab.Navigator padre (esta pantalla
+                    // cuelga directo de CompanyStack) — .getParent() daba
+                    // undefined y el boton no hacia nada. employer si tiene
+                    // padre (BuscarStack anidado en la pestaña "Buscar").
+                    if(modoActivo==='company'){
+                      navigation.navigate('CompanyTabsMain',{screen:'Explorar'});
+                    }else{
+                      navigation.getParent()?.navigate('Buscar');
+                    }
+                  }},
                 ]
               );
             }}>
