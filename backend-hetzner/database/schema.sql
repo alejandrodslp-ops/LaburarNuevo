@@ -911,6 +911,28 @@ begin
        or new.suscripcion_plan is distinct from old.suscripcion_plan then
       raise exception 'No autorizado: la suscripcion solo se modifica desde el servidor';
     end if;
+    -- Etapa 6 (2026-09-25) — activacion recurrente PayPal del worker: sin
+    -- esto, cualquiera podia pisar worker_paypal_subscription_id con el id
+    -- de otra persona y cancelarle la suscripcion via cancelar-renovacion-worker.
+    if new.worker_paypal_subscription_id is distinct from old.worker_paypal_subscription_id
+       or new.worker_renovacion_automatica is distinct from old.worker_renovacion_automatica
+       or new.worker_intentos_cobro_fallido is distinct from old.worker_intentos_cobro_fallido then
+      raise exception 'No autorizado: la renovación automática solo se modifica desde el servidor';
+    end if;
+    -- Etapa 4B (2026-09-25) — verificacion de telefono: sin esto, alguien
+    -- podia escribirse su propio telefono_otp y "verificarse" sin recibir
+    -- el SMS real. telefono (el numero en si) sigue editable.
+    if new.telefono_verificado is distinct from old.telefono_verificado
+       or new.telefono_otp is distinct from old.telefono_otp
+       or new.telefono_otp_expiry is distinct from old.telefono_otp_expiry then
+      raise exception 'No autorizado: la verificación de teléfono solo se modifica desde el servidor';
+    end if;
+    -- Mismo agujero, mismo dia: verificar-email tiene el mismo patron OTP.
+    if new.email_verificado is distinct from old.email_verificado
+       or new.email_otp is distinct from old.email_otp
+       or new.email_otp_expiry is distinct from old.email_otp_expiry then
+      raise exception 'No autorizado: la verificación de email solo se modifica desde el servidor';
+    end if;
   end if;
   return new;
 end;
