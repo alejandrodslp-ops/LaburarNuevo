@@ -17,9 +17,9 @@
     fill="#E8785A"
   >Konexu</text>
 
-  <!-- Pieza de rompecabezas vectorial (reemplaza al emoji 🧩 del nav web),
-       teal, superpuesta esquina inferior derecha del wordmark, mismo
-       criterio visual que usa el logo del nav (chico, solapado). -->
+  <!-- Pieza de rompecabezas vectorial, teal, superpuesta esquina inferior
+       derecha del wordmark, mismo criterio visual que usa el logo del nav
+       (chico, solapado). -->
   <g>
     <rect x="832" y="550" width="120" height="120" rx="16" ry="16" fill="#2DD4BF"/>
     <circle cx="892" cy="550" r="22" fill="#2DD4BF"/>

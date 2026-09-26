@@ -98,9 +98,8 @@ Mantenelo actualizado desde Obsidian. Es la memoria del proyecto.
 
 ## DISEÑO APROBADO — NO TOCAR
 
-- **Logo (actualizado 2026-09-13):** wordmark "konexu" minúscula con glow rojo/naranja, dentro de cuadrado
+- **Logo:** wordmark "konexu" minúscula con glow rojo/naranja, dentro de cuadrado
   redondeado con borde rojo, fondo degradado crema — `assets/icon.png`/`adaptive-icon.png`/`favicon.png`.
-  Reemplaza al logo anterior ("Nexu" + emoji 🧩), que ya no se usa en ningún lado de la app.
 - **WelcomeScreen:** gradiente navy, borde coral, tagline en Playfair Display Bold Italic
 - **Sistema de referidos:** link con ?r=CODIGO oculto, nunca mostrar el código al usuario
 - **Mensajes de bienvenida:** aprobados, no modificar
