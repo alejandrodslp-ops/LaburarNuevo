@@ -922,8 +922,15 @@ begin
     -- Etapa 4B (2026-09-25) — verificacion de telefono: sin esto, alguien
     -- podia escribirse su propio telefono_otp y "verificarse" sin recibir
     -- el SMS real. telefono (el numero en si) sigue editable.
-    if new.telefono_verificado is distinct from old.telefono_verificado
-       or new.telefono_otp is distinct from old.telefono_otp
+    -- IMPORTANTE (corregido el mismo dia): telefono_verificado solo se
+    -- bloquea false->true (auto-verificarse) — EditarPerfilScreen.js
+    -- legitimamente manda false cuando el worker cambia de numero, en el
+    -- mismo upsert que el resto del perfil; bloquear esa direccion tambien
+    -- rompia el guardado completo. Mismo criterio que perfil_activo arriba.
+    if new.telefono_verificado = true and coalesce(old.telefono_verificado, false) = false then
+      raise exception 'No autorizado: la verificación de teléfono se hace desde el servidor';
+    end if;
+    if new.telefono_otp is distinct from old.telefono_otp
        or new.telefono_otp_expiry is distinct from old.telefono_otp_expiry then
       raise exception 'No autorizado: la verificación de teléfono solo se modifica desde el servidor';
     end if;
