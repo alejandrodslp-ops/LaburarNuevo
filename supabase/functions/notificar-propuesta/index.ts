@@ -17,9 +17,34 @@ serve(async (req) => {
   }
 
   try {
+    // Verificar quién llama de verdad — antes cualquiera con la anon key
+    // podía mandar una push "de Konexu" con cualquier texto a cualquier
+    // user_id, sin ninguna relación real de por medio. Ahora se exige el
+    // JWT del caller y una fila reciente en mensajes/propuestas que
+    // conecte a ese caller con el destinatario — la misma relación que
+    // la app ya crea (con RLS) antes de llamar a esta función.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "").trim();
+    if (!token) return new Response(JSON.stringify({ error: "No autorizado" }), { status: 401, headers: CORS });
+    const { data: { user: caller }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !caller) return new Response(JSON.stringify({ error: "Token inválido" }), { status: 401, headers: CORS });
+
     const { user_id, worker_id, titulo, cuerpo, pantalla } = await req.json();
     const destinatario = user_id || worker_id;
     if (!destinatario) throw new Error("user_id requerido");
+
+    const hace5min = new Date(Date.now() - 5 * 60000).toISOString();
+    const [{ data: msg }, { data: prop }] = await Promise.all([
+      supabase.from("mensajes").select("id")
+        .or(`and(sender_id.eq.${caller.id},receiver_id.eq.${destinatario}),and(sender_id.eq.${destinatario},receiver_id.eq.${caller.id})`)
+        .gte("created_at", hace5min).limit(1).maybeSingle(),
+      supabase.from("propuestas").select("id")
+        .or(`and(employer_id.eq.${caller.id},worker_id.eq.${destinatario}),and(employer_id.eq.${destinatario},worker_id.eq.${caller.id})`)
+        .gte("created_at", hace5min).limit(1).maybeSingle(),
+    ]);
+    if (!msg && !prop) {
+      return new Response(JSON.stringify({ error: "Sin relación reciente con el destinatario" }), { status: 403, headers: CORS });
+    }
 
     const { data: profile } = await supabase
       .from("profiles")
